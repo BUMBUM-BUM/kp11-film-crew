@@ -153,8 +153,7 @@ app.get('/api/admin/data', authenticateToken, async (req, res) => {
   try {
     const roles = await prisma.role.findMany();
     const users = await prisma.user.findMany({ 
-      include: { role: true }, 
-      select: { id: true, fullName: true, email: true, role: true, rating: true } 
+      include: { role: true } 
     });
     res.json({ roles, users });
   } catch (err) {
