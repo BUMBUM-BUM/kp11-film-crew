@@ -53,7 +53,7 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
     res.json({ token, user: { id: user.id, fullName: user.fullName, role: user.role } });
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка при входе' });
+    res.status(500).json({ error: 'Ошибка при входе: ' + err.message });
   }
 });
 
@@ -73,7 +73,7 @@ app.get('/api/shoots', async (req, res) => {
   }
 });
 
-// Роут для отдачи сайта
+// Все остальные запросы перенаправляем на фронтенд
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
