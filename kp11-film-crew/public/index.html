@@ -13,11 +13,11 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-red-600 selection:text-white">
 
-  <!-- Навбар с фирменным логотипом ЦКТ и красно-чёрной палитрой -->
-  <header class="border-b border-neutral-800 bg-black/80 backdrop-blur-md sticky top-0 z-50">
+  <!-- Навбар с логотипом ЦКТ -->
+  <header class="border-b border-neutral-800 bg-black/90 backdrop-blur-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
       <div class="flex items-center space-x-4">
-        <!-- Векторный логотип ЦКТ в минимализме -->
+        <!-- Векторный минималистичный логотип ЦКТ -->
         <svg class="w-12 h-10" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect width="120" height="100" rx="16" fill="#E50914"/>
           <path d="M22 35H32V65H22V35Z" fill="white"/>
@@ -30,7 +30,6 @@
         </div>
       </div>
       <div id="userNav" class="flex items-center space-x-4">
-        <!-- Кнопки управления авторизацией -->
         <button onclick="openModal('login')" class="text-sm font-medium text-neutral-300 hover:text-white transition">Вход</button>
         <button onclick="openModal('register')" class="text-sm bg-red-600 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20">Регистрация</button>
       </div>
@@ -40,51 +39,58 @@
   <!-- Основной контент -->
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full">
     
-    <!-- Баннер / Шапка -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-6 border-b border-neutral-800">
       <div>
         <div class="flex items-center space-x-2 mb-2">
           <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-          <span class="text-xs font-mono text-red-500 uppercase tracking-widest">Система учёта съёмок • Кино и ТВ</span>
+          <span class="text-xs font-mono text-red-500 uppercase tracking-widest">Портал съёмочной группы • ЦКТ</span>
         </div>
-        <h2 class="text-3xl md:text-4xl font-black tracking-tight text-white">Производственный портал</h2>
+        <h2 class="text-3xl md:text-4xl font-black tracking-tight text-white">Производственный комплекс</h2>
       </div>
-      <div id="actionButtonContainer">
-        <!-- Кнопка создания съёмки (для преподавателей) -->
-      </div>
+      <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Сетка контента -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      
-      <!-- Список съёмок (2 колонки) -->
+    <!-- Вкладки (Админ-панель доступна администратору) -->
+    <div id="adminTabNav" class="hidden flex space-x-4 mb-8 border-b border-neutral-800 pb-4">
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition">Съёмки</button>
+      <button onclick="switchTab('admin')" id="tabAdminBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition">⚙️ Управление ролями и пользователями (Админ)</button>
+    </div>
+
+    <!-- Основной вид: Съёмки -->
+    <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="flex items-center justify-between">
-          <h3 class="text-xl font-bold tracking-tight text-white">Запланированные съёмки</h3>
+          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены и выезды</h3>
           <span id="shootCount" class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-full text-neutral-400">0 смен</span>
         </div>
-        
         <div id="shootsList" class="space-y-4">
-          <div class="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-neutral-500">
-            Загрузка списка съёмок...
-          </div>
+          <div class="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-neutral-500">Загрузка съёмок...</div>
         </div>
       </div>
-
-      <!-- Боковая панель профиля (1 колонка) -->
       <div class="space-y-6">
         <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 backdrop-blur">
           <h3 class="text-lg font-bold mb-4 text-white">Профиль участника</h3>
           <div id="sidebarProfile" class="text-sm text-neutral-400">
-            <p>Войдите в систему под своей учетной записью, чтобы управлять съёмками, подавать заявки на роли и проверять статус профпригодности.</p>
+            <p>Войдите в систему для доступа к съёмкам. Все новые аккаунты регистрируются как студенты.</p>
           </div>
         </div>
       </div>
-
     </div>
+
+    <!-- Вид: Админ-панель управления ролями -->
+    <div id="viewAdmin" class="hidden space-y-8">
+      <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+        <h3 class="text-xl font-bold mb-4 text-white">👥 Управление пользователями и ролями</h3>
+        <p class="text-sm text-neutral-400 mb-6">Здесь вы можете изменить роль любого зарегистрированного студента на мастера или администратора.</p>
+        <div id="adminUsersList" class="space-y-3">
+          <!-- Заполняется через JS -->
+        </div>
+      </div>
+    </div>
+
   </main>
 
-  <!-- Модальное окно Авторизации / Регистрации -->
+  <!-- Модальное окно Вход/Регистрация -->
   <div id="modal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
     <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-md relative shadow-2xl">
       <button onclick="closeModal()" class="absolute top-4 right-4 text-neutral-500 hover:text-white">✕</button>
@@ -93,20 +99,16 @@
       <form id="authForm" onsubmit="handleAuth(event)" class="space-y-4">
         <div id="registerFields" class="hidden space-y-4">
           <div>
-            <label class="block text-xs font-mono text-neutral-400 mb-1">ФИО (Студент или Преподаватель)</label>
+            <label class="block text-xs font-mono text-neutral-400 mb-1">ФИО</label>
             <input type="text" id="fullName" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
           </div>
-          <div>
-            <label class="block text-xs font-mono text-neutral-400 mb-1">Роль</label>
-            <select id="role" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
-              <option value="STUDENT">Студент (Кино и телепроизводство)</option>
-              <option value="TEACHER">Преподаватель / Мастер</option>
-            </select>
+          <div class="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700/50 text-xs text-neutral-400">
+            ℹ️ Все новые пользователи регистрируются как <strong>Студенты</strong>. Администратор может изменить вашу роль в панели управления.
           </div>
         </div>
         <div>
           <label class="block text-xs font-mono text-neutral-400 mb-1">Email</label>
-          <input type="email" id="email" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="user@kp11.ru">
+          <input type="email" id="email" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="user@ckt.ru">
         </div>
         <div>
           <label class="block text-xs font-mono text-neutral-400 mb-1">Пароль</label>
@@ -127,13 +129,13 @@
 
     function updateNav() {
       const nav = document.getElementById('userNav');
-      const actionContainer = document.getElementById('actionButtonContainer');
       const sidebar = document.getElementById('sidebarProfile');
+      const adminNav = document.getElementById('adminTabNav');
 
       if (currentUser) {
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
-            <span class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg text-red-500">${currentUser.fullName} (${currentUser.role === 'TEACHER' ? 'Преподаватель' : 'Студент'})</span>
+            <span class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg text-red-500">${currentUser.fullName} (${currentUser.role})</span>
             <button onclick="logout()" class="text-xs text-neutral-400 hover:text-red-400 transition">Выйти</button>
           </div>
         `;
@@ -141,24 +143,70 @@
         sidebar.innerHTML = `
           <div class="space-y-3">
             <div class="flex justify-between items-center"><span class="text-neutral-400">Статус:</span><span class="text-emerald-500 font-medium">Активен</span></div>
+            <div class="flex justify-between items-center"><span class="text-neutral-400">Роль:</span><span class="text-red-500 font-bold">${currentUser.role}</span></div>
             <div class="flex justify-between items-center"><span class="text-neutral-400">Направление:</span><span class="text-white">Кино и ТВ</span></div>
-            ${currentUser.role === 'STUDENT' ? '<div class="flex justify-between items-center"><span class="text-neutral-400">Профпригодность:</span><span class="text-red-500 font-mono font-bold">5.0 / 5.0 ⭐</span></div>' : ''}
           </div>
         `;
 
-        if (currentUser.role === 'TEACHER') {
-          actionContainer.innerHTML = `
-            <button onclick="alert('Модуль создания съёмки готов к подключению!')" class="bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center space-x-2">
-              <span>+ Создать съёмку</span>
-            </button>
-          `;
+        // Если пользователь Администратор — показываем вкладку админки
+        if (currentUser.role === 'Администратор') {
+          adminNav.classList.remove('hidden');
+          loadAdminPanel();
         }
+      }
+    }
+
+    function switchTab(tab) {
+      const isShoots = tab === 'shoots';
+      document.getElementById('viewShoots').classList.toggle('hidden', !isShoots);
+      document.getElementById('viewAdmin').classList.toggle('hidden', isShoots);
+      document.getElementById('tabShootsBtn').className = isShoots ? 'px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition' : 'px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition';
+      document.getElementById('tabAdminBtn').className = !isShoots ? 'px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition' : 'px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition';
+    }
+
+    async function loadAdminPanel() {
+      try {
+        const res = await fetch('/api/admin/data');
+        const data = await res.json();
+        const container = document.getElementById('adminUsersList');
+
+        container.innerHTML = data.users.map(u => `
+          <div class="flex items-center justify-between p-4 rounded-xl bg-neutral-800/60 border border-neutral-700">
+            <div>
+              <h4 class="font-bold text-white">${u.fullName}</h4>
+              <p class="text-xs text-neutral-400 mono">${u.email}</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-600">
+                ${data.roles.map(r => `<option value="${r.id}" ${u.role?.id === r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Ошибка загрузки админки:', err);
+      }
+    }
+
+    async function changeUserRole(userId, roleId) {
+      try {
+        const res = await fetch('/api/admin/assign-role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, roleId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        alert('Роль успешно обновлена!');
+        loadAdminPanel();
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
       }
     }
 
     function openModal(type) {
       isRegister = type === 'register';
-      document.getElementById('modalTitle').innerText = isRegister ? 'Регистрация ЦКТ' : 'Вход в аккаунт';
+      document.getElementById('modalTitle').innerText = isRegister ? 'Регистрация в ЦКТ' : 'Вход в аккаунт';
       document.getElementById('registerFields').classList.toggle('hidden', !isRegister);
       document.getElementById('modal').classList.remove('hidden');
     }
@@ -180,7 +228,6 @@
         email: document.getElementById('email').value,
         password: document.getElementById('password').value,
         fullName: isRegister ? document.getElementById('fullName').value : undefined,
-        role: isRegister ? document.getElementById('role').value : undefined,
       };
 
       try {
@@ -210,12 +257,12 @@
         document.getElementById('shootCount').innerText = `${shoots.length} смен`;
 
         if (shoots.length === 0) {
-          container.innerHTML = `<div class="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-neutral-500">Пока нет запланированных съёмок. Преподаватель может создать первую!</div>`;
+          container.innerHTML = `<div class="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-neutral-500">Пока нет запланированных съёмок.</div>`;
           return;
         }
 
         container.innerHTML = shoots.map(s => `
-          <div class="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 hover:border-neutral-700 transition">
+          <div class="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800">
             <div class="flex justify-between items-start mb-3">
               <span class="text-xs font-mono bg-red-600/10 text-red-500 border border-red-600/20 px-2.5 py-1 rounded">${s.type}</span>
               <span class="text-xs font-mono text-neutral-400">${new Date(s.date).toLocaleDateString()}</span>
