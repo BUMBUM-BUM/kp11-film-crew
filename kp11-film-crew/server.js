@@ -34,12 +34,12 @@ async function authenticateToken(req, res, next) {
   }
 }
 
-// Инициализация базы: Роли, Админ и 10 тестовых студентов
+// Синхронная/надежная инициализация базы при старте
 async function initDatabase() {
   try {
     let studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
     if (!studentRole) {
-      studentRole = await prisma.role.create({ data: { name: 'Студент', description: 'Базовая роль для всех учащихся' } });
+      studentRole = await prisma.role.create({ data: { name: 'Студент', description: 'Базовая роль' } });
     }
 
     let teacherRole = await prisma.role.findUnique({ where: { name: 'Мастер / Преподаватель' } });
@@ -50,23 +50,24 @@ async function initDatabase() {
     let adminRole = await prisma.role.findUnique({ where: { name: 'Администратор' } });
     if (!adminRole) {
       adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Полный доступ' } });
-      
-      const adminExists = await prisma.user.findUnique({ where: { email: 'admin@ckt.ru' } });
-      if (!adminExists) {
-        const passwordHash = await bcrypt.hash('admin123', 10);
-        await prisma.user.create({
-          data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор ЦКТ', roleId: adminRole.id }
-        });
-      }
     }
 
-    // Создание 10 тестовых студентов, если их нет
+    // Создаем дефолтного админа, если нет
+    const adminExists = await prisma.user.findUnique({ where: { email: 'admin@ckt.ru' } });
+    if (!adminExists) {
+      const passwordHash = await bcrypt.hash('admin123', 10);
+      await prisma.user.create({
+        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор ЦКТ', roleId: adminRole.id }
+      });
+    }
+
+    // Создаем 10 тестовых студентов
     for (let i = 1; i <= 10; i++) {
       const email = `test-${i}@ckt.ru`;
       const exists = await prisma.user.findUnique({ where: { email } });
       if (!exists) {
         const passwordHash = await bcrypt.hash('123456', 10);
-        const randomRating = parseFloat((3.5 + Math.random() * 1.5).toFixed(1)); // рейтинг от 3.5 до 5.0
+        const randomRating = parseFloat((3.8 + Math.random() * 1.2).toFixed(1));
         await prisma.user.create({
           data: {
             email,
@@ -75,22 +76,24 @@ async function initDatabase() {
             roleId: studentRole.id,
             course: 2,
             rating: randomRating,
-            skills: ['Оператор', 'Звукорежиссер', 'Осветитель'].slice(0, (i % 3) + 1)
+            skills: ['Оператор', 'Звукорежиссер', 'Осветитель']
           }
         });
       }
     }
-    console.log('✅ База данных инициализирована (роли, админ и 10 тестовых студентов готовы)');
+    console.log('✅ База данных полностью инициализирована!');
   } catch (err) {
     console.error('Ошибка инициализации БД:', err.message);
   }
 }
+
+// Запускаем инициализацию сразу
 initDatabase();
 
 // === РЕГИСТРАЦИЯ ===
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, fullName, course, skills } = req.body;
+    const { email, password, fullName, course } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return res.status(400).json({ error: 'Пользователь уже существует' });
 
@@ -105,7 +108,7 @@ app.post('/api/auth/register', async (req, res) => {
         roleId: studentRole ? studentRole.id : null,
         course: course ? parseInt(course) : 1,
         rating: 5.0,
-        skills: skills || ['Универсал']
+        skills: ['Кинопроизводство']
       },
       include: { role: true }
     });
@@ -174,8 +177,8 @@ app.post('/api/admin/assign-role', authenticateToken, async (req, res) => {
   }
 });
 
-// === СЪЁМКИ: ПОЛУЧИТЬ ВСЕ И СТУДЕНТОВ ДЛЯ НАБОРА ===
-app.get('/api/shoots', authenticateToken, async (req, res) => {
+// === СЪЁМКИ И СТУДЕНТЫ ===
+app.get('/api/shoots', async (req, res) => {
   try {
     const shoots = await prisma.shoot.findMany({
       include: {
@@ -185,7 +188,6 @@ app.get('/api/shoots', authenticateToken, async (req, res) => {
       orderBy: { date: 'asc' }
     });
     
-    // Также отдаем список всех студентов для модалки назначения команды
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
     const students = await prisma.user.findMany({
       where: { roleId: studentRole ? studentRole.id : undefined },
@@ -198,10 +200,10 @@ app.get('/api/shoots', authenticateToken, async (req, res) => {
   }
 });
 
-// === СЪЁМКИ: СОЗДАТЬ ===
+// === СОЗДАТЬ СЪЁМКУ ===
 app.post('/api/shoots', authenticateToken, async (req, res) => {
   try {
-    const { title, description, type, date, location, studentIds } = req.body;
+    const { title, description, type, date, location, studentIds, latitude, longitude } = req.body;
     const shoot = await prisma.shoot.create({
       data: {
         title,
@@ -209,11 +211,13 @@ app.post('/api/shoots', authenticateToken, async (req, res) => {
         type: type || 'СТУДИЯ',
         date: new Date(date),
         location,
+        latitude: latitude ? parseFloat(latitude) : 55.751244,
+        longitude: longitude ? parseFloat(longitude) : 37.618423,
         creatorId: req.user.id,
         crew: {
           create: (studentIds || []).map(userId => ({
             userId,
-            roleInShoot: 'Участник съёмочной группы',
+            roleInShoot: 'Студент-кинопроизводитель',
             status: 'PENDING'
           }))
         }
@@ -226,21 +230,21 @@ app.post('/api/shoots', authenticateToken, async (req, res) => {
   }
 });
 
-// === СТУДЕНТ: ПОДТВЕРДИТЬ ИЛИ ОТКЛОНИТЬ УЧАСТИЕ ===
+// === ОТВЕТ СТУДЕНТА НА ПРИГЛАШЕНИЕ ===
 app.post('/api/crew/response', authenticateToken, async (req, res) => {
   try {
-    const { crewMemberId, status } = req.body; // status: 'ACCEPTED' или 'DECLINED'
+    const { crewMemberId, status } = req.body;
     const updated = await prisma.crewMember.update({
       where: { id: crewMemberId },
       data: { status }
     });
     res.json({ success: true, updated });
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка ответа на приглашение' });
+    res.status(500).json({ error: 'Ошибка ответа' });
   }
 });
 
-// === УВЕДОМЛЕНИЯ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ===
+// === УВЕДОМЛЕНИЯ ===
 app.get('/api/notifications', authenticateToken, async (req, res) => {
   try {
     const invitations = await prisma.crewMember.findMany({
@@ -249,7 +253,7 @@ app.get('/api/notifications', authenticateToken, async (req, res) => {
     });
     res.json(invitations);
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка получения уведомлений' });
+    res.status(500).json({ error: 'Ошибка уведомлений' });
   }
 });
 
