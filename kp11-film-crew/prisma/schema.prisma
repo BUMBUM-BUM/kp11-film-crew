@@ -7,25 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Права в системе (например: CREATE_SHOOT, RATE_STUDENTS, MANAGE_ROLES)
 model Permission {
   id          String   @id @default(uuid())
-  code        String   @unique // Уникальный код права (напр. 'shoot:create')
-  name        String   // Человекопонятное название
+  code        String   @unique
+  name        String
   roles       RolePermission[]
 }
 
-// Динамические роли (Админ, Мастер, Студент и т.д.)
 model Role {
   id          String   @id @default(uuid())
-  name        String   @unique // Название роли (напр. 'Мастер', 'Студент', 'Ассистент')
+  name        String   @unique
   description String?
   permissions RolePermission[]
   users       User[]
   createdAt   DateTime @default(now())
 }
 
-// Связь ролей и прав (Многие ко многим)
 model RolePermission {
   roleId       String
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -36,33 +33,32 @@ model RolePermission {
 }
 
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
-  passwordHash String
-  fullName     String
-  
-  // Привязка к динамической роли
-  roleId       String?
-  role         Role?        @relation(fields: [roleId], references: [id])
-  
-  course       Int?
-  specialty    String?      @default("Кино и телепроизводство")
-  rating       Float        @default(5.0)
-  skills       String[]
-  shoots       Shoot[]      @relation("CreatedShoots")
-  crewMembers  CrewMember[]
-  createdAt    DateTime     @default(now())
+  id            String       @id @default(uuid())
+  email         String       @unique
+  passwordHash  String
+  fullName      String
+  groupName     String       @default("КИТ-11") // Номер учебной группы
+  roleId        String?
+  role          Role?        @relation(fields: [roleId], references: [id])
+  course        Int?
+  rating        Float        @default(5.0)
+  isSuspended   Boolean      @default(false) // Флаг временного отстранения
+  skills        String[]
+  shoots        Shoot[]      @relation("CreatedShoots")
+  crewMembers   CrewMember[]
+  createdAt     DateTime     @default(now())
 }
 
 model Shoot {
   id          String       @id @default(uuid())
   title       String
   description String
-  type        String       @default("STUDIO") // STUDIO или LOCATION
+  type        String       @default("СТУДИЯ")
   date        DateTime
   location    String
   latitude    Float?       @default(55.751244)
   longitude   Float?       @default(37.618423)
+  isCompleted Boolean      @default(false) // Признак завершённой смены
   creatorId   String
   creator     User         @relation("CreatedShoots", fields: [creatorId], references: [id])
   crew        CrewMember[]
@@ -77,6 +73,6 @@ model CrewMember {
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   roleInShoot   String
   status        String     @default("PENDING") // PENDING, ACCEPTED, DECLINED
-  declineReason String?
+  attendance    String     @default("PRESENT") // PRESENT (присутствовал), ABSENT (прогул)
   invitedAt     DateTime   @default(now())
 }
