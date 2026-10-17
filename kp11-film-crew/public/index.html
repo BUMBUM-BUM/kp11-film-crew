@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ЦКТ • Кино и Телепроизводство | КП11</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Подключаем API Яндекс.Карт -->
+  <!-- Яндекс Карты API -->
   <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_апи_ключ&lang=ru_RU" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
@@ -49,17 +49,18 @@
     <!-- Уведомления -->
     <div id="notificationsContainer" class="mb-8"></div>
 
-    <!-- Вкладки -->
+    <!-- Вкладки интерфейса -->
     <div id="tabNav" class="hidden flex space-x-4 mb-8 border-b border-neutral-800 pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition">Съёмки & Карта</button>
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition">🎬 Съёмки</button>
+      <button onclick="switchTab('map')" id="tabMapBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition">🗺️ Карта локаций</button>
       <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition">⚙️ Управление ролями (Админ)</button>
     </div>
 
-    <!-- Вкладка: Съёмки и Карта -->
+    <!-- Вкладка: Съёмки -->
     <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="flex items-center justify-between">
-          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены и выезды</h3>
+          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены</h3>
           <span id="shootCount" class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-full text-neutral-400">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-4">
@@ -74,15 +75,15 @@
             <p>Войдите в систему для доступа к съёмкам.</p>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Яндекс Карта -->
-        <div class="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800">
-          <h3 class="text-sm font-bold mb-3 text-white flex items-center justify-between">
-            <span>🗺️ Карта съёмок (Яндекс)</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          </h3>
-          <div id="mapContainer" class="w-full h-64 rounded-xl border border-neutral-800 overflow-hidden bg-neutral-950"></div>
-        </div>
+    <!-- Вкладка: Карта (Отдельная полноразмерная) -->
+    <div id="viewMap" class="hidden space-y-4">
+      <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+        <h3 class="text-xl font-bold mb-2 text-white">🗺️ Интерактивная карта съёмок и выездов</h3>
+        <p class="text-sm text-neutral-400 mb-4">Все студийные павильоны и натурные выезды ЦКТ на карте Москвы.</p>
+        <div id="fullMapContainer" class="w-full h-[550px] rounded-2xl border border-neutral-800 overflow-hidden bg-neutral-950"></div>
       </div>
     </div>
 
@@ -99,42 +100,50 @@
 
   </main>
 
-  <!-- Модальное окно Создания съёмки -->
+  <!-- Модальное окно Создания съёмки с выбором точки на карте -->
   <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
-    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeShootModal()" class="absolute top-4 right-4 text-neutral-500 hover:text-white">✕</button>
       <h3 class="text-xl font-bold mb-4 text-white">🎬 Создать съёмку и набрать команду</h3>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-mono text-neutral-400 mb-1">Название проекта</label>
-          <input type="text" id="shootTitle" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
+          <input type="text" id="shootTitle" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
         </div>
         <div>
           <label class="block text-xs font-mono text-neutral-400 mb-1">Описание</label>
-          <textarea id="shootDesc" rows="2" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600"></textarea>
+          <textarea id="shootDesc" rows="2" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-mono text-neutral-400 mb-1">Тип</label>
-            <select id="shootType" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
+            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
               <option value="СТУДИЯ">Студия</option>
               <option value="ВЫЕЗД">Выезд</option>
             </select>
           </div>
           <div>
             <label class="block text-xs font-mono text-neutral-400 mb-1">Дата и время</label>
-            <input type="datetime-local" id="shootDate" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
+            <input type="datetime-local" id="shootDate" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
           </div>
         </div>
         <div>
           <label class="block text-xs font-mono text-neutral-400 mb-1">Локация</label>
-          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600" placeholder="КП11, Павильон №1">
+          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="КП11, Павильон №1">
+        </div>
+
+        <!-- Выбор точки на карте для выезда -->
+        <div id="pickerMapContainerWrapper" class="hidden space-y-2">
+          <label class="block text-xs font-mono text-amber-400">📍 Кликните на карту, чтобы указать точную точку выезда:</label>
+          <div id="pickerMap" class="w-full h-48 rounded-xl border border-neutral-700 overflow-hidden bg-neutral-950"></div>
+          <input type="hidden" id="selectedLat" value="55.751244">
+          <input type="hidden" id="selectedLon" value="37.618423">
         </div>
         
         <div>
-          <label class="block text-xs font-mono text-neutral-400 mb-2">👥 Выберите тестовых студентов в команду:</label>
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+          <label class="block text-xs font-mono text-neutral-400 mb-2">👥 Выберите студентов в команду:</label>
+          <div id="studentsCheckboxes" class="max-h-40 overflow-y-auto space-y-2 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
             <!-- Заполняется через JS -->
           </div>
         </div>
@@ -179,16 +188,18 @@
     let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     let token = localStorage.getItem('token') || '';
     let globalStudents = [];
-    let myMap = null;
+    let fullMap = null;
+    let pickerMap = null;
+    let pickerPlacemark = null;
 
-    // Инициализация Яндекс Карт
     if (typeof ymaps !== 'undefined') {
-      ymaps.ready(initYandexMap);
+      ymaps.ready(initMaps);
     }
 
-    function initYandexMap() {
-      myMap = new ymaps.Map("mapContainer", {
-        center: [55.751244, 37.618423], // Центр Москвы
+    function initMaps() {
+      // Инициализация большой карты на отдельной вкладке
+      fullMap = new ymaps.Map("fullMapContainer", {
+        center: [55.751244, 37.618423],
         zoom: 11,
         controls: ['zoomControl', 'geolocationControl']
       });
@@ -237,10 +248,20 @@
 
     function switchTab(tab) {
       const isShoots = tab === 'shoots';
+      const isMap = tab === 'map';
+      const isAdmin = tab === 'admin';
+
       document.getElementById('viewShoots').classList.toggle('hidden', !isShoots);
-      document.getElementById('viewAdmin').classList.toggle('hidden', isShoots);
+      document.getElementById('viewMap').classList.toggle('hidden', !isMap);
+      document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
+
       document.getElementById('tabShootsBtn').className = isShoots ? 'px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition' : 'px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition';
-      document.getElementById('tabAdminBtn').className = !isShoots ? 'px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition' : 'px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition';
+      document.getElementById('tabMapBtn').className = isMap ? 'px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition' : 'px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition';
+      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition' : 'px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition';
+
+      if (isMap && fullMap) {
+        setTimeout(() => fullMap.container.fitToViewport(), 200);
+      }
     }
 
     async function loadAdminPanel() {
@@ -267,7 +288,6 @@
         `).join('');
       } catch (err) {
         console.error('Ошибка загрузки админки:', err);
-        document.getElementById('adminUsersList').innerHTML = `<div class="text-red-500 text-sm">Ошибка загрузки. Попробуйте войти заново.</div>`;
       }
     }
 
@@ -355,9 +375,39 @@
             <span class="text-amber-400 font-mono">⭐${s.rating}</span>
           </label>
         `).join('');
+
+        // Инициализируем маленькую карту в модалке выбора точки
+        setTimeout(() => {
+          if (!pickerMap && typeof ymaps !== 'undefined') {
+            pickerMap = new ymaps.Map("pickerMap", {
+              center: [55.751244, 37.618423],
+              zoom: 11
+            });
+            pickerMap.events.add('click', function (e) {
+              const coords = e.get('coords');
+              document.getElementById('selectedLat').value = coords[0];
+              document.getElementById('selectedLon').value = coords[1];
+              if (pickerPlacemark) {
+                pickerPlacemark.geometry.setCoordinates(coords);
+              } else {
+                pickerPlacemark = new ymaps.Placemark(coords, {}, { preset: 'islands#redDotIcon' });
+                pickerMap.geoObjects.add(pickerPlacemark);
+              }
+            });
+          } else if (pickerMap) {
+            pickerMap.container.fitToViewport();
+          }
+        }, 300);
+
       } catch (err) {
         console.error(err);
       }
+    }
+
+    function toggleMapPicker(type) {
+      const wrapper = document.getElementById('pickerMapContainerWrapper');
+      wrapper.classList.toggle('hidden', type !== 'ВЫЕЗД');
+      if (pickerMap) setTimeout(() => pickerMap.container.fitToViewport(), 200);
     }
 
     function closeShootModal() { document.getElementById('shootModal').classList.add('hidden'); }
@@ -373,6 +423,8 @@
         type: document.getElementById('shootType').value,
         date: document.getElementById('shootDate').value,
         location: document.getElementById('shootLocation').value,
+        latitude: parseFloat(document.getElementById('selectedLat').value),
+        longitude: parseFloat(document.getElementById('selectedLon').value),
         studentIds
       };
 
@@ -382,8 +434,10 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify(body)
         });
-        if (!res.ok) throw new Error('Ошибка создания');
-        alert('Съёмка успешно создана и команда назначена!');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        alert('Съёмка успешно создана!');
         closeShootModal();
         loadShoots();
       } catch (err) {
@@ -442,19 +496,16 @@
           return;
         }
 
-        // Очищаем и добавляем метки на карту
-        if (myMap) {
-          myMap.geoObjects.removeAll();
-          shoots.forEach((s, index) => {
-            // Рандомный сдвиг для демо-меток вокруг Москвы, если координаты одинаковые
-            const lat = 55.75 + (index * 0.02);
-            const lon = 37.61 + (index * 0.03);
-            const placemark = new ymaps.Placemark([lat, lon], {
-              balloonContent: `<strong>${s.title}</strong><br>Локация: ${s.location}`
+        // Отрисовка меток на большой карте
+        if (fullMap) {
+          fullMap.geoObjects.removeAll();
+          shoots.forEach(s => {
+            const placemark = new ymaps.Placemark([s.latitude || 55.751244, s.longitude || 37.618423], {
+              balloonContent: `<strong>${s.title}</strong><br>Тип: ${s.type}<br>Локация: ${s.location}`
             }, {
               preset: 'islands#redFilmIcon'
             });
-            myMap.geoObjects.add(placemark);
+            fullMap.geoObjects.add(placemark);
           });
         }
 
