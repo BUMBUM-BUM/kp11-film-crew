@@ -14,7 +14,27 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Инициализация базовых ролей при старте сервера
+// Middleware проверки авторизации
+async function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Нет токена авторизации' });
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { role: true }
+    });
+    if (!user) return res.status(403).json({ error: 'Пользователь не найден' });
+    req.user = user;
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: 'Недействительный токен' });
+  }
+}
+
+// Инициализация базовых ролей и админа
 async function initRoles() {
   try {
     let studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
@@ -31,7 +51,6 @@ async function initRoles() {
     if (!adminRole) {
       adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Полный доступ к системе и ролям' } });
       
-      // Создаем дефолтного админа, если его нет
       const adminExists = await prisma.user.findUnique({ where: { email: 'admin@ckt.ru' } });
       if (!adminExists) {
         const passwordHash = await bcrypt.hash('admin123', 10);
@@ -43,7 +62,7 @@ async function initRoles() {
             roleId: adminRole.id
           }
         });
-        console.log('🛡️ Создан аккаунт администратора: admin@ckt.ru / admin123');
+        console.log('🛡️ Создан админ: admin@ckt.ru / admin123');
       }
     }
   } catch (err) {
@@ -52,17 +71,16 @@ async function initRoles() {
 }
 initRoles();
 
-// === РЕГИСТРАЦИЯ (всегда получает роль Студент) ===
+// === РЕГИСТРАЦИЯ ===
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, course, skills } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
 
-    // Находим дефолтную роль «Студент»
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
-
     const passwordHash = await bcrypt.hash(password, 10);
+    
     const user = await prisma.user.create({
       data: {
         email,
@@ -78,7 +96,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
     res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role?.name || 'Студент' } });
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка при регистрации: ' + err.message });
+    res.status(500).json({ error: 'Ошибка регистрации: ' + err.message });
   }
 });
 
@@ -88,7 +106,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     const user = await prisma.user.findUnique({ 
       where: { email },
-      include: { role: { include: { permissions: { include: { permission: true } } } } }
+      include: { role: true }
     });
     if (!user) return res.status(400).json({ error: 'Неверный email или пароль' });
 
@@ -102,49 +120,30 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id, 
         fullName: user.fullName, 
         email: user.email, 
-        role: user.role?.name || 'Без роли',
-        permissions: user.role?.permissions?.map(p => p.permission.code) || []
+        role: user.role?.name || 'Без роли'
       } 
     });
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка при входе: ' + err.message });
+    res.status(500).json({ error: 'Ошибка входа: ' + err.message });
   }
 });
 
-// === API ДЛЯ АДМИНА: ПОЛУЧИТЬ РОЛИ И ПОЛЬЗОВАТЕЛЕЙ ===
-app.get('/api/admin/data', async (req, res) => {
+// === АДМИНКА: ПОЛУЧИТЬ ДАННЫЕ ===
+app.get('/api/admin/data', authenticateToken, async (req, res) => {
   try {
-    const roles = await prisma.role.findMany({ include: { permissions: { include: { permission: true } } } });
-    const users = await prisma.user.findMany({ include: { role: true }, select: { id: true, fullName: true, email: true, role: true, rating: true } });
-    const permissions = await prisma.permission.findMany();
-    res.json({ roles, users, permissions });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка загрузки админ-панели' });
-  }
-});
-
-// === API ДЛЯ АДМИНА: СОЗДАТЬ РОЛЬ ===
-app.post('/api/admin/roles', async (req, res) => {
-  try {
-    const { name, description, permissionIds } = req.body;
-    const role = await prisma.role.create({
-      data: {
-        name,
-        description,
-        permissions: {
-          create: permissionIds.map(permissionId => ({ permissionId }))
-        }
-      },
-      include: { permissions: true }
+    const roles = await prisma.role.findMany();
+    const users = await prisma.user.findMany({ 
+      include: { role: true }, 
+      select: { id: true, fullName: true, email: true, role: true, rating: true } 
     });
-    res.json(role);
+    res.json({ roles, users });
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка создания роли: ' + err.message });
+    res.status(500).json({ error: 'Ошибка загрузки данных админки' });
   }
 });
 
-// === API ДЛЯ АДМИНА: НАЗНАЧИТЬ РОЛЬ ПОЛЬЗОВАТЕЛЮ ===
-app.post('/api/admin/assign-role', async (req, res) => {
+// === АДМИНКА: СМЕНИТЬ РОЛЬ ПОЛЬЗОВАТЕЛЯ ===
+app.post('/api/admin/assign-role', authenticateToken, async (req, res) => {
   try {
     const { userId, roleId } = req.body;
     const updatedUser = await prisma.user.update({
@@ -158,7 +157,7 @@ app.post('/api/admin/assign-role', async (req, res) => {
   }
 });
 
-// Получить список съёмок
+// === ПОЛУЧИТЬ СЪЁМКИ ===
 app.get('/api/shoots', async (req, res) => {
   try {
     const shoots = await prisma.shoot.findMany({
@@ -171,6 +170,27 @@ app.get('/api/shoots', async (req, res) => {
     res.json(shoots);
   } catch (err) {
     res.status(500).json({ error: 'Ошибка получения съёмок' });
+  }
+});
+
+// === СОЗДАТЬ СЪЁМКУ (для Мастеров и Админов) ===
+app.post('/api/shoots', authenticateToken, async (req, res) => {
+  try {
+    const { title, description, type, date, location } = req.body;
+    const shoot = await prisma.shoot.create({
+      data: {
+        title,
+        description,
+        type: type || 'STUDIO',
+        date: new Date(date),
+        location,
+        creatorId: req.user.id
+      },
+      include: { creator: { select: { fullName: true } } }
+    });
+    res.json(shoot);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка создания съёмки: ' + err.message });
   }
 });
 
