@@ -13,19 +13,14 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-red-600 selection:text-white">
 
-  <!-- Навбар с логотипом ЦКТ -->
+  <!-- Навбар с жирным минималистичным логотипом ЦКТ -->
   <header class="border-b border-neutral-800 bg-black/90 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       <div class="flex items-center space-x-4">
-        <!-- Векторный минималистичный логотип ЦКТ -->
-        <svg class="w-12 h-10" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="120" height="100" rx="16" fill="#E50914"/>
-          <path d="M22 35H32V65H22V35Z" fill="white"/>
-          <path d="M38 35H48V45H58V35H68V65H58V55H48V65H38V35Z" fill="white"/>
-          <path d="M74 35H102V45H88V47H98V57H88V59H102V69H74V35Z" fill="white"/>
-        </svg>
+        <!-- Текстовый минималистичный логотип ЦКТ -->
+        <a href="#" class="bg-red-600 text-white text-xl font-black px-3.5 py-2 rounded-xl tracking-tighter mono shadow-lg shadow-red-600/30">ЦКТ</a>
         <div>
-          <h1 class="text-sm font-extrabold tracking-wider uppercase text-white">ЦЕНТР КРЕАТИВНЫХ ТЕХНОЛОГИЙ</h1>
+          <h1 class="text-xs font-extrabold tracking-widest uppercase text-white">ЦЕНТР КРЕАТИВНЫХ ТЕХНОЛОГИЙ</h1>
           <p class="text-[11px] text-neutral-400 font-mono">Колледж предпринимательства №11</p>
         </div>
       </div>
@@ -50,13 +45,13 @@
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Вкладки (Админ-панель доступна администратору) -->
-    <div id="adminTabNav" class="hidden flex space-x-4 mb-8 border-b border-neutral-800 pb-4">
+    <!-- Навигация по вкладкам -->
+    <div id="tabNav" class="hidden flex space-x-4 mb-8 border-b border-neutral-800 pb-4">
       <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition">Съёмки</button>
-      <button onclick="switchTab('admin')" id="tabAdminBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition">⚙️ Управление ролями и пользователями (Админ)</button>
+      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition">⚙️ Управление ролями (Админ)</button>
     </div>
 
-    <!-- Основной вид: Съёмки -->
+    <!-- Вкладка: Съёмки -->
     <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="flex items-center justify-between">
@@ -77,18 +72,55 @@
       </div>
     </div>
 
-    <!-- Вид: Админ-панель управления ролями -->
+    <!-- Вкладка: Админ-панель -->
     <div id="viewAdmin" class="hidden space-y-8">
       <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
-        <h3 class="text-xl font-bold mb-4 text-white">👥 Управление пользователями и ролями</h3>
-        <p class="text-sm text-neutral-400 mb-6">Здесь вы можете изменить роль любого зарегистрированного студента на мастера или администратора.</p>
+        <h3 class="text-xl font-bold mb-2 text-white">👥 Управление ролями пользователей</h3>
+        <p class="text-sm text-neutral-400 mb-6">Изменяйте роли студентов на Мастеров или Администраторов в один клик.</p>
         <div id="adminUsersList" class="space-y-3">
-          <!-- Заполняется через JS -->
+          <div class="text-neutral-500 text-sm">Загрузка пользователей...</div>
         </div>
       </div>
     </div>
 
   </main>
+
+  <!-- Модальное окно Создания съёмки -->
+  <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-lg relative shadow-2xl">
+      <button onclick="closeShootModal()" class="absolute top-4 right-4 text-neutral-500 hover:text-white">✕</button>
+      <h3 class="text-xl font-bold mb-4 text-white">🎬 Создать новую съёмку / выезд</h3>
+      
+      <form onsubmit="handleCreateShoot(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono text-neutral-400 mb-1">Название проекта / съёмки</label>
+          <input type="text" id="shootTitle" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="Напр. Короткометражный фильм «День»">
+        </div>
+        <div>
+          <label class="block text-xs font-mono text-neutral-400 mb-1">Описание и задачи</label>
+          <textarea id="shootDesc" rows="3" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="Студийная запись смены, работа со светом..."></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-mono text-neutral-400 mb-1">Тип</label>
+            <select id="shootType" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
+              <option value="СТУДИЯ">Студия</option>
+              <option value="ВЫЕЗД">Выезд</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-mono text-neutral-400 mb-1">Дата и время</label>
+            <input type="datetime-local" id="shootDate" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-mono text-neutral-400 mb-1">Локация / Адрес</label>
+          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="Колледж КП11, Павильон №1">
+        </div>
+        <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 mt-2">Опубликовать съёмку</button>
+      </form>
+    </div>
+  </div>
 
   <!-- Модальное окно Вход/Регистрация -->
   <div id="modal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -103,7 +135,7 @@
             <input type="text" id="fullName" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
           </div>
           <div class="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700/50 text-xs text-neutral-400">
-            ℹ️ Все новые пользователи регистрируются как <strong>Студенты</strong>. Администратор может изменить вашу роль в панели управления.
+            ℹ️ Все новые пользователи регистрируются как <strong>Студенты</strong>.
           </div>
         </div>
         <div>
@@ -126,13 +158,17 @@
   <script>
     let isRegister = false;
     let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+    let token = localStorage.getItem('token') || '';
 
     function updateNav() {
       const nav = document.getElementById('userNav');
       const sidebar = document.getElementById('sidebarProfile');
-      const adminNav = document.getElementById('adminTabNav');
+      const tabNav = document.getElementById('tabNav');
+      const tabAdminBtn = document.getElementById('tabAdminBtn');
+      const actionContainer = document.getElementById('actionButtonContainer');
 
       if (currentUser) {
+        tabNav.classList.remove('hidden');
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
             <span class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg text-red-500">${currentUser.fullName} (${currentUser.role})</span>
@@ -148,9 +184,17 @@
           </div>
         `;
 
-        // Если пользователь Администратор — показываем вкладку админки
+        // Кнопка создания съёмки для Мастеров и Админов
+        if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
+          actionContainer.innerHTML = `
+            <button onclick="openShootModal()" class="bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center space-x-2">
+              <span>+ Создать съёмку</span>
+            </button>
+          `;
+        }
+
         if (currentUser.role === 'Администратор') {
-          adminNav.classList.remove('hidden');
+          tabAdminBtn.classList.remove('hidden');
           loadAdminPanel();
         }
       }
@@ -166,18 +210,21 @@
 
     async function loadAdminPanel() {
       try {
-        const res = await fetch('/api/admin/data');
+        const res = await fetch('/api/admin/data', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await res.json();
-        const container = document.getElementById('adminUsersList');
+        if (!res.ok) throw new Error(data.error);
 
+        const container = document.getElementById('adminUsersList');
         container.innerHTML = data.users.map(u => `
           <div class="flex items-center justify-between p-4 rounded-xl bg-neutral-800/60 border border-neutral-700">
             <div>
               <h4 class="font-bold text-white">${u.fullName}</h4>
               <p class="text-xs text-neutral-400 mono">${u.email}</p>
             </div>
-            <div class="flex items-center space-x-3">
-              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-600">
+            <div>
+              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600">
                 ${data.roles.map(r => `<option value="${r.id}" ${u.role?.id === r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
               </select>
             </div>
@@ -192,15 +239,51 @@
       try {
         const res = await fetch('/api/admin/assign-role', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ userId, roleId })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        alert('Роль успешно обновлена!');
+        alert('Роль пользователя успешно обновлена!');
         loadAdminPanel();
       } catch (err) {
         alert('Ошибка: ' + err.message);
+      }
+    }
+
+    function openShootModal() { document.getElementById('shootModal').classList.remove('hidden'); }
+    function closeShootModal() { document.getElementById('shootModal').classList.add('hidden'); }
+
+    async function handleCreateShoot(e) {
+      e.preventDefault();
+      const body = {
+        title: document.getElementById('shootTitle').value,
+        description: document.getElementById('shootDesc').value,
+        type: document.getElementById('shootType').value,
+        date: document.getElementById('shootDate').value,
+        location: document.getElementById('shootLocation').value
+      };
+
+      try {
+        const res = await fetch('/api/shoots', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        alert('Съёмка успешно создана!');
+        closeShootModal();
+        loadShoots();
+      } catch (err) {
+        alert('Ошибка создания: ' + err.message);
       }
     }
 
@@ -211,15 +294,8 @@
       document.getElementById('modal').classList.remove('hidden');
     }
 
-    function closeModal() {
-      document.getElementById('modal').classList.add('hidden');
-    }
-
-    function logout() {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      location.reload();
-    }
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+    function logout() { localStorage.clear(); location.reload(); }
 
     async function handleAuth(e) {
       e.preventDefault();
@@ -265,7 +341,7 @@
           <div class="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800">
             <div class="flex justify-between items-start mb-3">
               <span class="text-xs font-mono bg-red-600/10 text-red-500 border border-red-600/20 px-2.5 py-1 rounded">${s.type}</span>
-              <span class="text-xs font-mono text-neutral-400">${new Date(s.date).toLocaleDateString()}</span>
+              <span class="text-xs font-mono text-neutral-400">${new Date(s.date).toLocaleString()}</span>
             </div>
             <h4 class="text-lg font-bold mb-1 text-white">${s.title}</h4>
             <p class="text-sm text-neutral-400 mb-4">${s.description}</p>
