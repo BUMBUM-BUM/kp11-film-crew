@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+}
+
+enum ShootType {
+  STUDIO
+  LOCATION
+}
+
+enum CrewStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  fullName     String
+  role         Role         @default(STUDENT)
+  course       Int?
+  specialty    String?      @default("Кино и телепроизводство")
+  rating       Float        @default(5.0)
+  skills       String[]
+  shoots       Shoot[]      @relation("CreatedShoots")
+  crewMembers  CrewMember[]
+  createdAt    DateTime     @default(now())
+}
+
+model Shoot {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  type        ShootType    @default(STUDIO)
+  date        DateTime
+  location    String
+  creatorId   String
+  creator     User         @relation("CreatedShoots", fields: [creatorId], references: [id])
+  crew        CrewMember[]
+  createdAt   DateTime     @default(now())
+}
+
+model CrewMember {
+  id            String     @id @default(uuid())
+  shootId       String
+  shoot         Shoot      @relation(fields: [shootId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleInShoot   String
+  status        CrewStatus @default(PENDING)
+  declineReason String?
+  invitedAt     DateTime   @default(now())
+}
