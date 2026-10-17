@@ -13,11 +13,10 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-red-600 selection:text-white">
 
-  <!-- Навбар с жирным минималистичным логотипом ЦКТ -->
+  <!-- Навбар -->
   <header class="border-b border-neutral-800 bg-black/90 backdrop-blur-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       <div class="flex items-center space-x-4">
-        <!-- Текстовый минималистичный логотип ЦКТ -->
         <a href="#" class="bg-red-600 text-white text-xl font-black px-3.5 py-2 rounded-xl tracking-tighter mono shadow-lg shadow-red-600/30">ЦКТ</a>
         <div>
           <h1 class="text-xs font-extrabold tracking-widest uppercase text-white">ЦЕНТР КРЕАТИВНЫХ ТЕХНОЛОГИЙ</h1>
@@ -45,17 +44,20 @@
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Навигация по вкладкам -->
+    <!-- Уведомления для студента -->
+    <div id="notificationsContainer" class="mb-8"></div>
+
+    <!-- Вкладки -->
     <div id="tabNav" class="hidden flex space-x-4 mb-8 border-b border-neutral-800 pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition">Съёмки</button>
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-4 py-2 rounded-lg font-bold text-sm bg-red-600 text-white transition">Съёмки & Карта</button>
       <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-4 py-2 rounded-lg font-bold text-sm bg-neutral-900 text-neutral-400 hover:text-white transition">⚙️ Управление ролями (Админ)</button>
     </div>
 
-    <!-- Вкладка: Съёмки -->
+    <!-- Вкладка: Съёмки и Карта -->
     <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="flex items-center justify-between">
-          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены и выезды</h3>
+          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены и карта выездов</h3>
           <span id="shootCount" class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-full text-neutral-400">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-4">
@@ -66,7 +68,19 @@
         <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 backdrop-blur">
           <h3 class="text-lg font-bold mb-4 text-white">Профиль участника</h3>
           <div id="sidebarProfile" class="text-sm text-neutral-400">
-            <p>Войдите в систему для доступа к съёмкам. Все новые аккаунты регистрируются как студенты.</p>
+            <p>Войдите в систему для доступа к съёмкам.</p>
+          </div>
+        </div>
+        <!-- Карта-виджет выездов -->
+        <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+          <h3 class="text-sm font-bold mb-3 text-white flex items-center justify-between">
+            <span>🗺️ Радар локаций (Москва)</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          </h3>
+          <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-800 text-xs font-mono text-neutral-400 space-y-2">
+            <p>📍 КП11 Студия 1 (Павильон)</p>
+            <p>📍 Выезд: Натурная локация ЦАО</p>
+            <p class="text-red-500 pt-2">🟢 Все точки на связи</p>
           </div>
         </div>
       </div>
@@ -76,7 +90,7 @@
     <div id="viewAdmin" class="hidden space-y-8">
       <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
         <h3 class="text-xl font-bold mb-2 text-white">👥 Управление ролями пользователей</h3>
-        <p class="text-sm text-neutral-400 mb-6">Изменяйте роли студентов на Мастеров или Администраторов в один клик.</p>
+        <p class="text-sm text-neutral-400 mb-6">Изменяйте роли студентов на Мастеров или Администраторов.</p>
         <div id="adminUsersList" class="space-y-3">
           <div class="text-neutral-500 text-sm">Загрузка пользователей...</div>
         </div>
@@ -85,39 +99,47 @@
 
   </main>
 
-  <!-- Модальное окно Создания съёмки -->
+  <!-- Модальное окно Создания съёмки с набором команды -->
   <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
-    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-lg relative shadow-2xl">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeShootModal()" class="absolute top-4 right-4 text-neutral-500 hover:text-white">✕</button>
-      <h3 class="text-xl font-bold mb-4 text-white">🎬 Создать новую съёмку / выезд</h3>
+      <h3 class="text-xl font-bold mb-4 text-white">🎬 Создать съёмку и набрать команду</h3>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-mono text-neutral-400 mb-1">Название проекта / съёмки</label>
-          <input type="text" id="shootTitle" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="Напр. Короткометражный фильм «День»">
+          <label class="block text-xs font-mono text-neutral-400 mb-1">Название проекта</label>
+          <input type="text" id="shootTitle" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
         </div>
         <div>
-          <label class="block text-xs font-mono text-neutral-400 mb-1">Описание и задачи</label>
-          <textarea id="shootDesc" rows="3" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="Студийная запись смены, работа со светом..."></textarea>
+          <label class="block text-xs font-mono text-neutral-400 mb-1">Описание</label>
+          <textarea id="shootDesc" rows="2" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-mono text-neutral-400 mb-1">Тип</label>
-            <select id="shootType" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
+            <select id="shootType" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
               <option value="СТУДИЯ">Студия</option>
               <option value="ВЫЕЗД">Выезд</option>
             </select>
           </div>
           <div>
             <label class="block text-xs font-mono text-neutral-400 mb-1">Дата и время</label>
-            <input type="datetime-local" id="shootDate" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
+            <input type="datetime-local" id="shootDate" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
           </div>
         </div>
         <div>
-          <label class="block text-xs font-mono text-neutral-400 mb-1">Локация / Адрес</label>
-          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600" placeholder="Колледж КП11, Павильон №1">
+          <label class="block text-xs font-mono text-neutral-400 mb-1">Локация</label>
+          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
         </div>
-        <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 mt-2">Опубликовать съёмку</button>
+        
+        <div>
+          <label class="block text-xs font-mono text-neutral-400 mb-2">👥 Выберите студентов в команду (с рейтингом профпригодности):</label>
+          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+            <!-- Заполняется через JS -->
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 mt-2">Опубликовать и отправить приглашения</button>
       </form>
     </div>
   </div>
@@ -133,9 +155,6 @@
           <div>
             <label class="block text-xs font-mono text-neutral-400 mb-1">ФИО</label>
             <input type="text" id="fullName" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-600">
-          </div>
-          <div class="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700/50 text-xs text-neutral-400">
-            ℹ️ Все новые пользователи регистрируются как <strong>Студенты</strong>.
           </div>
         </div>
         <div>
@@ -159,6 +178,7 @@
     let isRegister = false;
     let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     let token = localStorage.getItem('token') || '';
+    let availableStudentsForShoot = [];
 
     function updateNav() {
       const nav = document.getElementById('userNav');
@@ -184,7 +204,6 @@
           </div>
         `;
 
-        // Кнопка создания съёмки для Мастеров и Админов
         if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
           actionContainer.innerHTML = `
             <button onclick="openShootModal()" class="bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center space-x-2">
@@ -197,6 +216,8 @@
           tabAdminBtn.classList.remove('hidden');
           loadAdminPanel();
         }
+
+        loadNotifications();
       }
     }
 
@@ -220,7 +241,7 @@
         container.innerHTML = data.users.map(u => `
           <div class="flex items-center justify-between p-4 rounded-xl bg-neutral-800/60 border border-neutral-700">
             <div>
-              <h4 class="font-bold text-white">${u.fullName}</h4>
+              <h4 class="font-bold text-white">${u.fullName} <span class="text-xs text-amber-400 font-mono">⭐${u.rating}</span></h4>
               <p class="text-xs text-neutral-400 mono">${u.email}</p>
             </div>
             <div>
@@ -239,51 +260,119 @@
       try {
         const res = await fetch('/api/admin/assign-role', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ userId, roleId })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        alert('Роль пользователя успешно обновлена!');
+        alert('Роль обновлена!');
         loadAdminPanel();
       } catch (err) {
         alert('Ошибка: ' + err.message);
       }
     }
 
-    function openShootModal() { document.getElementById('shootModal').classList.remove('hidden'); }
+    async function loadNotifications() {
+      if (!token) return;
+      try {
+        const res = await fetch('/api/notifications', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const invites = await res.json();
+        const container = document.getElementById('notificationsContainer');
+        if (!invites || invites.length === 0) {
+          container.innerHTML = '';
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="p-4 rounded-2xl bg-red-600/10 border border-red-600/30 space-y-3">
+            <h4 class="text-sm font-bold text-red-400">🔔 У вас есть новые приглашения на съёмки:</h4>
+            ${invites.map(inv => `
+              <div class="flex items-center justify-between bg-neutral-900 p-3 rounded-xl border border-neutral-800 text-xs">
+                <div>
+                  <strong class="text-white text-sm">${inv.shoot.title}</strong>
+                  <p class="text-neutral-400 mt-0.5">Локация: ${inv.shoot.location} • Дата: ${new Date(inv.shoot.date).toLocaleString()}</p>
+                </div>
+                <div class="space-x-2">
+                  <button onclick="respondCrew('${inv.id}', 'ACCEPTED')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-500 transition">Подтвердить</button>
+                  <button onclick="respondCrew('${inv.id}', 'DECLINED')" class="bg-neutral-800 text-neutral-300 px-3 py-1.5 rounded-lg font-bold hover:bg-red-900 transition">Отклонить</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function respondCrew(crewMemberId, status) {
+      try {
+        const res = await fetch('/api/crew/response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ crewMemberId, status })
+        });
+        if (!res.ok) throw new Error('Ошибка отправки ответа');
+        alert('Статус участия обновлен!');
+        loadNotifications();
+        loadShoots();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function openShootModal() {
+      document.getElementById('shootModal').classList.remove('hidden');
+      // Загружаем список студентов для чекбоксов
+      try {
+        const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        availableStudentsForShoot = data.students || [];
+        const box = document.getElementById('studentsCheckboxes');
+        box.innerHTML = availableStudentsForShoot.map(s => `
+          <label class="flex items-center justify-between p-2 rounded hover:bg-neutral-900 cursor-pointer text-xs">
+            <div class="flex items-center space-x-2">
+              <input type="checkbox" name="studentSelect" value="${s.id}" class="rounded bg-neutral-800 border-neutral-700 text-red-600">
+              <span class="text-white font-medium">${s.fullName}</span>
+            </div>
+            <span class="text-amber-400 font-mono">⭐${s.rating}</span>
+          </label>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     function closeShootModal() { document.getElementById('shootModal').classList.add('hidden'); }
 
     async function handleCreateShoot(e) {
       e.preventDefault();
+      const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
+      const studentIds = Array.from(checkboxes).map(cb => cb.value);
+
       const body = {
         title: document.getElementById('shootTitle').value,
         description: document.getElementById('shootDesc').value,
         type: document.getElementById('shootType').value,
         date: document.getElementById('shootDate').value,
-        location: document.getElementById('shootLocation').value
+        location: document.getElementById('shootLocation').value,
+        studentIds
       };
 
       try {
         const res = await fetch('/api/shoots', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify(body)
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-
-        alert('Съёмка успешно создана!');
+        if (!res.ok) throw new Error('Ошибка создания');
+        alert('Съёмка успешно создана и уведомления отправлены!');
         closeShootModal();
         loadShoots();
       } catch (err) {
-        alert('Ошибка создания: ' + err.message);
+        alert('Ошибка: ' + err.message);
       }
     }
 
@@ -327,8 +416,9 @@
 
     async function loadShoots() {
       try {
-        const res = await fetch('/api/shoots');
-        const shoots = await res.json();
+        const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const shoots = data.shoots || [];
         const container = document.getElementById('shootsList');
         document.getElementById('shootCount').innerText = `${shoots.length} смен`;
 
@@ -338,16 +428,34 @@
         }
 
         container.innerHTML = shoots.map(s => `
-          <div class="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800">
-            <div class="flex justify-between items-start mb-3">
+          <div class="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-4">
+            <div class="flex justify-between items-start">
               <span class="text-xs font-mono bg-red-600/10 text-red-500 border border-red-600/20 px-2.5 py-1 rounded">${s.type}</span>
               <span class="text-xs font-mono text-neutral-400">${new Date(s.date).toLocaleString()}</span>
             </div>
-            <h4 class="text-lg font-bold mb-1 text-white">${s.title}</h4>
-            <p class="text-sm text-neutral-400 mb-4">${s.description}</p>
-            <div class="flex items-center justify-between text-xs text-neutral-500 border-t border-neutral-800/80 pt-4">
+            <div>
+              <h4 class="text-lg font-bold text-white mb-1">${s.title}</h4>
+              <p class="text-sm text-neutral-400">${s.description}</p>
+            </div>
+            <div class="text-xs text-neutral-500 border-t border-neutral-800/80 pt-3 flex justify-between">
               <span>📍 Локация: <strong class="text-neutral-300">${s.location}</strong></span>
               <span>Мастер: <strong class="text-neutral-300">${s.creator.fullName}</strong></span>
+            </div>
+            <!-- Список назначенной команды -->
+            <div class="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs">
+              <span class="text-neutral-400 font-bold block mb-2">🎬 Съёмочная группа:</span>
+              <div class="flex flex-wrap gap-2">
+                ${s.crew.length === 0 ? '<span class="text-neutral-600">Команда еще не назначена</span>' : s.crew.map(c => `
+                  <span class="px-2.5 py-1 rounded-lg border flex items-center space-x-1.5 ${
+                    c.status === 'ACCEPTED' ? 'bg-emerald-950/50 border-emerald-800 text-emerald-400' :
+                    c.status === 'DECLINED' ? 'bg-red-950/50 border-red-800 text-red-400' :
+                    'bg-neutral-900 border-neutral-700 text-neutral-300'
+                  }">
+                    <span>${c.user.fullName} (⭐${c.user.rating})</span>
+                    <span class="font-bold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '⏳'}</span>
+                  </span>
+                `).join('')}
+              </div>
             </div>
           </div>
         `).join('');
