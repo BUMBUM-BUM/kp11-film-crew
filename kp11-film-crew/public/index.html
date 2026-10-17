@@ -3,86 +3,168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>КП11 — Центр Креативных Технологий</title>
+  <title>КП11 — Кино и Телепроизводство | Съёмочный портал</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #0d0f12; color: #f3f4f6; }
+    body { font-family: 'Inter', sans-serif; background-color: #0b0d10; color: #f3f4f6; }
     .mono { font-family: 'JetBrains Mono', monospace; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col selection:bg-amber-500 selection:text-black">
+
   <!-- Навбар -->
-  <header class="border-b border-gray-800 bg-black/40 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+  <header class="border-b border-gray-800 bg-black/60 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <span class="bg-amber-500 text-black font-extrabold px-2 py-1 rounded text-sm tracking-wider">КП11</span>
-        <h1 class="text-lg font-bold tracking-tight">КИНО & ТЕЛЕПРОИЗВОДСТВО</h1>
+        <span class="bg-amber-500 text-black font-extrabold px-2.5 py-1 rounded text-sm tracking-wider mono">КП11</span>
+        <h1 class="text-sm font-bold tracking-tight uppercase text-gray-200">Центр Креативных Технологий</h1>
       </div>
-      <div id="authButtons" class="flex space-x-3">
-        <button onclick="showModal('login')" class="text-sm font-medium hover:text-amber-400 transition">Вход</button>
-        <button onclick="showModal('register')" class="text-sm bg-amber-500 text-black px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 transition">Регистрация</button>
+      <div id="userNav" class="flex items-center space-x-4">
+        <!-- Динамически заполняется через JS -->
+        <button onclick="openModal('login')" class="text-sm font-medium hover:text-amber-400 transition">Вход</button>
+        <button onclick="openModal('register')" class="text-sm bg-amber-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/10">Регистрация</button>
       </div>
     </div>
   </header>
 
-  <!-- Главный баннер -->
-  <main class="flex-grow max-w-7xl mx-auto px-4 py-12 w-full">
-    <div class="text-center max-w-3xl mx-auto mb-16">
-      <span class="text-xs font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full uppercase tracking-widest">Система учёта съёмок и практики</span>
-      <h2 class="text-4xl md:text-5xl font-extrabold mt-4 mb-6 tracking-tight">Платформа для съёмочных команд колледжа №11</h2>
-      <p class="text-gray-400 text-lg">Автоматизация выездов, студийных съёмок, набора съёмочных групп и контроля профпригодности студентов.</p>
+  <!-- Основной контент -->
+  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full">
+    
+    <!-- Баннер / Шапка -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-6 border-b border-gray-800">
+      <div>
+        <div class="flex items-center space-x-2 mb-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">Система активна • Студия & Выезды</span>
+        </div>
+        <h2 class="text-3xl md:text-4xl font-black tracking-tight">Управление съёмочным процессом</h2>
+      </div>
+      <div id="actionButtonContainer">
+        <!-- Кнопка создания съёмки (появляется только у преподавателей) -->
+      </div>
     </div>
 
-    <!-- Модальное окно Вход / Регистрация -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md relative">
-        <button onclick="hideModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
-        <h3 id="modalTitle" class="text-xl font-bold mb-4">Вход в систему</h3>
+    <!-- Сетка контента: Свежие съёмки и Статус команды -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Список съёмок (2 колонки) -->
+      <div class="lg:col-span-2 space-y-6">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-bold tracking-tight">Активные съёмки и выезды</h3>
+          <span id="shootCount" class="text-xs font-mono bg-gray-800 px-2.5 py-1 rounded-full text-gray-400">0 смен</span>
+        </div>
         
-        <form id="authForm" onsubmit="handleAuth(event)" class="space-y-4">
-          <div id="registerFields" class="hidden space-y-4">
-            <div>
-              <label class="block text-xs font-mono text-gray-400 mb-1">ФИО</label>
-              <input type="text" id="fullName" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-            </div>
-            <div>
-              <label class="block text-xs font-mono text-gray-400 mb-1">Роль</label>
-              <select id="role" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-                <option value="STUDENT">Студент</option>
-                <option value="TEACHER">Преподаватель</option>
-              </select>
-            </div>
+        <div id="shootsList" class="space-y-4">
+          <!-- Карточки съёмок подгружаются через JS -->
+          <div class="p-6 rounded-2xl bg-gray-900/50 border border-gray-800 text-center text-gray-500">
+            Загрузка съёмок...
           </div>
-          <div>
-            <label class="block text-xs font-mono text-gray-400 mb-1">Email</label>
-            <input type="email" id="email" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-          </div>
-          <div>
-            <label class="block text-xs font-mono text-gray-400 mb-1">Пароль</label>
-            <input type="password" id="password" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-          </div>
-          <button type="submit" class="w-full bg-amber-500 text-black py-2.5 rounded-lg font-bold hover:bg-amber-400 transition mt-2">Продолжить</button>
-        </form>
+        </div>
       </div>
+
+      <!-- Боковая панель: Профиль / Профпригодность (1 колонка) -->
+      <div class="space-y-6">
+        <div class="p-6 rounded-2xl bg-gray-900/80 border border-gray-800 backdrop-blur">
+          <h3 class="text-lg font-bold mb-4">Кабинет участника</h3>
+          <div id="sidebarProfile" class="text-sm text-gray-400">
+            <p>Войдите в систему, чтобы просмотреть свой рейтинг профпригодности, навыки и статус назначений на съёмки.</p>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
+  <!-- Универсальное модальное окно -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md relative shadow-2xl">
+      <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+      <h3 id="modalTitle" class="text-xl font-bold mb-4">Вход в систему</h3>
+      
+      <form id="authForm" onsubmit="handleAuth(event)" class="space-y-4">
+        <div id="registerFields" class="hidden space-y-4">
+          <div>
+            <label class="block text-xs font-mono text-gray-400 mb-1">ФИО студента или преподавателя</label>
+            <input type="text" id="fullName" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-mono text-gray-400 mb-1">Роль в колледже</label>
+            <select id="role" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
+              <option value="STUDENT">Студент (Кино и телепроизводство)</option>
+              <option value="TEACHER">Преподаватель / Мастер</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-mono text-gray-400 mb-1">Email</label>
+          <input type="email" id="email" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500" placeholder="student@kp11.ru">
+        </div>
+        <div>
+          <label class="block text-xs font-mono text-gray-400 mb-1">Пароль</label>
+          <input type="password" id="password" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
+        </div>
+        <button type="submit" class="w-full bg-amber-500 text-black py-3 rounded-lg font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/10 mt-2">Подтвердить</button>
+      </form>
+    </div>
+  </div>
+
   <footer class="border-t border-gray-800 py-6 text-center text-xs text-gray-600">
-    © 2026 Колледж предпринимательства №11 — Центр Креативных Технологий
+    © 2026 Колледж предпринимательства №11 • Центр Креативных Технологий
   </footer>
 
   <script>
     let isRegister = false;
-    function showModal(type) {
+    let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+
+    function updateNav() {
+      const nav = document.getElementById('userNav');
+      const actionContainer = document.getElementById('actionButtonContainer');
+      const sidebar = document.getElementById('sidebarProfile');
+
+      if (currentUser) {
+        nav.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <span class="text-xs font-mono bg-gray-800 px-3 py-1.5 rounded-lg text-amber-400 border border-gray-700">${currentUser.fullName} (${currentUser.role === 'TEACHER' ? 'Преподаватель' : 'Студент'})</span>
+            <button onclick="logout()" class="text-xs text-gray-400 hover:text-red-400 transition">Выйти</button>
+          </div>
+        `;
+
+        sidebar.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex justify-between items-center"><span class="text-gray-400">Статус:</span><span class="text-emerald-400 font-medium">Активен</span></div>
+            <div class="flex justify-between items-center"><span class="text-gray-400">Направление:</span><span class="text-white">Кино и ТВ</span></div>
+            ${currentUser.role === 'STUDENT' ? '<div class="flex justify-between items-center"><span class="text-gray-400">Профпригодность:</span><span class="text-amber-400 font-mono font-bold">5.0 / 5.0 ⭐</span></div>' : ''}
+          </div>
+        `;
+
+        if (currentUser.role === 'TEACHER') {
+          actionContainer.innerHTML = `
+            <button onclick="alert('Модуль создания съёмки открывается!')" class="bg-amber-500 text-black px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-amber-400 transition flex items-center space-x-2">
+              <span>+ Создать съёмку</span>
+            </button>
+          `;
+        }
+      }
+    }
+
+    function openModal(type) {
       isRegister = type === 'register';
-      document.getElementById('modalTitle').innerText = isRegister ? 'Регистрация' : 'Вход в систему';
+      document.getElementById('modalTitle').innerText = isRegister ? 'Регистрация в системе' : 'Вход в аккаунт';
       document.getElementById('registerFields').classList.toggle('hidden', !isRegister);
       document.getElementById('modal').classList.remove('hidden');
     }
-    function hideModal() {
+
+    function closeModal() {
       document.getElementById('modal').classList.add('hidden');
     }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      location.reload();
+    }
+
     async function handleAuth(e) {
       e.preventDefault();
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
@@ -92,6 +174,7 @@
         fullName: isRegister ? document.getElementById('fullName').value : undefined,
         role: isRegister ? document.getElementById('role').value : undefined,
       };
+
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -100,14 +183,50 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
+
         localStorage.setItem('token', data.token);
-        alert('Успешно!');
-        hideModal();
+        localStorage.setItem('user', JSON.stringify(data.user));
+        alert('Успешный вход!');
+        closeModal();
         location.reload();
-      } catch(err) {
-        alert(err.message);
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
       }
     }
+
+    async function loadShoots() {
+      try {
+        const res = await fetch('/api/shoots');
+        const shoots = await res.json();
+        const container = document.getElementById('shootsList');
+        document.getElementById('shootCount').innerText = `${shoots.length} смен`;
+
+        if (shoots.length === 0) {
+          container.innerHTML = `<div class="p-6 rounded-2xl bg-gray-900/50 border border-gray-800 text-center text-gray-500">Пока нет запланированных съёмок. Преподаватель может создать первую!</div>`;
+          return;
+        }
+
+        container.innerHTML = shoots.map(s => `
+          <div class="p-6 rounded-2xl bg-gray-900/60 border border-gray-800 hover:border-gray-700 transition">
+            <div class="flex justify-between items-start mb-3">
+              <span class="text-xs font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded">${s.type}</span>
+              <span class="text-xs font-mono text-gray-400">${new Date(s.date).toLocaleDateString()}</span>
+            </div>
+            <h4 class="text-lg font-bold mb-1">${s.title}</h4>
+            <p class="text-sm text-gray-400 mb-4">${s.description}</p>
+            <div class="flex items-center justify-between text-xs text-gray-500 border-t border-gray-800/80 pt-4">
+              <span>📍 Локация: <strong class="text-gray-300">${s.location}</strong></span>
+              <span>Мастер: <strong class="text-gray-300">${s.creator.fullName}</strong></span>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    updateNav();
+    loadShoots();
   </script>
 </body>
 </html>
