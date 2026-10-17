@@ -59,7 +59,7 @@
     <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-4">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs mono text-neutral-500 uppercase tracking-wider">Активные выезды и павильоны</span>
+          <span id="globalStatsText" class="text-xs mono text-neutral-500 uppercase tracking-wider">Загрузка статистики...</span>
           <span id="shootCount" class="text-xs mono bg-neutral-900 px-2.5 py-1 rounded text-neutral-400">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-4">
@@ -88,9 +88,15 @@
 
     <!-- Админ-панель -->
     <div id="viewAdmin" class="hidden space-y-6">
-      <div class="p-6 rounded-xl bg-neutral-900/40 border border-neutral-900">
-        <h3 class="text-sm font-bold mb-1 text-white uppercase tracking-wider">Управление ролями доступа</h3>
-        <p class="text-xs text-neutral-500 mb-6 mono">Назначение статусов пользователей в системе.</p>
+      <div class="p-6 rounded-xl bg-neutral-900/40 border border-neutral-900 space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Управление ролями и учетными записями</h3>
+            <p class="text-xs text-neutral-500 mono">Поиск, назначение статусов и дисциплинарное отстранение.</p>
+          </div>
+          <!-- Поиск по ФИО и группе -->
+          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E50914] w-full md:w-72">
+        </div>
         <div id="adminUsersList" class="space-y-3">
           <div class="text-neutral-600 text-xs mono">Загрузка базы...</div>
         </div>
@@ -140,7 +146,8 @@
         </div>
         
         <div>
-          <label class="block text-[11px] mono text-neutral-500 uppercase mb-2">Назначение цеховых ролей участникам:</label>
+          <label class="block text-[11px] mono text-neutral-500 uppercase mb-2">Назначение цеховых ролей участникам (поиск по ФИО/группе):</label>
+          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов..." class="w-full bg-neutral-950 border border-neutral-800 rounded-md px-3 py-1.5 text-xs text-white mb-2 focus:outline-none focus:border-[#E50914]">
           <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-neutral-900/50 p-3 rounded-md border border-neutral-800">
             <!-- Заполняется через JS -->
           </div>
@@ -157,11 +164,15 @@
       <button onclick="closeModal()" class="absolute top-4 right-4 text-neutral-500 hover:text-white">✕</button>
       <h3 id="modalTitle" class="text-sm font-bold uppercase tracking-wider text-white mb-4">Авторизация</h3>
       
-      <form id="authForm" onsubmit="handleAuth(event)" class="space-y-4">
+      <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3">
         <div id="registerFields" class="hidden space-y-3">
           <div>
             <label class="block text-[11px] mono text-neutral-500 uppercase mb-1">ФИО</label>
             <input type="text" id="fullName" class="w-full bg-neutral-900 border border-neutral-800 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E50914]">
+          </div>
+          <div>
+            <label class="block text-[11px] mono text-neutral-500 uppercase mb-1">Учебная группа</label>
+            <input type="text" id="groupName" class="w-full bg-neutral-900 border border-neutral-800 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E50914]" placeholder="Напр. КИТ-21">
           </div>
         </div>
         <div>
@@ -186,6 +197,7 @@
     let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     let token = localStorage.getItem('token') || '';
     let globalStudents = [];
+    let globalAdminUsers = [];
     let fullMap = null;
     let pickerMap = null;
     let pickerPlacemark = null;
@@ -213,16 +225,8 @@
         tabNav.classList.remove('hidden');
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
-            <span class="text-xs mono bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-md text-[#E50914]">${currentUser.fullName} [${currentUser.role}]</span>
+            <span class="text-xs mono bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-md text-[#E50914]">${currentUser.fullName} [${currentUser.groupName || 'Группа'}]</span>
             <button onclick="logout()" class="text-xs text-neutral-500 hover:text-white transition">Выход</button>
-          </div>
-        `;
-
-        sidebar.innerHTML = `
-          <div class="space-y-2 text-xs mono">
-            <div class="flex justify-between"><span class="text-neutral-500">Статус:</span><span class="text-emerald-500">Активен</span></div>
-            <div class="flex justify-between"><span class="text-neutral-500">Роль:</span><span class="text-white">${currentUser.role}</span></div>
-            <div class="flex justify-between"><span class="text-neutral-500">Профиль:</span><span class="text-white">Кино и ТВ</span></div>
           </div>
         `;
 
@@ -269,37 +273,56 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        const container = document.getElementById('adminUsersList');
-        container.innerHTML = data.users.map(u => `
-          <div class="flex items-center justify-between p-3 rounded-md bg-neutral-900/50 border border-neutral-800">
-            <div>
-              <h4 class="font-bold text-xs text-white">${u.fullName} <span class="text-[10px] text-amber-500 mono">⭐${u.rating}</span></h4>
-              <p class="text-[10px] text-neutral-500 mono">${u.email}</p>
-            </div>
-            <div>
-              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-neutral-950 border border-neutral-800 rounded px-2 py-1 text-[11px] mono text-white focus:outline-none focus:border-[#E50914]">
-                ${data.roles.map(r => `<option value="${r.id}" ${u.role?.id === r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-        `).join('');
+        globalAdminUsers = data.users;
+        renderAdminUsers(globalAdminUsers);
       } catch (err) {
         console.error(err);
       }
     }
 
-    async function changeUserRole(userId, roleId) {
+    function renderAdminUsers(users) {
+      const container = document.getElementById('adminUsersList');
+      container.innerHTML = users.map(u => `
+        <div class="flex items-center justify-between p-3 rounded-md bg-neutral-900/50 border ${u.isSuspended ? 'border-red-900/50 bg-red-950/10' : 'border-neutral-800'}">
+          <div>
+            <h4 class="font-bold text-xs text-white">${u.fullName} <span class="text-[10px] text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> <span class="text-[10px] text-amber-500 mono">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 text-[10px]">[ОТСТРАНЕН]</span>' : ''}</h4>
+            <p class="text-[10px] text-neutral-500 mono">${u.email}</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-neutral-950 border border-neutral-800 rounded px-2 py-1 text-[11px] mono text-white focus:outline-none focus:border-[#E50914]">
+              ${currentUser && currentUser.role ? `<option value="">Роль: ${u.role?.name || 'Студент'}</option>` : ''}
+              <option value="STUDENT">Студент</option>
+            </select>
+            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-2.5 py-1 rounded text-[10px] font-bold uppercase mono ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30'}">
+              ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterAdminUsers() {
+      const query = document.getElementById('adminSearch').value.toLowerCase();
+      const filtered = globalAdminUsers.filter(u => u.fullName.toLowerCase().includes(query) || (u.groupName && u.groupName.toLowerCase().includes(query)));
+      renderAdminUsers(filtered);
+    }
+
+    async function toggleSuspend(userId, isSuspended) {
       try {
-        const res = await fetch('/api/admin/assign-role', {
+        const res = await fetch('/api/admin/suspend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ userId, roleId })
+          body: JSON.stringify({ userId, isSuspended })
         });
         if (!res.ok) throw new Error('Ошибка');
         loadAdminPanel();
       } catch (err) {
         alert(err.message);
       }
+    }
+
+    async function changeUserRole(userId, roleId) {
+      loadAdminPanel();
     }
 
     async function loadNotifications() {
@@ -355,26 +378,10 @@
     async function openShootModal() {
       document.getElementById('shootModal').classList.remove('hidden');
       try {
-        const res = await fetch('/api/shoots');
+        const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
         globalStudents = data.students || [];
-        
-        const box = document.getElementById('studentsCheckboxes');
-        box.innerHTML = globalStudents.map(s => `
-          <div class="flex items-center justify-between p-2 rounded bg-neutral-950/60 border border-neutral-800 text-xs">
-            <label class="flex items-center space-x-2 cursor-pointer flex-grow">
-              <input type="checkbox" name="studentSelect" value="${s.id}" class="rounded bg-neutral-900 border-neutral-800 text-[#E50914]">
-              <span class="text-white text-xs">${s.fullName} <span class="text-amber-500 mono">⭐${s.rating}</span></span>
-            </label>
-            <select name="craftRole_${s.id}" class="bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[10px] mono text-neutral-300">
-              <option value="Оператор">Оператор</option>
-              <option value="Звукорежиссер">Звукорежиссер</option>
-              <option value="Осветитель">Осветитель</option>
-              <option value="Монтажер">Монтажер</option>
-              <option value="Гаффер">Гаффер</option>
-            </select>
-          </div>
-        `).join('');
+        renderModalStudents(globalStudents);
 
         setTimeout(() => {
           if (!pickerMap && typeof ymaps !== 'undefined') {
@@ -398,6 +405,31 @@
       } catch (err) {
         console.error(err);
       }
+    }
+
+    function renderModalStudents(students) {
+      const box = document.getElementById('studentsCheckboxes');
+      box.innerHTML = students.map(s => `
+        <div class="flex items-center justify-between p-2 rounded bg-neutral-950/60 border border-neutral-800 text-xs">
+          <label class="flex items-center space-x-2 cursor-pointer flex-grow">
+            <input type="checkbox" name="studentSelect" value="${s.id}" class="rounded bg-neutral-900 border-neutral-800 text-[#E50914]">
+            <span class="text-white text-xs">${s.fullName} <span class="text-neutral-400">[${s.groupName}]</span> <span class="text-amber-500 mono">⭐${s.rating}</span></span>
+          </label>
+          <select name="craftRole_${s.id}" class="bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[10px] mono text-neutral-300">
+            <option value="Оператор">Оператор</option>
+            <option value="Звукорежиссер">Звукорежиссер</option>
+            <option value="Осветитель">Осветитель</option>
+            <option value="Монтажер">Монтажер</option>
+            <option value="Гаффер">Гаффер</option>
+          </select>
+        </div>
+      `).join('');
+    }
+
+    function filterModalStudents() {
+      const query = document.getElementById('studentSearchModal').value.toLowerCase();
+      const filtered = globalStudents.filter(s => s.fullName.toLowerCase().includes(query) || (s.groupName && s.groupName.toLowerCase().includes(query)));
+      renderModalStudents(filtered);
     }
 
     function toggleMapPicker(type) {
@@ -444,6 +476,35 @@
       }
     }
 
+    async function completeShoot(shootId) {
+      if (!confirm('Завершить смену? Участвовавшим будет начислено повышение рейтинга.')) return;
+      try {
+        const res = await fetch('/api/shoots/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ shootId })
+        });
+        if (!res.ok) throw new Error('Ошибка');
+        loadShoots();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function updateAttendance(crewMemberId, attendance) {
+      try {
+        const res = await fetch('/api/crew/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ crewMemberId, attendance })
+        });
+        if (!res.ok) throw new Error('Ошибка');
+        loadShoots();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
     function openModal(type) {
       isRegister = type === 'register';
       document.getElementById('modalTitle').innerText = isRegister ? 'Регистрация' : 'Авторизация';
@@ -461,6 +522,7 @@
         email: document.getElementById('email').value,
         password: document.getElementById('password').value,
         fullName: isRegister ? document.getElementById('fullName').value : undefined,
+        groupName: isRegister ? document.getElementById('groupName').value : undefined,
       };
 
       try {
@@ -474,6 +536,7 @@
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        currentUser = data.user;
         closeModal();
         location.reload();
       } catch (err) {
@@ -483,10 +546,32 @@
 
     async function loadShoots() {
       try {
-        const res = await fetch('/api/shoots');
+        const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
         const shoots = data.shoots || [];
+        const stats = data.stats || { totalShoots: 0, completedShoots: 0 };
+        const userStats = data.userStats;
+
         document.getElementById('shootCount').innerText = `${shoots.length} смен`;
+        document.getElementById('globalStatsText').innerText = `Всего смен: ${stats.totalShoots} | Завершено: ${stats.completedShoots}`;
+
+        const sidebar = document.getElementById('sidebarProfile');
+        if (currentUser) {
+          sidebar.innerHTML = `
+            <div class="space-y-2 text-xs mono">
+              <div class="flex justify-between"><span class="text-neutral-500">ФИО:</span><span class="text-white">${currentUser.fullName}</span></div>
+              <div class="flex justify-between"><span class="text-neutral-500">Группа:</span><span class="text-[#E50914] font-bold">${currentUser.groupName || '—'}</span></div>
+              <div class="flex justify-between"><span class="text-neutral-500">Роль:</span><span class="text-white">${currentUser.role}</span></div>
+              ${userStats ? `
+                <div class="border-t border-neutral-800 pt-2 mt-2 space-y-1">
+                  <div class="flex justify-between"><span class="text-neutral-500">Рейтинг:</span><span class="text-amber-400 font-bold">⭐ ${userStats.rating}</span></div>
+                  <div class="flex justify-between"><span class="text-neutral-500">Смен в активе:</span><span class="text-white">${userStats.completedParticipated} /${userStats.totalParticipated}</span></div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }
+
         const container = document.getElementById('shootsList');
 
         if (shoots.length === 0) {
@@ -506,10 +591,15 @@
           });
         }
 
+        const canManage = currentUser && (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор');
+
         container.innerHTML = shoots.map(s => `
           <div class="p-5 rounded-xl bg-neutral-900/40 border border-neutral-900 space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-[10px] mono bg-[#E50914]/10 text-[#E50914] border border-[#E50914]/20 px-2 py-0.5 rounded uppercase font-bold">${s.type}</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] mono bg-[#E50914]/10 text-[#E50914] border border-[#E50914]/20 px-2 py-0.5 rounded uppercase font-bold">${s.type}</span>
+                ${s.isCompleted ? '<span class="text-[10px] mono bg-emerald-950/40 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded uppercase font-bold">Завершено</span>' : '<span class="text-[10px] mono bg-amber-950/40 text-amber-400 border border-amber-900 px-2 py-0.5 rounded uppercase font-bold">В процессе</span>'}
+              </div>
               <span class="text-[11px] mono text-neutral-500">${new Date(s.date).toLocaleString()}</span>
             </div>
             <div>
@@ -521,17 +611,26 @@
               <span>Мастер: <strong class="text-neutral-300">${s.creator.fullName}</strong></span>
             </div>
             <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-900 text-[11px]">
-              <span class="text-neutral-500 mono block mb-1.5 uppercase tracking-wider text-[10px]">Съёмочная группа:</span>
+              <div class="flex justify-between items-center mb-1.5">
+                <span class="text-neutral-500 mono uppercase tracking-wider text-[10px]">Съёмочная группа и посещаемость:</span>
+                ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-red-600/20 text-red-400 border border-red-600/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase mono hover:bg-red-600 hover:text-white transition">Завершить смену</button>` : ''}
+              </div>
               <div class="flex flex-wrap gap-1.5">
                 ${s.crew.length === 0 ? '<span class="text-neutral-600 mono text-[10px]">Команда не назначена</span>' : s.crew.map(c => `
-                  <span class="px-2 py-1 rounded border flex items-center space-x-1.5 mono text-[10px] ${
+                  <div class="px-2.5 py-1 rounded border flex items-center space-x-2 mono text-[10px] ${
                     c.status === 'ACCEPTED' ? 'bg-emerald-950/40 border-emerald-900 text-emerald-400' :
                     c.status === 'DECLINED' ? 'bg-red-950/40 border-red-900 text-red-400' :
                     'bg-neutral-900 border-neutral-800 text-neutral-400'
                   }">
-                    <span>${c.user.fullName} [${c.roleInShoot}] (⭐${c.user.rating})</span>
+                    <span>${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
                     <span class="font-bold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '···'}</span>
-                  </span>
+                    ${canManage && c.status === 'ACCEPTED' && !s.isCompleted ? `
+                      <select onchange="updateAttendance('${c.id}', this.value)" class="bg-neutral-900 border border-neutral-700 text-[9px] text-white rounded px-1">
+                        <option value="PRESENT" ${c.attendance === 'PRESENT' ? 'selected' : ''}>Присутствовал</option>
+                        <option value="ABSENT" ${c.attendance === 'ABSENT' ? 'selected' : ''}>Прогул (-0.3⭐)</option>
+                      </select>
+                    ` : ''}
+                  </div>
                 `).join('')}
               </div>
             </div>
@@ -542,8 +641,10 @@
       }
     }
 
-    updateNav();
-    loadShoots();
+    if (token) {
+      updateNav();
+      loadShoots();
+    }
   </script>
 </body>
 </html>
