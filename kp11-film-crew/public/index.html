@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ЦКТ • Кино и Телепроизводство | КП11</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Подключаем API Яндекс.Карт -->
+  <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_апи_ключ&lang=ru_RU" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #f3f4f6; }
@@ -44,7 +46,7 @@
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Уведомления для студента -->
+    <!-- Уведомления -->
     <div id="notificationsContainer" class="mb-8"></div>
 
     <!-- Вкладки -->
@@ -57,13 +59,14 @@
     <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="flex items-center justify-between">
-          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены и карта выездов</h3>
+          <h3 class="text-xl font-bold tracking-tight text-white">Активные смены и выезды</h3>
           <span id="shootCount" class="text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-full text-neutral-400">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-4">
           <div class="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-neutral-500">Загрузка съёмок...</div>
         </div>
       </div>
+      
       <div class="space-y-6">
         <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 backdrop-blur">
           <h3 class="text-lg font-bold mb-4 text-white">Профиль участника</h3>
@@ -71,17 +74,14 @@
             <p>Войдите в систему для доступа к съёмкам.</p>
           </div>
         </div>
-        <!-- Карта-виджет выездов -->
-        <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+
+        <!-- Яндекс Карта -->
+        <div class="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800">
           <h3 class="text-sm font-bold mb-3 text-white flex items-center justify-between">
-            <span>🗺️ Радар локаций (Москва)</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span>🗺️ Карта съёмок (Яндекс)</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           </h3>
-          <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-800 text-xs font-mono text-neutral-400 space-y-2">
-            <p>📍 КП11 Студия 1 (Павильон)</p>
-            <p>📍 Выезд: Натурная локация ЦАО</p>
-            <p class="text-red-500 pt-2">🟢 Все точки на связи</p>
-          </div>
+          <div id="mapContainer" class="w-full h-64 rounded-xl border border-neutral-800 overflow-hidden bg-neutral-950"></div>
         </div>
       </div>
     </div>
@@ -90,7 +90,7 @@
     <div id="viewAdmin" class="hidden space-y-8">
       <div class="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800">
         <h3 class="text-xl font-bold mb-2 text-white">👥 Управление ролями пользователей</h3>
-        <p class="text-sm text-neutral-400 mb-6">Изменяйте роли студентов на Мастеров или Администраторов.</p>
+        <p class="text-sm text-neutral-400 mb-6">Список всех студентов, мастеров и администраторов в базе данных.</p>
         <div id="adminUsersList" class="space-y-3">
           <div class="text-neutral-500 text-sm">Загрузка пользователей...</div>
         </div>
@@ -99,7 +99,7 @@
 
   </main>
 
-  <!-- Модальное окно Создания съёмки с набором команды -->
+  <!-- Модальное окно Создания съёмки -->
   <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
     <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeShootModal()" class="absolute top-4 right-4 text-neutral-500 hover:text-white">✕</button>
@@ -129,17 +129,17 @@
         </div>
         <div>
           <label class="block text-xs font-mono text-neutral-400 mb-1">Локация</label>
-          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600">
+          <input type="text" id="shootLocation" required class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600" placeholder="КП11, Павильон №1">
         </div>
         
         <div>
-          <label class="block text-xs font-mono text-neutral-400 mb-2">👥 Выберите студентов в команду (с рейтингом профпригодности):</label>
+          <label class="block text-xs font-mono text-neutral-400 mb-2">👥 Выберите тестовых студентов в команду:</label>
           <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
             <!-- Заполняется через JS -->
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 mt-2">Опубликовать и отправить приглашения</button>
+        <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 mt-2">Опубликовать съёмку</button>
       </form>
     </div>
   </div>
@@ -178,7 +178,21 @@
     let isRegister = false;
     let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     let token = localStorage.getItem('token') || '';
-    let availableStudentsForShoot = [];
+    let globalStudents = [];
+    let myMap = null;
+
+    // Инициализация Яндекс Карт
+    if (typeof ymaps !== 'undefined') {
+      ymaps.ready(initYandexMap);
+    }
+
+    function initYandexMap() {
+      myMap = new ymaps.Map("mapContainer", {
+        center: [55.751244, 37.618423], // Центр Москвы
+        zoom: 11,
+        controls: ['zoomControl', 'geolocationControl']
+      });
+    }
 
     function updateNav() {
       const nav = document.getElementById('userNav');
@@ -253,6 +267,7 @@
         `).join('');
       } catch (err) {
         console.error('Ошибка загрузки админки:', err);
+        document.getElementById('adminUsersList').innerHTML = `<div class="text-red-500 text-sm">Ошибка загрузки. Попробуйте войти заново.</div>`;
       }
     }
 
@@ -314,8 +329,8 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ crewMemberId, status })
         });
-        if (!res.ok) throw new Error('Ошибка отправки ответа');
-        alert('Статус участия обновлен!');
+        if (!res.ok) throw new Error('Ошибка');
+        alert('Статус обновлен!');
         loadNotifications();
         loadShoots();
       } catch (err) {
@@ -325,13 +340,13 @@
 
     async function openShootModal() {
       document.getElementById('shootModal').classList.remove('hidden');
-      // Загружаем список студентов для чекбоксов
       try {
-        const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch('/api/shoots');
         const data = await res.json();
-        availableStudentsForShoot = data.students || [];
+        globalStudents = data.students || [];
+        
         const box = document.getElementById('studentsCheckboxes');
-        box.innerHTML = availableStudentsForShoot.map(s => `
+        box.innerHTML = globalStudents.map(s => `
           <label class="flex items-center justify-between p-2 rounded hover:bg-neutral-900 cursor-pointer text-xs">
             <div class="flex items-center space-x-2">
               <input type="checkbox" name="studentSelect" value="${s.id}" class="rounded bg-neutral-800 border-neutral-700 text-red-600">
@@ -368,7 +383,7 @@
           body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error('Ошибка создания');
-        alert('Съёмка успешно создана и уведомления отправлены!');
+        alert('Съёмка успешно создана и команда назначена!');
         closeShootModal();
         loadShoots();
       } catch (err) {
@@ -416,7 +431,7 @@
 
     async function loadShoots() {
       try {
-        const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch('/api/shoots');
         const data = await res.json();
         const shoots = data.shoots || [];
         const container = document.getElementById('shootsList');
@@ -425,6 +440,22 @@
         if (shoots.length === 0) {
           container.innerHTML = `<div class="p-8 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center text-neutral-500">Пока нет запланированных съёмок.</div>`;
           return;
+        }
+
+        // Очищаем и добавляем метки на карту
+        if (myMap) {
+          myMap.geoObjects.removeAll();
+          shoots.forEach((s, index) => {
+            // Рандомный сдвиг для демо-меток вокруг Москвы, если координаты одинаковые
+            const lat = 55.75 + (index * 0.02);
+            const lon = 37.61 + (index * 0.03);
+            const placemark = new ymaps.Placemark([lat, lon], {
+              balloonContent: `<strong>${s.title}</strong><br>Локация: ${s.location}`
+            }, {
+              preset: 'islands#redFilmIcon'
+            });
+            myMap.geoObjects.add(placemark);
+          });
         }
 
         container.innerHTML = shoots.map(s => `
@@ -441,11 +472,10 @@
               <span>📍 Локация: <strong class="text-neutral-300">${s.location}</strong></span>
               <span>Мастер: <strong class="text-neutral-300">${s.creator.fullName}</strong></span>
             </div>
-            <!-- Список назначенной команды -->
             <div class="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs">
               <span class="text-neutral-400 font-bold block mb-2">🎬 Съёмочная группа:</span>
               <div class="flex flex-wrap gap-2">
-                ${s.crew.length === 0 ? '<span class="text-neutral-600">Команда еще не назначена</span>' : s.crew.map(c => `
+                ${s.crew.length === 0 ? '<span class="text-neutral-600">Команда не назначена</span>' : s.crew.map(c => `
                   <span class="px-2.5 py-1 rounded-lg border flex items-center space-x-1.5 ${
                     c.status === 'ACCEPTED' ? 'bg-emerald-950/50 border-emerald-800 text-emerald-400' :
                     c.status === 'DECLINED' ? 'bg-red-950/50 border-red-800 text-red-400' :
