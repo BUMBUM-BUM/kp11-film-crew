@@ -7,20 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  STUDENT
-  TEACHER
+// Права в системе (например: CREATE_SHOOT, RATE_STUDENTS, MANAGE_ROLES)
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // Уникальный код права (напр. 'shoot:create')
+  name        String   // Человекопонятное название
+  roles       RolePermission[]
 }
 
-enum ShootType {
-  STUDIO
-  LOCATION
+// Динамические роли (Админ, Мастер, Студент и т.д.)
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // Название роли (напр. 'Мастер', 'Студент', 'Ассистент')
+  description String?
+  permissions RolePermission[]
+  users       User[]
+  createdAt   DateTime @default(now())
 }
 
-enum CrewStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
+// Связь ролей и прав (Многие ко многим)
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
 }
 
 model User {
@@ -28,7 +40,11 @@ model User {
   email        String       @unique
   passwordHash String
   fullName     String
-  role         Role         @default(STUDENT)
+  
+  // Привязка к динамической роли
+  roleId       String?
+  role         Role?        @relation(fields: [roleId], references: [id])
+  
   course       Int?
   specialty    String?      @default("Кино и телепроизводство")
   rating       Float        @default(5.0)
@@ -42,7 +58,7 @@ model Shoot {
   id          String       @id @default(uuid())
   title       String
   description String
-  type        ShootType    @default(STUDIO)
+  type        String       @default("STUDIO") // STUDIO или LOCATION
   date        DateTime
   location    String
   creatorId   String
@@ -58,7 +74,7 @@ model CrewMember {
   userId        String
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   roleInShoot   String
-  status        CrewStatus @default(PENDING)
+  status        String     @default("PENDING") // PENDING, ACCEPTED, DECLINED
   declineReason String?
   invitedAt     DateTime   @default(now())
 }
