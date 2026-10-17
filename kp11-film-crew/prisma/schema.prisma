@@ -61,6 +61,8 @@ model Shoot {
   type        String       @default("STUDIO") // STUDIO или LOCATION
   date        DateTime
   location    String
+  latitude    Float?       @default(55.751244)
+  longitude   Float?       @default(37.618423)
   creatorId   String
   creator     User         @relation("CreatedShoots", fields: [creatorId], references: [id])
   crew        CrewMember[]
