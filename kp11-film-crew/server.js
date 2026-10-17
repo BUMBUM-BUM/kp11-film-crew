@@ -34,7 +34,7 @@ async function authenticateToken(req, res, next) {
   }
 }
 
-// Синхронная/надежная инициализация базы при старте
+// Инициализация базы
 async function initDatabase() {
   try {
     let studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
@@ -52,7 +52,6 @@ async function initDatabase() {
       adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Полный доступ' } });
     }
 
-    // Создаем дефолтного админа, если нет
     const adminExists = await prisma.user.findUnique({ where: { email: 'admin@ckt.ru' } });
     if (!adminExists) {
       const passwordHash = await bcrypt.hash('admin123', 10);
@@ -81,13 +80,10 @@ async function initDatabase() {
         });
       }
     }
-    console.log('✅ База данных полностью инициализирована!');
   } catch (err) {
     console.error('Ошибка инициализации БД:', err.message);
   }
 }
-
-// Запускаем инициализацию сразу
 initDatabase();
 
 // === РЕГИСТРАЦИЯ ===
@@ -176,7 +172,7 @@ app.post('/api/admin/assign-role', authenticateToken, async (req, res) => {
   }
 });
 
-// === СЪЁМКИ И СТУДЕНТЫ ===
+// === СЪЁМКИ И ВСЕ СТУДЕНТЫ (для выбора в команду) ===
 app.get('/api/shoots', async (req, res) => {
   try {
     const shoots = await prisma.shoot.findMany({
@@ -187,10 +183,16 @@ app.get('/api/shoots', async (req, res) => {
       orderBy: { date: 'asc' }
     });
     
+    // Находим всех пользователей, у которых роль 'Студент' ИЛИ роль не задана (новые зарегистрированные)
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
     const students = await prisma.user.findMany({
-      where: { roleId: studentRole ? studentRole.id : undefined },
-      select: { id: true, fullName: true, rating: true, skills: true }
+      where: {
+        OR: [
+          { roleId: studentRole ? studentRole.id : undefined },
+          { roleId: null }
+        ]
+      },
+      select: { id: true, fullName: true, rating: true, skills: true, role: { select: { name: true } } }
     });
 
     res.json({ shoots, students });
@@ -216,7 +218,7 @@ app.post('/api/shoots', authenticateToken, async (req, res) => {
         crew: {
           create: (studentIds || []).map(userId => ({
             userId,
-            roleInShoot: 'Студент-кинопроизводитель',
+            roleInShoot: 'Студент-участник',
             status: 'PENDING'
           }))
         }
