@@ -54,25 +54,27 @@ async function initDatabase() {
     if (!adminExists) {
       const passwordHash = await bcrypt.hash('admin123', 10);
       await prisma.user.create({
-        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', roleId: adminRole.id }
+        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', groupName: 'Админ', roleId: adminRole.id }
       });
     }
 
+    const groups = ['КИТ-21', 'КИТ-22', 'РТ-31', 'АД-21'];
     for (let i = 1; i <= 10; i++) {
       const email = `test-${i}@ckt.ru`;
       const exists = await prisma.user.findUnique({ where: { email } });
       if (!exists) {
         const passwordHash = await bcrypt.hash('123456', 10);
-        const randomRating = parseFloat((4.0 + Math.random() * 1.0).toFixed(1));
+        const randomRating = parseFloat((4.2 + Math.random() * 0.8).toFixed(1));
         await prisma.user.create({
           data: {
             email,
             passwordHash,
             fullName: `Студент ${i < 10 ? '0' + i : i}`,
+            groupName: groups[i % groups.length],
             roleId: studentRole.id,
             course: 2,
             rating: randomRating,
-            skills: ['Оператор', 'Звукорежиссер', 'Осветитель', 'Монтажер']
+            skills: ['Оператор', 'Звукорежиссер', 'Осветитель']
           }
         });
       }
@@ -85,7 +87,7 @@ initDatabase();
 
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, fullName, course } = req.body;
+    const { email, password, fullName, groupName, course } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return res.status(400).json({ error: 'Email занят' });
 
@@ -97,6 +99,7 @@ app.post('/api/auth/register', async (req, res) => {
         email,
         passwordHash,
         fullName,
+        groupName: groupName || 'КИТ-11',
         roleId: studentRole ? studentRole.id : null,
         course: course ? parseInt(course) : 1,
         rating: 5.0,
@@ -106,7 +109,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role?.name || 'Студент' } });
+    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, groupName: user.groupName, role: user.role?.name || 'Студент' } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -120,6 +123,7 @@ app.post('/api/auth/login', async (req, res) => {
       include: { role: true }
     });
     if (!user) return res.status(400).json({ error: 'Неверные данные' });
+    if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт временно отстранен администрацией' });
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) return res.status(400).json({ error: 'Неверные данные' });
@@ -131,6 +135,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id, 
         fullName: user.fullName, 
         email: user.email, 
+        groupName: user.groupName,
         role: user.role?.name || 'Без роли'
       } 
     });
@@ -144,6 +149,20 @@ app.get('/api/admin/data', authenticateToken, async (req, res) => {
     const roles = await prisma.role.findMany();
     const users = await prisma.user.findMany({ include: { role: true } });
     res.json({ roles, users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Отстранить / вернуть студента
+app.post('/api/admin/suspend', authenticateToken, async (req, res) => {
+  try {
+    const { userId, isSuspended } = req.body;
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { isSuspended }
+    });
+    res.json({ success: true, updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -163,28 +182,49 @@ app.post('/api/admin/assign-role', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/shoots', async (req, res) => {
+// Получить смены и статистику
+app.get('/api/shoots', authenticateToken, async (req, res) => {
   try {
     const shoots = await prisma.shoot.findMany({
       include: {
         creator: { select: { fullName: true } },
-        crew: { include: { user: { select: { id: true, fullName: true, rating: true, skills: true } } } }
+        crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, skills: true } } } }
       },
       orderBy: { date: 'asc' }
     });
     
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
+    // Отдаем только не отстраненных студентов для выбора в смену
     const students = await prisma.user.findMany({
       where: {
+        isSuspended: false,
         OR: [
           { roleId: studentRole ? studentRole.id : undefined },
           { roleId: null }
         ]
       },
-      select: { id: true, fullName: true, rating: true, skills: true }
+      select: { id: true, fullName: true, groupName: true, rating: true, skills: true }
     });
 
-    res.json({ shoots, students });
+    // Общая статистика для профиля
+    const totalShoots = shoots.length;
+    const completedShoots = shoots.filter(s => s.isCompleted).length;
+
+    // Статистика конкретного студента, если передан токен
+    let userStats = null;
+    if (req.user) {
+      const myParticipations = await prisma.crewMember.findMany({
+        where: { userId: req.user.id, status: 'ACCEPTED' },
+        include: { shoot: true }
+      });
+      userStats = {
+        totalParticipated: myParticipations.length,
+        completedParticipated: myParticipations.filter(p => p.shoot.isCompleted).length,
+        rating: req.user.rating
+      };
+    }
+
+    res.json({ shoots, students, stats: { totalShoots, completedShoots }, userStats });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -193,7 +233,6 @@ app.get('/api/shoots', async (req, res) => {
 app.post('/api/shoots', authenticateToken, async (req, res) => {
   try {
     const { title, description, type, date, location, crewAssignments, latitude, longitude } = req.body;
-    
     const shoot = await prisma.shoot.create({
       data: {
         title,
@@ -208,13 +247,72 @@ app.post('/api/shoots', authenticateToken, async (req, res) => {
           create: (crewAssignments || []).map(item => ({
             userId: item.userId,
             roleInShoot: item.craftRole || 'Участник',
-            status: 'PENDING'
+            status: 'PENDING',
+            attendance: 'PRESENT'
           }))
         }
       },
       include: { crew: true }
     });
     res.json(shoot);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Отметка отсутствия (прогула) и снижение рейтинга
+app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
+  try {
+    const { crewMemberId, attendance } = req.body; // 'PRESENT' или 'ABSENT'
+    const crewMember = await prisma.crewMember.findUnique({
+      where: { id: crewMemberId },
+      include: { user: true }
+    });
+
+    if (!crewMember) return res.status(404).json({ error: 'Участник не найден' });
+
+    // Если отметили прогул, снижаем рейтинг на 0.3 балла
+    if (attendance === 'ABSENT' && crewMember.attendance === 'PRESENT') {
+      const newRating = Math.max(1.0, parseFloat((crewMember.user.rating - 0.3).toFixed(1)));
+      await prisma.user.update({
+        where: { id: crewMember.userId },
+        data: { rating: newRating }
+      });
+    }
+
+    const updated = await prisma.crewMember.update({
+      where: { id: crewMemberId },
+      data: { attendance }
+    });
+
+    res.json({ success: true, updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Завершить смену
+app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
+  try {
+    const { shootId } = req.body;
+    const shoot = await prisma.shoot.update({
+      where: { id: shootId },
+      data: { isCompleted: true },
+      include: { crew: true }
+    });
+
+    // За успешно завершенную смену повышаем рейтинг присутствовавшим на 0.1
+    for (const member of shoot.crew) {
+      if (member.status === 'ACCEPTED' && member.attendance === 'PRESENT') {
+        const user = await prisma.user.findUnique({ where: { id: member.userId } });
+        if (user) {
+          const newRating = Math.min(5.0, parseFloat((user.rating + 0.1).toFixed(1)));
+          await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
+        }
+      }
+    }
+
+    res.json({ success: true, shoot });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
