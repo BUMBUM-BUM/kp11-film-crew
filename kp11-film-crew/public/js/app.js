@@ -185,7 +185,13 @@ async function loadAdminPanel() {
 function renderAdminUsers(users) {
   const container = document.getElementById('adminUsersList');
   if (!container) return;
-  container.innerHTML = users.map(u => {
+  
+  let adminTopBar = '<div class="mb-4 flex justify-between items-center bg-[#1A1A1A] p-3 unified-parallelogram border border-[#333333]">' +
+    '<span class="text-xs font-extrabold uppercase text-[var(--brand-beige)]">Глобальное управление базой</span>' +
+    '<button onclick="resetAllRatings()" class="px-3 py-1.5 text-xs font-extrabold uppercase bg-red-800 text-white unified-parallelogram hover:bg-red-700 transition">Сбросить весь рейтинг</button>' +
+  '</div>';
+
+  container.innerHTML = adminTopBar + users.map(u => {
     const currentRole = u.role && u.role.name ? u.role.name : 'Студент';
     const isAdminUser = currentUser && currentUser.id === u.id;
     const ratingText = u.rating !== null && u.rating !== undefined ? u.rating : 'Нет';
@@ -197,6 +203,8 @@ function renderAdminUsers(users) {
       deleteBtn = '<button onclick="deleteUser(\'' + u.id + '\')" class="px-3 py-1 text-xs font-extrabold uppercase bg-red-700 text-white unified-parallelogram">Удалить</button>';
     }
 
+    let editProfileBtn = '<button onclick="editUserProfile(\'' + u.id + '\', \'' + u.fullName.replace(/'/g, "\\'") + '\', \'' + (u.groupName || '') + '\', ' + u.rating + ')" class="px-3 py-1 text-xs font-extrabold uppercase bg-amber-600 text-black unified-parallelogram font-bold">Изменить</button>';
+
     return '<div class="flex flex-col md:flex-row md:items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram gap-3 border border-[#333333] ' + borderClass + '">' +
       '<div>' +
         '<h4 class="font-extrabold text-xs uppercase pixel-text-invert">' +
@@ -206,7 +214,8 @@ function renderAdminUsers(users) {
         '</h4>' +
         '<p class="text-[11px] text-neutral-400 font-bold">' + u.email + '</p>' +
       '</div>' +
-      '<div class="flex items-center space-x-2">' +
+      '<div class="flex items-center space-x-2 flex-wrap gap-y-2">' +
+        editProfileBtn +
         '<select onchange="changeUserRole(\'' + u.id + '\', this.value)" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">' +
           '<option value="Студент" ' + (currentRole === 'Студент' ? 'selected' : '') + '>Студент</option>' +
           '<option value="Мастер / Преподаватель" ' + (currentRole === 'Мастер / Преподаватель' ? 'selected' : '') + '>Мастер / Преподаватель</option>' +
@@ -219,6 +228,74 @@ function renderAdminUsers(users) {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+async function resetAllRatings() {
+  if (!confirm('Вы уверены, что хотите сбросить рейтинг ВСЕХ пользователей в системе?')) return;
+  try {
+    const res = await fetch('/api/admin/reset-ratings', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert('Рейтинг всех пользователей успешно сброшен!');
+    loadAdminPanel();
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+  }
+}
+
+async function editUserProfile(userId, currentName, currentGroup, currentRating) {
+  const newName = prompt('Введите новое ФИО:', currentName);
+  if (newName === null) return;
+  const newGroup = prompt('Введите новую группу:', currentGroup);
+  if (newGroup === null) return;
+  const newRatingInput = prompt('Введите рейтинг (от 0 до 5 или оставьте пустым):', currentRating !== null && currentRating !== 'null' ? currentRating : '');
+  if (newRatingInput === null) return;
+
+  const body = {
+    fullName: newName,
+    groupName: newGroup,
+    rating: newRatingInput.trim() === '' ? null : parseFloat(newRatingInput)
+  };
+
+  try {
+    const res = await fetch('/api/admin/users/' + userId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert('Профиль успешно обновлен!');
+    loadAdminPanel();
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+  }
+}
+
+async function editShoot(shootId, currentTitle, currentDesc, currentLoc, currentType) {
+  const title = prompt('Название смены:', currentTitle);
+  if (title === null) return;
+  const description = prompt('Описание задач:', currentDesc);
+  if (description === null) return;
+  const location = prompt('Локация:', currentLoc);
+  if (location === null) return;
+
+  try {
+    const res = await fetch('/api/shoots/' + shootId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ title, description, location, type: currentType })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert('Смена успешно отредактирована!');
+    loadShoots();
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+  }
 }
 
 async function deleteUser(userId) {
@@ -471,7 +548,7 @@ async function completeShoot(shootId) {
     if (!res.ok) throw new Error('Ошибка завершения смены');
     loadShoots();
   } catch (err) {
-    alert(err.message);
+    alert('Ошибка: ' + err.message);
   }
 }
 
@@ -594,6 +671,7 @@ async function loadShoots() {
         : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-extrabold unified-parallelogram">В процессе</span>';
 
       let deleteBtn = isAdmin ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="bg-[var(--brand-black)] text-red-400 px-2.5 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-900 transition">Удалить</button>' : '';
+      let editShootBtn = canManage ? '<button onclick="editShoot(\'' + s.id + '\', \'' + s.title.replace(/'/g, "\\'") + '\', \'' + s.description.replace(/'/g, "\\'") + '\', \'' + s.location.replace(/'/g, "\\'") + '\', \'' + s.type + '\')" class="bg-[var(--brand-black)] text-amber-300 px-2.5 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-900 transition">Изменить</button>' : '';
       let completeBtn = canManage && !s.isCompleted ? '<button onclick="completeShoot(\'' + s.id + '\')" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-3 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark">Завершить смену</button>' : '';
 
       let crewHtml = '';
@@ -610,19 +688,25 @@ async function loadShoots() {
           let cRating = c.user && c.user.rating !== null && c.user.rating !== undefined ? c.user.rating : 'Нет';
           let cIcon = c.status === 'ACCEPTED' ? '✓' : (c.status === 'DECLINED' ? '✕' : '···');
 
+          let manualAcceptBtn = '';
+          if (canManage && c.status === 'PENDING' && !s.isCompleted) {
+            manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="ml-2 bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase unified-parallelogram">Подтвердить</button>';
+          }
+
           let attendanceSelect = '';
           if (canManage && c.status === 'ACCEPTED' && !s.isCompleted) {
             let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
             let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
-            attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333]">' +
+            attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333] ml-2">' +
               '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
               '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3⭐)</option>' +
             '</select>';
           }
 
-          return '<div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + '">' +
+          return '<div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + ' flex-wrap gap-y-1">' +
             '<span class="uppercase">' + cUserName + ' [' + cGroupName + '] (' + c.roleInShoot + ') ⭐' + cRating + '</span>' +
             '<span class="font-extrabold">' + cIcon + '</span>' +
+            manualAcceptBtn +
             attendanceSelect +
           '</div>';
         }).join('');
@@ -636,6 +720,7 @@ async function loadShoots() {
           '</div>' +
           '<div class="flex items-center space-x-2">' +
             '<span class="text-xs font-bold shoot-card-text" data-text="' + formattedDate + '">' + formattedDate + '</span>' +
+            editShootBtn +
             deleteBtn +
           '</div>' +
         '</div>' +
