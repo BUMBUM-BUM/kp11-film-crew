@@ -97,6 +97,27 @@
 
   <!-- Основное содержимое -->
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
+
+    <!-- Стильная плашка-предупреждение для неавторизованных пользователей -->
+    <div id="authBanner" class="p-6 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram border-2 border-[#EEDDBF] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <span class="bg-[#0A0A0A] text-[#F5F2EB] px-2.5 py-0.5 text-[10px] font-black uppercase unified-parallelogram">Внимание</span>
+          <h3 class="text-sm font-black uppercase tracking-wider pixel-text-invert">Требуется авторизация</h3>
+        </div>
+        <p class="text-xs text-neutral-100 font-extrabold leading-relaxed">
+          Для доступа к управлению производственными сменами, назначениям и реестру необходимо войти в аккаунт или пройти регистрацию.
+        </p>
+      </div>
+      <div class="flex items-center space-x-3 shrink-0">
+        <button onclick="openModal('login')" class="text-xs font-black uppercase px-5 py-2.5 bg-[#0A0A0A] text-[#F5F2EB] unified-parallelogram hover:bg-black transition border border-[#333333]">
+          Авторизоваться
+        </button>
+        <button onclick="openModal('register')" class="text-xs font-black uppercase px-5 py-2.5 bg-[#F5F2EB] text-[#111111] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">
+          Регистрация
+        </button>
+      </div>
+    </div>
     
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
@@ -302,8 +323,10 @@
       const tabNav = document.getElementById('tabNav');
       const tabAdminBtn = document.getElementById('tabAdminBtn');
       const actionContainer = document.getElementById('actionButtonContainer');
+      const authBanner = document.getElementById('authBanner');
 
       if (currentUser) {
+        if (authBanner) authBanner.classList.add('hidden');
         requestPushPermission();
         tabNav.classList.remove('hidden');
         nav.innerHTML = `
@@ -327,6 +350,8 @@
         }
 
         loadNotifications();
+      } else {
+        if (authBanner) authBanner.classList.remove('hidden');
       }
     }
 
@@ -365,23 +390,27 @@
 
     function renderAdminUsers(users) {
       const container = document.getElementById('adminUsersList');
-      container.innerHTML = users.map(u => `
-        <div class="flex items-center justify-between p-3 bg-[#0A0A0A] unified-parallelogram ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
-          <div>
-            <h4 class="font-black text-xs uppercase pixel-text-invert">${u.fullName} <span class="text-neutral-300 font-extrabold">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-black">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 font-black">[ОТСТРАНЕН]</span>' : ''}</h4>
-            <p class="text-[11px] text-neutral-300 font-extrabold">${u.email}</p>
+      container.innerHTML = users.map(u => {
+        const currentRole = u.role?.name || u.role || 'Студент';
+        return `
+          <div class="flex items-center justify-between p-3 bg-[#0A0A0A] unified-parallelogram ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
+            <div>
+              <h4 class="font-black text-xs uppercase pixel-text-invert">${u.fullName} <span class="text-neutral-300 font-extrabold">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-black">⭐${u.rating || 0}</span> ${u.isSuspended ? '<span class="text-red-500 font-black">[ОТСТРАНЕН]</span>' : ''}</h4>
+              <p class="text-[11px] text-neutral-300 font-extrabold">${u.email}</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
+                <option value="STUDENT" ${currentRole === 'Студент' || currentRole === 'STUDENT' ? 'selected' : ''}>Студент</option>
+                <option value="MASTER" ${currentRole === 'Мастер / Преподаватель' || currentRole === 'MASTER' ? 'selected' : ''}>Мастер / Преподаватель</option>
+                <option value="ADMIN" ${currentRole === 'Администратор' || currentRole === 'ADMIN' ? 'selected' : ''}>Администратор</option>
+              </select>
+              <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-black uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white pixel-text-invert'}">
+                ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
+              </button>
+            </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
-              <option value="">Роль: ${u.role?.name || 'Студент'}</option>
-              <option value="STUDENT">Студент</option>
-            </select>
-            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-black uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white pixel-text-invert'}">
-              ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function filterAdminUsers() {
@@ -397,7 +426,7 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ userId, isSuspended })
         });
-        if (!res.ok) throw new Error('Ошибка');
+        if (!res.ok) throw new Error('Ошибка при изменении статуса');
         loadAdminPanel();
       } catch (err) {
         alert(err.message);
@@ -405,7 +434,19 @@
     }
 
     async function changeUserRole(userId, roleId) {
-      loadAdminPanel();
+      try {
+        const res = await fetch('/api/admin/role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ userId, role: roleId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка при изменении роли');
+        loadAdminPanel();
+      } catch (err) {
+        alert(err.message);
+        loadAdminPanel();
+      }
     }
 
     // Загрузка уведомлений и информирование о назначении на съёмку
@@ -481,7 +522,7 @@
         <div class="flex items-center justify-between p-2 bg-[#0A0A0A] text-xs unified-parallelogram">
           <label class="flex items-center space-x-2.5 cursor-pointer flex-grow">
             <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-[#0A0A0A] text-[#E63B2E]">
-            <span class="font-black text-xs uppercase pixel-text-invert">${s.fullName} <span class="text-neutral-300 font-extrabold">[${s.groupName}]</span> <span class="text-amber-400 font-black">⭐${s.rating}</span></span>
+            <span class="font-black text-xs uppercase pixel-text-invert">${s.fullName} <span class="text-neutral-300 font-extrabold">[${s.groupName}]</span> <span class="text-amber-400 font-black">⭐${s.rating || 0}</span></span>
           </label>
           <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-black unified-parallelogram border border-[#333333]">
             <option value="Оператор">Оператор</option>
@@ -624,7 +665,7 @@
         const diffHours = (shootTime - now) / (1000 * 60 * 60);
         // Если до смены от 0 до 2 часов, и текущий пользователь назначен в съёмочную группу
         if (diffHours > 0 && diffHours <= 2) {
-          const isAssigned = s.crew.some(c => c.user.email === currentUser.email);
+          const isAssigned = s.crew && s.crew.some(c => c.user && c.user.email === currentUser.email);
           if (isAssigned) {
             const notifiedKey = `notified_shoot_${s.id}`;
             if (!localStorage.getItem(notifiedKey)) {
@@ -665,6 +706,8 @@
               ` : ''}
             </div>
           `;
+        } else {
+          sidebar.innerHTML = `<p>Авторизуйтесь для доступа к управлению сменами.</p>`;
         }
 
         const container = document.getElementById('shootsList');
@@ -705,7 +748,7 @@
               </div>
               <div class="text-xs font-black border-t border-[#EEDDBF]/30 pt-3 flex justify-between uppercase pixel-text-invert">
                 <span>Локация: <strong class="pixel-text-invert">${s.location}</strong></span>
-                <span>Мастер: <strong class="pixel-text-invert">${s.creator.fullName}</strong></span>
+                <span>Мастер: <strong class="pixel-text-invert">${s.creator ? s.creator.fullName : 'Не указан'}</strong></span>
               </div>
               <div class="pt-2 text-xs space-y-2">
                 <div class="flex justify-between items-center mb-1">
@@ -713,9 +756,9 @@
                   ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-white text-black px-3 py-1 text-[10px] font-black uppercase unified-parallelogram hover:bg-neutral-200 transition">Завершить смену</button>` : ''}
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  ${s.crew.length === 0 ? '<span class="text-xs font-black uppercase pixel-text-invert">Команда не назначена</span>' : s.crew.map(c => `
+                  ${!s.crew || s.crew.length === 0 ? '<span class="text-xs font-black uppercase pixel-text-invert">Команда не назначена</span>' : s.crew.map(c => `
                     <div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-black unified-parallelogram bg-emerald-950 text-emerald-100 border border-emerald-700">
-                      <span class="uppercase">${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
+                      <span class="uppercase">${c.user ? c.user.fullName : 'Пользователь'} [${c.user ? c.user.groupName || 'Группа' : ''}] (${c.roleInShoot}) ⭐${c.user ? c.user.rating || 0 : 0}</span>
                       <span class="font-black text-emerald-400">[НАЗНАЧЕН]</span>
                       ${canManage && !s.isCompleted ? `
                         <select onchange="updateAttendance('${c.id}', this.value)" class="bg-black text-white text-xs font-black px-1 py-0.5 unified-parallelogram border border-[#333333]">
@@ -735,10 +778,9 @@
       }
     }
 
-    if (token) {
-      updateNav();
-      loadShoots();
-    }
+    // Первичная инициализация
+    updateNav();
+    loadShoots();
   </script>
 </body>
 </html>
