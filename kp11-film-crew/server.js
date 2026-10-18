@@ -4,11 +4,78 @@ const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const webpush = require('web-push');
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ckt_kp11_secret_key_2026';
+
+// ----------------- VAPID & WEBPUSH CONFIG -----------------
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'UUxI4SWFq7VzN-GqYf3lFvhG7bT8bV1v_N0E4XzQ_48';
+
+webpush.setVapidDetails(
+  'mailto:mediacenter@kp11.ru',
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
+
+// ----------------- NODEMAILER TRANSPORTER -----------------
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.mail.ru',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER || 'mediacenter_test@kp11.ru',
+    pass: process.env.SMTP_PASS || 'secret_password_here'
+  }
+});
+
+async function sendNotificationEmail(toEmail, subject, htmlContent) {
+  try {
+    if (!process.env.SMTP_USER) {
+      console.log(`[Email Mock] Письмо для ${toEmail}: ${subject}`);
+      return;
+    }
+    await transporter.sendMail({
+      from: `"Медиацентр КП11" <${process.env.SMTP_USER}>`,
+      to: toEmail,
+      subject,
+      html: htmlContent
+    });
+  } catch (err) {
+    console.error(`Ошибка отправки Email на ${toEmail}:`, err.message);
+  }
+}
+
+async function sendWebPushNotification(userId, title, body, url = '/') {
+  try {
+    const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
+    const payload = JSON.stringify({ title, body, url });
+
+    for (const sub of subscriptions) {
+      const pushConfig = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.p256dh,
+          auth: sub.auth
+        }
+      };
+
+      webpush.sendNotification(pushConfig, payload).catch(async (err) => {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await prisma.pushSubscription.delete({ where: { endpoint: sub.endpoint } }).catch(() => {});
+        } else {
+          console.error('Ошибка Web Push:', err.message);
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Ошибка отправки Web Push:', err.message);
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -100,6 +167,40 @@ async function initDatabase() {
 }
 initDatabase();
 
+// ----------------- NOTIFICATION ENDPOINTS -----------------
+app.get('/api/notifications/vapid-public-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/notifications/subscribe', authenticateToken, async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: 'Неверные данные подписки' });
+    }
+
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: subscription.endpoint },
+      update: {
+        userId: req.user.id,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      },
+      create: {
+        userId: req.user.id,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------- AUTH -----------------
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, groupName, course } = req.body;
@@ -150,7 +251,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id, 
         fullName: user.fullName, 
         email: user.email, 
-        groupName: user.groupName,
+        groupName: user.groupName, 
         role: user.role?.name || 'Без роли'
       } 
     });
@@ -159,48 +260,35 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Эндпоинт кино-информера (цитаты и философия кино, меняющиеся каждые 3 часа с учетом рейтинга)
 app.get('/api/cinemaboard', authenticateToken, async (req, res) => {
   try {
     const user = req.user;
     const rating = user.rating !== null && user.rating !== undefined ? user.rating : 5.0;
-    
     const currentHour = new Date().getHours();
     const timeBlock = Math.floor(currentHour / 3);
 
     let messages = [];
-
     if (rating <= 2.5) {
-      // Поддерживающие цитаты при низком рейтинге
       messages = [
         "«Не ошибается тот, кто ничего не делает». Соберись перед следующим дублем! — Народная мудрость",
         "«То, что вы делаете сегодня, говорит громче, чем любые слова». Время переснять неудачный кадр. — Махатма Ганди",
-        "«Падение — это не поражение. Поражение — это оставаться лежать». Ждём тебя на съёмочной площадке! — Сократ",
-        "«Трудности закаляют характер». Камера остывает, но твой творческий потенциал ещё впереди! — Сенека",
-        "«Каждая ошибка — это скрытый урок». Время сделать работу над ошибками и выставить свет заново."
+        "«Падение — это не поражение. Поражение — это оставаться лежать». Ждём тебя на съёмочной площадке! — Сократ"
       ];
     } else if (rating <= 4.0) {
-      // Рабочие/стабильные цитаты
       messages = [
         "«Кино — это жизнь, с которой вывели пятна». Продолжаем двигаться по сценарию! — Альфред Хичкок",
         "«Гениальность — это один процент вдохновения и девяносто девять процентов пота». Держи фокус! — Томас Эдисон",
-        "«Дисциплина — это мост между вашими целями и их достижением». Отличный темп работы! — Джим Рон",
-        "«Чтобы создать нечто исключительное, нужно безупречно делать привычные вещи». — Аристотель",
-        "«Лучший способ предсказать будущее — изобрести его». Создавай свой кадр прямо сейчас! — Алан Кей"
+        "«Дисциплина — это мост между вашими целями и их достижением». Отличный темп работы! — Джим Рон"
       ];
     } else {
-      // Вдохновляющие и триумфальные цитаты для высокого рейтинга
       messages = [
         "«Кинематограф не должен быть сплошным куском жизни; он должен быть произведением искусства». Ты творишь искусство! — Стэнли Кубрик",
         "«Великие фильмы рождаются из великих идей и безупречной работы команды». Браво за твой уровень! — Жан-Люк Годар",
-        "«Искусство смывает пыль повседневности с души». Твои смены сияют ярче софитов! — Пабло Пикассо",
-        "«Верьте в то, что возможно невозможное». Твой рейтинг — доказательство мастерства! — Чарли Чаплин",
-        "«Творить значит объединять то, что до сих пор казалось несоединимым». Великолепный результат! — Фридрих Ницше"
+        "«Искусство смывает пыль повседневности с души». Твои смены сияют ярче софитов! — Пабло Пикассо"
       ];
     }
 
     const selectedMessage = messages[timeBlock % messages.length];
-
     res.json({
       timeBlock,
       rating,
@@ -214,9 +302,7 @@ app.get('/api/cinemaboard', authenticateToken, async (req, res) => {
 
 app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    await prisma.user.updateMany({
-      data: { rating: null }
-    });
+    await prisma.user.updateMany({ data: { rating: null } });
     res.json({ success: true, message: 'Рейтинг всех пользователей успешно сброшен' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -332,7 +418,6 @@ app.get('/api/statistics', authenticateToken, async (req, res) => {
     });
 
     const completedShoots = allShoots.filter(s => s.isCompleted);
-    
     const groupStatsMap = {};
     allShoots.forEach(shoot => {
       shoot.crew.forEach(member => {
@@ -421,6 +506,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   }
 });
 
+// СОЗДАНИЕ СМЕНЫ + ОТПРАВКА EMAIL И ПУШ-УВЕДОМЛЕНИЙ
 app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { title, description, type, date, location, crewAssignments, latitude, longitude } = req.body;
@@ -443,8 +529,58 @@ app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res
           }))
         }
       },
-      include: { crew: true }
+      include: { 
+        crew: {
+          include: { user: true }
+        }
+      }
     });
+
+    // Отправляем уведомления каждому назначенному участнику
+    const formattedDate = new Date(shoot.date).toLocaleString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    for (const member of shoot.crew) {
+      if (member.user) {
+        // 1. Отправляем Web Push
+        sendWebPushNotification(
+          member.user.id,
+          'КП11 • Назначена новая смена',
+          `Вы назначены на роль [${member.roleInShoot}] в проект "${shoot.title}". Дата: ${formattedDate}.`,
+          '/'
+        );
+
+        // 2. Отправляем Email
+        const emailHtml = `
+          <div style="font-family: 'Manrope', Arial, sans-serif; background-color: #1E1E1E; color: #FFFFFF; padding: 24px; border-radius: 6px;">
+            <div style="border-left: 4px solid #FC2C2C; padding-left: 14px; margin-bottom: 20px;">
+              <h2 style="color: #EEE4B5; margin: 0; text-transform: uppercase;">Медиацентр КП11 • Новая съёмка</h2>
+              <p style="color: #999; margin: 4px 0 0 0; font-size: 13px;">Производственная система координации</p>
+            </div>
+            <p style="font-size: 15px;">Здравствуйте, <strong>${member.user.fullName}</strong>!</p>
+            <p style="font-size: 14px; line-height: 1.6;">Вы назначены в съёмочную группу проекта <strong>«${shoot.title}»</strong>.</p>
+            <div style="background-color: #2A2A2A; padding: 16px; border-radius: 4px; margin: 16px 0;">
+              <p style="margin: 4px 0;">🎯 <strong>Ваша роль:</strong> ${member.roleInShoot}</p>
+              <p style="margin: 4px 0;">📅 <strong>Дата и время:</strong> ${formattedDate}</p>
+              <p style="margin: 4px 0;">📍 <strong>Локация:</strong> ${shoot.location} (${shoot.type})</p>
+              <p style="margin: 4px 0;">📝 <strong>Описание:</strong> ${shoot.description}</p>
+            </div>
+            <p style="font-size: 13px; color: #BBB;">Пожалуйста, войдите в систему и подтвердите участие в карточке смены.</p>
+          </div>
+        `;
+
+        sendNotificationEmail(
+          member.user.email,
+          `КП11: Назначение на съёмку «${shoot.title}» (${member.roleInShoot})`,
+          emailHtml
+        );
+      }
+    }
+
     res.json(shoot);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -501,6 +637,14 @@ app.post('/api/shoots/complete', authenticateToken, requireMasterOrAdmin, async 
             newRating = parseFloat(((user.rating + assignedGrade) / 2).toFixed(1));
           }
           await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
+
+          // Уведомление студенту об оценке за смену
+          sendWebPushNotification(
+            user.id,
+            'КП11 • Смена завершена',
+            `Смена «${shoot.title}» закрыта. Ваша оценка: ⭐${assignedGrade}. Обновленный рейтинг: ⭐${newRating}`,
+            '/'
+          );
         }
       }
     }
@@ -516,7 +660,7 @@ app.post('/api/crew/response', authenticateToken, async (req, res) => {
     const { crewMemberId, status } = req.body;
     const crewMember = await prisma.crewMember.findUnique({
       where: { id: crewMemberId },
-      include: { shoot: true }
+      include: { shoot: true, user: true }
     });
 
     if (!crewMember) return res.status(404).json({ error: 'Запись не найдена' });
@@ -533,6 +677,18 @@ app.post('/api/crew/response', authenticateToken, async (req, res) => {
       where: { id: crewMemberId },
       data: { status }
     });
+
+    // Уведомление руководителю смены об ответе студента
+    if (isOwner && crewMember.shoot.creatorId) {
+      const statusRu = status === 'ACCEPTED' ? 'принял(а)' : 'отклонил(а)';
+      sendWebPushNotification(
+        crewMember.shoot.creatorId,
+        'КП11 • Ответ по смене',
+        `Студент ${crewMember.user.fullName} ${statusRu} участие в «${crewMember.shoot.title}»`,
+        '/'
+      );
+    }
+
     res.json({ success: true, updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
