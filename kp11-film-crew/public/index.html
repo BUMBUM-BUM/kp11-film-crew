@@ -10,72 +10,70 @@
   <style>
     body { 
       font-family: 'Manrope', sans-serif; 
-      /* Чёрный фон с утолщённой красной диагональной линией сверху вниз справа налево */
       background-color: #0A0A0A;
-      background-image: linear-gradient(135deg, #0A0A0A 35%, #E63B2E 35%, #E63B2E 65%, #0A0A0A 65%);
+      /* Утолщённая красная диагональная линия */
+      background-image: linear-gradient(135deg, #0A0A0A 30%, #E63B2E 30%, #E63B2E 70%, #0A0A0A 70%);
       background-size: 100% 100%;
       background-attachment: fixed;
       color: #FFFFFF; 
     }
 
-    /* Прямые срезы (асимметричные скосы углов через clip-path) */
-    .slant-cut-1 {
-      clip-path: polygon(0 0, 100% 5%, 95% 100%, 5% 95%);
+    /* Запрет выделения текста для имитации вырезанной бумаги */
+    .paper-block {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
     }
 
-    .slant-cut-2 {
-      clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 95%);
+    /* Срезы строго по углам: нижний правый и нижний левый */
+    .slant-bottom-right {
+      clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 0 100%);
     }
 
-    .slant-cut-3 {
-      clip-path: polygon(0 5%, 95% 0, 100% 95%, 5% 100%);
-    }
-
-    .chamfer-cut {
-      clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    .slant-bottom-left {
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 24px 100%);
     }
 
     /* Эффект вырезанного в цветной бумаге текста */
     .paper-cut-text {
       color: #F5F2EB;
       text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.9), 0px -1px 1px rgba(255, 255, 255, 0.2);
-      letter-spacing: -0.02em;
     }
 
     .paper-cut-text-dark {
       color: #111111;
       text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.6);
-      letter-spacing: -0.02em;
     }
 
-    /* Инверсия/негатив блоков относительно фона с помощью blend-mode */
-    .shoot-card-negative {
+    /* Блоки смен: изначально красный фон, бежевый текст */
+    .shoot-card-base {
       background-color: #E63B2E;
       color: #F5F2EB;
-      mix-blend-mode: exclusion;
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
 
-    .shoot-card-negative-alt {
-      background-color: #0A0A0A;
-      color: #F5F2EB;
-      mix-blend-mode: exclusion;
+    /* Класс инверсии над красной линией фона: строго чёрный фон */
+    .shoot-card-inverted {
+      background-color: #0A0A0A !important;
+      color: #F5F2EB !important;
     }
 
-    /* Блок учётной записи: бежевый, текст чёрный, прямой асимметричный срез */
+    /* Блок учётной записи: бежевый, чёрный текст */
     .account-card {
       background-color: #EEDDBF;
       color: #111111;
-      clip-path: polygon(0 0, 96% 4%, 100% 96%, 4% 100%);
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 20px), 0 100%);
     }
   </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[#E63B2E] selection:text-white">
 
   <!-- Шапка -->
-  <header class="bg-[#0A0A0A] border-b border-[#222222] sticky top-0 z-50">
+  <header class="bg-[#0A0A0A] border-b border-[#222222] sticky top-0 z-50 paper-block">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
-        <div class="bg-[#E63B2E] text-[#F5F2EB] px-4 py-2 font-extrabold text-lg tracking-widest slant-cut-1 paper-cut-text">
+        <div class="bg-[#E63B2E] text-[#F5F2EB] px-4 py-2 font-extrabold text-lg tracking-widest slant-bottom-right paper-cut-text">
           КП11
         </div>
         <div class="border-l border-[#333333] pl-4">
@@ -84,19 +82,19 @@
         </div>
       </div>
       <div id="userNav" class="flex items-center space-x-4">
-        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#E63B2E] text-[#F5F2EB] slant-cut-2 paper-cut-text transition hover:opacity-90">Вход</button>
-        <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#F5F2EB] text-[#111111] slant-cut-3 paper-cut-text-dark transition hover:opacity-90">Регистрация</button>
+        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#E63B2E] text-[#F5F2EB] slant-bottom-left paper-cut-text transition hover:opacity-90">Вход</button>
+        <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#F5F2EB] text-[#111111] slant-bottom-right paper-cut-text-dark transition hover:opacity-90">Регистрация</button>
       </div>
     </div>
   </header>
 
   <!-- Основное содержимое -->
-  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
+  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8 paper-block">
     
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
         <div class="flex items-center space-x-2 mb-2">
-          <span class="px-2 py-0.5 bg-[#E63B2E] text-[#F5F2EB] text-[10px] font-extrabold uppercase slant-cut-1">ПРАКТИЧЕСКИЙ КОНТУР</span>
+          <span class="px-2 py-0.5 bg-[#E63B2E] text-[#F5F2EB] text-[10px] font-extrabold uppercase slant-bottom-right">ПРАКТИЧЕСКИЙ КОНТУР</span>
         </div>
         <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight uppercase paper-cut-text">Реестр производств</h2>
       </div>
@@ -108,9 +106,9 @@
 
     <!-- Навигационные вкладки -->
     <div id="tabNav" class="hidden flex space-x-4 border-b border-[#333333] pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-cut-1 paper-cut-text transition">Смены</button>
-      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] slant-cut-2 paper-cut-text transition">Карта объектов</button>
-      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] slant-cut-3 paper-cut-text-dark transition">Администрирование</button>
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-bottom-right paper-cut-text transition">Смены</button>
+      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] slant-bottom-left paper-cut-text transition">Карта объектов</button>
+      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] slant-bottom-right paper-cut-text-dark transition">Администрирование</button>
     </div>
 
     <!-- Смены -->
@@ -118,17 +116,17 @@
       <div class="lg:col-span-8 space-y-6">
         <div class="flex items-center justify-between">
           <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
-          <span id="shootCount" class="text-xs px-3 py-1 bg-[#1A1A1A] text-[#F5F2EB] font-extrabold slant-cut-2">0 смен</span>
+          <span id="shootCount" class="text-xs px-3 py-1 bg-[#1A1A1A] text-[#F5F2EB] font-extrabold slant-bottom-left">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-6">
-          <div class="p-8 shoot-card-negative slant-cut-1 text-center font-bold text-xs uppercase paper-cut-text">Загрузка данных...</div>
+          <div class="p-8 shoot-card-base slant-bottom-right text-center font-bold text-xs uppercase paper-cut-text">Загрузка данных...</div>
         </div>
       </div>
       
-      <!-- Боковая панель профиля (Бежевый блок, черный текст, асимметричный прямой срез) -->
+      <!-- Боковая панель профиля -->
       <div class="lg:col-span-4 space-y-6">
         <div class="p-6 account-card">
-          <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#C8B393] pb-2 paper-cut-text-dark">Учётная запись</h3>
+          <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#C8B393] pb-2 text-[#111111]">Учётная запись</h3>
           <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[#111111]">
             <p>Авторизуйтесь для доступа к управлению сменами.</p>
           </div>
@@ -138,22 +136,22 @@
 
     <!-- Карта -->
     <div id="viewMap" class="hidden space-y-4">
-      <div class="p-6 shoot-card-negative-alt slant-cut-1">
+      <div class="p-6 bg-[#1A1A1A] text-white slant-bottom-right">
         <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 paper-cut-text">Геолокационный мониторинг</h3>
         <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
-        <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 slant-cut-2"></div>
+        <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 slant-bottom-left"></div>
       </div>
     </div>
 
     <!-- Админ-панель -->
     <div id="viewAdmin" class="hidden space-y-6">
-      <div class="p-6 shoot-card-negative-alt slant-cut-3 space-y-4">
+      <div class="p-6 bg-[#1A1A1A] text-white slant-bottom-right space-y-4">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h3 class="text-sm font-extrabold uppercase tracking-wider paper-cut-text">Управление ролями и учетными записями</h3>
             <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
           </div>
-          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#111111] text-[#F5F2EB] px-3.5 py-2 text-xs font-bold slant-cut-1 focus:outline-none focus:border-[#E63B2E] w-full md:w-72">
+          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#0A0A0A] text-[#F5F2EB] px-3.5 py-2 text-xs font-bold slant-bottom-left focus:outline-none w-full md:w-72">
         </div>
         <div id="adminUsersList" class="space-y-3">
           <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
@@ -164,61 +162,61 @@
   </main>
 
   <!-- Модальное окно создания смены -->
-  <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="shoot-card-negative slant-cut-2 p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
+  <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 paper-block">
+    <div class="bg-[#E63B2E] text-[#F5F2EB] slant-bottom-right p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base paper-cut-text hover:text-white">✕</button>
       <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-white/20 pb-2 paper-cut-text">Создание производственной смены</h3>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Название проекта / смены</label>
-          <input type="text" id="shootTitle" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-1 focus:outline-none">
+          <input type="text" id="shootTitle" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-left focus:outline-none">
         </div>
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Описание задач</label>
-          <textarea id="shootDesc" rows="2" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-3 focus:outline-none"></textarea>
+          <textarea id="shootDesc" rows="2" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-right focus:outline-none"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Тип производства</label>
-            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-1 focus:outline-none">
+            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-left focus:outline-none">
               <option value="СТУДИЯ">Студия</option>
               <option value="ВЫЕЗД">Выезд</option>
             </select>
           </div>
           <div>
             <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Дата и время</label>
-            <input type="datetime-local" id="shootDate" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-2 focus:outline-none">
+            <input type="datetime-local" id="shootDate" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-right focus:outline-none">
           </div>
         </div>
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Локация</label>
-          <input type="text" id="shootLocation" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-3 focus:outline-none" placeholder="Павильон №1">
+          <input type="text" id="shootLocation" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-left focus:outline-none" placeholder="Павильон №1">
         </div>
 
         <div id="pickerMapContainerWrapper" class="hidden space-y-2">
           <label class="block text-[11px] font-extrabold paper-cut-text uppercase">Укажите точку выезда на карте:</label>
-          <div id="pickerMap" class="w-full h-44 bg-[#0A0A0A] slant-cut-1 overflow-hidden"></div>
+          <div id="pickerMap" class="w-full h-44 bg-[#0A0A0A] slant-bottom-right overflow-hidden"></div>
           <input type="hidden" id="selectedLat" value="55.751244">
           <input type="hidden" id="selectedLon" value="37.618423">
         </div>
         
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-2 paper-cut-text">Назначение цеховых ролей участникам:</label>
-          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-1.5 text-xs font-bold slant-cut-2 mb-2 focus:outline-none">
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[#0A0A0A]/60 p-3 slant-cut-3">
+          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-1.5 text-xs font-bold slant-bottom-left mb-2 focus:outline-none">
+          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[#0A0A0A]/60 p-3 slant-bottom-right">
             <!-- Заполняется через JS -->
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider slant-cut-1 paper-cut-text-dark hover:opacity-90 transition">Опубликовать смену</button>
+        <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider slant-bottom-left paper-cut-text-dark hover:opacity-90 transition">Опубликовать смену</button>
       </form>
     </div>
   </div>
 
   <!-- Модальное окно Вход / Регистрация -->
-  <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="shoot-card-negative slant-cut-3 p-6 w-full max-w-sm relative shadow-2xl">
+  <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 paper-block">
+    <div class="bg-[#E63B2E] text-[#F5F2EB] slant-bottom-left p-6 w-full max-w-sm relative shadow-2xl">
       <button onclick="closeModal()" class="absolute top-4 right-4 font-extrabold text-base paper-cut-text hover:text-white">✕</button>
       <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-white/20 pb-2 paper-cut-text">Авторизация</h3>
       
@@ -226,22 +224,22 @@
         <div id="registerFields" class="hidden space-y-3">
           <div>
             <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">ФИО</label>
-            <input type="text" id="fullName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-1 focus:outline-none">
+            <input type="text" id="fullName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-right focus:outline-none">
           </div>
           <div>
             <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Учебная группа</label>
-            <input type="text" id="groupName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-2 focus:outline-none" placeholder="Напр. КИТ-21">
+            <input type="text" id="groupName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-left focus:outline-none" placeholder="Напр. КИТ-21">
           </div>
         </div>
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Email</label>
-          <input type="email" id="email" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-3 focus:outline-none" placeholder="user@ckt.ru">
+          <input type="email" id="email" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-right focus:outline-none" placeholder="user@ckt.ru">
         </div>
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 paper-cut-text">Пароль</label>
-          <input type="password" id="password" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-cut-1 focus:outline-none">
+          <input type="password" id="password" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold slant-bottom-left focus:outline-none">
         </div>
-        <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider slant-cut-2 paper-cut-text-dark hover:opacity-90 transition">Подтвердить</button>
+        <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider slant-bottom-right paper-cut-text-dark hover:opacity-90 transition">Подтвердить</button>
       </form>
     </div>
   </div>
@@ -272,6 +270,39 @@
       });
     }
 
+    // Функция проверки пересечения центра блока с красной диагональной линией фона
+    function checkShootCardIntersections() {
+      const cards = document.querySelectorAll('.shoot-card-dynamic');
+      cards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const cardCenterY = rect.top + rect.height / 2;
+        const cardCenterX = rect.left + rect.width / 2;
+
+        // Вычисляем уравнение диагональной красной линии фона на основе положения элемента и скролла
+        // Фон имеет линейный градиент под 135 градусов, где красная полоса идет из верхнего правого в нижний левый угол экрана/документа
+        const totalHeight = document.documentElement.scrollHeight;
+        const scrollY = window.scrollY || window.pageYOffset;
+        
+        // Относительная позиция центра карточки на странице
+        const absoluteY = cardCenterY + scrollY;
+        const absoluteX = cardCenterX;
+
+        // Математическая проверка попадания центра карточки на красную полосу градиента (135deg)
+        // Диагональ движется сверху-вниз справа-налево при прокрутке
+        const diagonalEquation = (absoluteY + absoluteX - scrollY * 0.5) % 1000;
+        const isOverRedLine = diagonalEquation > 300 && diagonalEquation < 700;
+
+        if (isOverRedLine) {
+          card.classList.add('shoot-card-inverted');
+        } else {
+          card.classList.remove('shoot-card-inverted');
+        }
+      });
+    }
+
+    window.addEventListener('scroll', checkShootCardIntersections);
+    window.addEventListener('resize', checkShootCardIntersections);
+
     function updateNav() {
       const nav = document.getElementById('userNav');
       const tabNav = document.getElementById('tabNav');
@@ -282,14 +313,14 @@
         tabNav.classList.remove('hidden');
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
-            <span class="text-xs bg-[#EEDDBF] text-[#111111] px-3.5 py-1.5 font-extrabold slant-cut-1 paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
-            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[#1A1A1A] text-[#F5F2EB] slant-cut-2 paper-cut-text hover:bg-black transition">Выход</button>
+            <span class="text-xs bg-[#EEDDBF] text-[#111111] px-3.5 py-1.5 font-extrabold slant-bottom-right paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
+            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[#1A1A1A] text-[#F5F2EB] slant-bottom-left paper-cut-text hover:bg-black transition">Выход</button>
           </div>
         `;
 
         if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
           actionContainer.innerHTML = `
-            <button onclick="openShootModal()" class="bg-[#E63B2E] text-[#F5F2EB] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider slant-cut-3 paper-cut-text hover:opacity-90 transition flex items-center space-x-2">
+            <button onclick="openShootModal()" class="bg-[#E63B2E] text-[#F5F2EB] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider slant-bottom-right paper-cut-text hover:opacity-90 transition flex items-center space-x-2">
               <span>+ Новая смена</span>
             </button>
           `;
@@ -313,9 +344,9 @@
       document.getElementById('viewMap').classList.toggle('hidden', !isMap);
       document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
 
-      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-cut-1 paper-cut-text transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] slant-cut-2 paper-cut-text transition';
-      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-cut-2 paper-cut-text transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] slant-cut-1 paper-cut-text transition';
-      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-cut-3 paper-cut-text transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] slant-cut-3 paper-cut-text-dark transition';
+      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-bottom-right paper-cut-text transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] slant-bottom-left paper-cut-text transition';
+      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-bottom-left paper-cut-text transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] slant-bottom-right paper-cut-text transition';
+      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] slant-bottom-right paper-cut-text transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] slant-bottom-right paper-cut-text-dark transition';
 
       if (isMap && fullMap) {
         setTimeout(() => fullMap.container.fitToViewport(), 150);
@@ -340,17 +371,17 @@
     function renderAdminUsers(users) {
       const container = document.getElementById('adminUsersList');
       container.innerHTML = users.map(u => `
-        <div class="flex items-center justify-between p-3 shoot-card-negative-alt slant-cut-1 ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
+        <div class="flex items-center justify-between p-3 bg-[#0A0A0A] slant-bottom-right ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
           <div>
             <h4 class="font-extrabold text-xs uppercase paper-cut-text">${u.fullName} <span class="text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
             <p class="text-[11px] text-neutral-400 font-bold">${u.email}</p>
           </div>
           <div class="flex items-center space-x-2">
-            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#0A0A0A] text-[#F5F2EB] px-2.5 py-1 text-xs font-bold slant-cut-2 focus:outline-none">
+            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-bold slant-bottom-left focus:outline-none">
               <option value="">Роль: ${u.role?.name || 'Студент'}</option>
               <option value="STUDENT">Студент</option>
             </select>
-            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase slant-cut-3 ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white paper-cut-text'}">
+            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase slant-bottom-right ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white paper-cut-text'}">
               ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
             </button>
           </div>
@@ -396,17 +427,17 @@
         }
 
         container.innerHTML = `
-          <div class="p-4 shoot-card-negative slant-cut-2 mb-6 space-y-2">
+          <div class="p-4 bg-[#E63B2E] text-[#F5F2EB] slant-bottom-left mb-6 space-y-2">
             <h4 class="text-xs font-extrabold uppercase tracking-wider paper-cut-text">Приглашения в состав смены:</h4>
             ${invites.map(inv => `
-              <div class="flex items-center justify-between bg-[#0A0A0A] text-[#F5F2EB] p-3 text-xs slant-cut-3">
+              <div class="flex items-center justify-between bg-[#0A0A0A] text-[#F5F2EB] p-3 text-xs slant-bottom-right">
                 <div>
                   <strong class="text-xs font-extrabold uppercase paper-cut-text">${inv.shoot.title}</strong>
                   <p class="text-neutral-400 text-[11px] font-bold">Локация: ${inv.shoot.location}</p>
                 </div>
                 <div class="space-x-2">
-                  <button onclick="respondCrew('${inv.id}', 'ACCEPTED')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase slant-cut-1">Принять</button>
-                  <button onclick="respondCrew('${inv.id}', 'DECLINED')" class="bg-[#1A1A1A] text-[#F5F2EB] px-3 py-1 text-xs font-extrabold uppercase slant-cut-2">Отклонить</button>
+                  <button onclick="respondCrew('${inv.id}', 'ACCEPTED')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase slant-bottom-left">Принять</button>
+                  <button onclick="respondCrew('${inv.id}', 'DECLINED')" class="bg-[#1A1A1A] text-[#F5F2EB] px-3 py-1 text-xs font-extrabold uppercase slant-bottom-right">Отклонить</button>
                 </div>
               </div>
             `).join('')}
@@ -467,12 +498,12 @@
     function renderModalStudents(students) {
       const box = document.getElementById('studentsCheckboxes');
       box.innerHTML = students.map(s => `
-        <div class="flex items-center justify-between p-2 bg-[#0A0A0A] text-xs slant-cut-1">
+        <div class="flex items-center justify-between p-2 bg-[#0A0A0A] text-xs slant-bottom-right">
           <label class="flex items-center space-x-2.5 cursor-pointer flex-grow">
             <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-[#0A0A0A] text-[#E63B2E]">
             <span class="font-extrabold text-xs uppercase paper-cut-text">${s.fullName} <span class="text-neutral-400">[${s.groupName}]</span> <span class="text-amber-400 font-extrabold">⭐${s.rating}</span></span>
           </label>
-          <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-bold slant-cut-2">
+          <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-bold slant-bottom-left">
             <option value="Оператор">Оператор</option>
             <option value="Звукорежиссер">Звукорежиссер</option>
             <option value="Осветитель">Осветитель</option>
@@ -632,7 +663,7 @@
         const container = document.getElementById('shootsList');
 
         if (shoots.length === 0) {
-          container.innerHTML = `<div class="p-8 shoot-card-negative slant-cut-1 text-center font-bold text-xs uppercase paper-cut-text">Нет активных смен.</div>`;
+          container.innerHTML = `<div class="p-8 shoot-card-base slant-bottom-right text-center font-bold text-xs uppercase paper-cut-text">Нет активных смен.</div>`;
           return;
         }
 
@@ -651,40 +682,41 @@
         const canManage = currentUser && (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор');
 
         container.innerHTML = shoots.map((s, index) => {
-          const cardStyle = index % 2 === 0 ? 'shoot-card-negative slant-cut-1' : 'shoot-card-negative-alt slant-cut-2';
+          // Чередуем срезы в углах (нижний правый / нижний левый)
+          const slantStyle = index % 2 === 0 ? 'slant-bottom-right' : 'slant-bottom-left';
           return `
-            <div class="p-6 ${cardStyle} space-y-4">
+            <div class="p-6 shoot-card-base shoot-card-dynamic ${slantStyle} space-y-4">
               <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-2">
-                  <span class="text-[10px] bg-black/30 text-white px-2.5 py-1 uppercase font-extrabold slant-cut-3">${s.type}</span>
-                  ${s.isCompleted ? '<span class="text-[10px] bg-emerald-600 text-white px-2.5 py-1 uppercase font-extrabold slant-cut-1">Завершено</span>' : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-extrabold slant-cut-2">В процессе</span>'}
+                  <span class="text-[10px] bg-black/30 text-white px-2.5 py-1 uppercase font-extrabold slant-bottom-right">СМЕНА</span>
+                  ${s.isCompleted ? '<span class="text-[10px] bg-emerald-600 text-white px-2.5 py-1 uppercase font-extrabold slant-bottom-left">Завершено</span>' : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-extrabold slant-bottom-left">В процессе</span>'}
                 </div>
-                <span class="text-xs text-neutral-300 font-bold">${new Date(s.date).toLocaleString()}</span>
+                <span class="text-xs text-neutral-200 font-bold">${new Date(s.date).toLocaleString()}</span>
               </div>
               <div>
                 <h4 class="text-base font-extrabold uppercase paper-cut-text mb-1">${s.title}</h4>
-                <p class="text-xs text-neutral-200 font-medium leading-relaxed">${s.description}</p>
+                <p class="text-xs text-neutral-100 font-medium leading-relaxed">${s.description}</p>
               </div>
-              <div class="text-xs text-neutral-300 font-bold border-t border-white/20 pt-3 flex justify-between uppercase">
+              <div class="text-xs text-neutral-200 font-bold border-t border-white/20 pt-3 flex justify-between uppercase">
                 <span>Локация: <strong class="text-white">${s.location}</strong></span>
                 <span>Мастер: <strong class="text-white">${s.creator.fullName}</strong></span>
               </div>
-              <div class="bg-black/40 p-3 text-xs space-y-2 slant-cut-3">
+              <div class="bg-black/30 p-3 text-xs space-y-2 slant-bottom-right">
                 <div class="flex justify-between items-center mb-1">
-                  <span class="text-neutral-300 uppercase tracking-wider text-[10px] font-extrabold">Съёмочная группа:</span>
-                  ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-white text-black px-3 py-1 text-[10px] font-extrabold uppercase slant-cut-1 hover:bg-neutral-200 transition">Завершить смену</button>` : ''}
+                  <span class="text-neutral-200 uppercase tracking-wider text-[10px] font-extrabold">Съёмочная группа:</span>
+                  ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-white text-black px-3 py-1 text-[10px] font-extrabold uppercase slant-bottom-left hover:bg-neutral-200 transition">Завершить смену</button>` : ''}
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  ${s.crew.length === 0 ? '<span class="text-neutral-400 text-xs font-bold uppercase">Команда не назначена</span>' : s.crew.map(c => `
-                    <div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold slant-cut-2 ${
-                      c.status === 'ACCEPTED' ? 'bg-emerald-950/80 text-emerald-200 border border-emerald-500/40' :
-                      c.status === 'DECLINED' ? 'bg-red-950/80 text-red-200 border border-red-500/40' :
-                      'bg-neutral-900 text-neutral-200'
+                  ${s.crew.length === 0 ? '<span class="text-neutral-300 text-xs font-bold uppercase">Команда не назначена</span>' : s.crew.map(c => `
+                    <div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold slant-bottom-left ${
+                      c.status === 'ACCEPTED' ? 'bg-emerald-900/80 text-emerald-100' :
+                      c.status === 'DECLINED' ? 'bg-red-900/80 text-red-100' :
+                      'bg-neutral-800 text-neutral-200'
                     }">
                       <span class="uppercase">${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
                       <span class="font-extrabold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '···'}</span>
                       ${canManage && c.status === 'ACCEPTED' && !s.isCompleted ? `
-                        <select onchange="updateAttendance('${c.id}', this.value)" class="bg-black text-white text-xs font-bold px-1 py-0.5 slant-cut-1">
+                        <select onchange="updateAttendance('${c.id}', this.value)" class="bg-black text-white text-xs font-bold px-1 py-0.5 slant-bottom-right">
                           <option value="PRESENT" ${c.attendance === 'PRESENT' ? 'selected' : ''}>Присутствовал</option>
                           <option value="ABSENT" ${c.attendance === 'ABSENT' ? 'selected' : ''}>Прогул (-0.3⭐)</option>
                         </select>
@@ -696,6 +728,9 @@
             </div>
           `;
         }).join('');
+        
+        // Вызываем проверку пересечений после рендеринга
+        checkShootCardIntersections();
       } catch (err) {
         console.error(err);
       }
