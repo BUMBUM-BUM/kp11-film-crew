@@ -11,7 +11,7 @@
     body { 
       font-family: 'Manrope', sans-serif; 
       background-color: #0A0A0A;
-      /* Красная диагональная линия тоньше в 1.5 раза (ширина уменьшена с 40% до ~27%) */
+      /* Тонкая красная диагональная линия фона */
       background-image: linear-gradient(135deg, #0A0A0A 36.5%, #E63B2E 36.5%, #E63B2E 63.5%, #0A0A0A 63.5%);
       background-size: 100% 100%;
       background-attachment: fixed;
@@ -26,13 +26,13 @@
       -ms-user-select: none;
     }
 
-    /* Форма параллелограмма для одинаковых срезов вертикальных блоков */
+    /* Аккуратные параллелограммы для вертикальных блоков */
     .parallelogram-forward {
-      clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
     }
 
     .parallelogram-backward {
-      clip-path: polygon(0 0, calc(100% - 14px) 100%, 100% 100%, 14px 0);
+      clip-path: polygon(0 0, calc(100% - 10px) 100%, 100% 100%, 10px 0);
     }
 
     /* Эффект вырезанного в цветной бумаге текста */
@@ -46,35 +46,17 @@
       text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.6);
     }
 
-    /* Блоки смен: красный фон, бежевый текст */
+    /* Стабильные блоки смен */
     .shoot-card-base {
-      position: relative;
       background-color: #E63B2E;
       color: #F5F2EB;
-      overflow: hidden;
     }
 
-    /* Попиксельное изменение цвета над красной линией фона */
-    .shoot-card-base::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: linear-gradient(135deg, transparent 36.5%, #0A0A0A 36.5%, #0A0A0A 63.5%, transparent 63.5%);
-      background-attachment: fixed;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .shoot-card-base > * {
-      position: relative;
-      z-index: 2;
-    }
-
-    /* Блок учётной записи: бежевый, чёрный текст, параллелограмм */
+    /* Блок учётной записи: бежевый, чёрный текст */
     .account-card {
       background-color: #EEDDBF;
       color: #111111;
-      clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
     }
   </style>
 </head>
@@ -659,7 +641,6 @@
 
         const canManage = currentUser && (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор');
 
-        // Поскольку блоки смен расположены вертикально друг под другом, используем одинаковый класс параллелограмма для них
         container.innerHTML = shoots.map((s) => {
           return `
             <div class="p-6 shoot-card-base parallelogram-forward space-y-4">
