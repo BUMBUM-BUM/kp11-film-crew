@@ -117,7 +117,7 @@ app.post('/api/auth/register', async (req, res) => {
         groupName: groupName || 'КИТ-11',
         roleId: studentRole ? studentRole.id : null,
         course: course ? parseInt(course) : 1,
-        rating: null, // У новых пользователей изначально нет рейтинга
+        rating: null,
         skills: ['Универсал']
       },
       include: { role: true }
@@ -159,7 +159,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Эндпоинт для администратора: сбросить рейтинг ВСЕХ пользователей в null
 app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req, res) => {
   try {
     await prisma.user.updateMany({
@@ -171,19 +170,14 @@ app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req
   }
 });
 
-// Эндпоинт для администратора: редактирование профиля пользователя (ФИО, группа, рейтинг)
 app.patch('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, groupName, rating } = req.body;
+    const { fullName, groupName } = req.body;
     
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: {
-        fullName,
-        groupName,
-        rating: rating !== '' && rating !== null ? parseFloat(rating) : null
-      },
+      data: { fullName, groupName },
       include: { role: true }
     });
     res.json({ success: true, user: updatedUser });
@@ -253,22 +247,13 @@ app.delete('/api/admin/shoots/:id', authenticateToken, requireAdmin, async (req,
   }
 });
 
-// Редактирование смены (мастер или админ)
 app.put('/api/shoots/:id', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, type, date, location, latitude, longitude } = req.body;
+    const { title, description, type, location } = req.body;
     const updated = await prisma.shoot.update({
       where: { id },
-      data: {
-        title,
-        description,
-        type,
-        date: new Date(date),
-        location,
-        latitude: latitude ? parseFloat(latitude) : undefined,
-        longitude: longitude ? parseFloat(longitude) : undefined
-      }
+      data: { title, description, type, location }
     });
     res.json({ success: true, updated });
   } catch (err) {
@@ -276,7 +261,6 @@ app.put('/api/shoots/:id', authenticateToken, requireMasterOrAdmin, async (req, 
   }
 });
 
-// Эндпоинт для статистики и лидеров
 app.get('/api/statistics', authenticateToken, async (req, res) => {
   try {
     const leaders = await prisma.user.findMany({
@@ -441,7 +425,7 @@ app.post('/api/crew/attendance', authenticateToken, requireMasterOrAdmin, async 
 
 app.post('/api/shoots/complete', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
-    const { shootId, grade } = req.body;
+    const { shootId, grades } = req.body;
     const shoot = await prisma.shoot.update({
       where: { id: shootId },
       data: { isCompleted: true },
@@ -452,11 +436,12 @@ app.post('/api/shoots/complete', authenticateToken, requireMasterOrAdmin, async 
       if (member.status === 'ACCEPTED' && member.attendance === 'PRESENT') {
         const user = await prisma.user.findUnique({ where: { id: member.userId } });
         if (user) {
+          const assignedGrade = grades && grades[member.id] !== undefined ? parseFloat(grades[member.id]) : 5.0;
           let newRating;
           if (user.rating === null || user.rating === undefined) {
-            newRating = grade;
+            newRating = assignedGrade;
           } else {
-            newRating = parseFloat(((user.rating + grade) / 2).toFixed(1));
+            newRating = parseFloat(((user.rating + assignedGrade) / 2).toFixed(1));
           }
           await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
         }
@@ -469,7 +454,6 @@ app.post('/api/shoots/complete', authenticateToken, requireMasterOrAdmin, async 
   }
 });
 
-// Мастера и администраторы могут менять статус участника вручную (например, принять за студента)
 app.post('/api/crew/response', authenticateToken, async (req, res) => {
   try {
     const { crewMemberId, status } = req.body;
