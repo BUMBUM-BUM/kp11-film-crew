@@ -816,7 +816,7 @@
                       c.status === 'DECLINED' ? 'bg-red-900 text-red-100' :
                       'bg-neutral-800 text-neutral-200'
                     }">
-                      <span class="uppercase">${c.user?.fullName \vert{}\vert{} 'Участник'} [${c.user?.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user?.rating || 5.0}</span>
+                      <span class="uppercase">${c.user?.fullName || 'Участник'} [${c.user?.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user?.rating || 5.0}</span>
                       <span class="font-extrabold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '···'}</span>
                       ${canManage && c.status === 'ACCEPTED' && !s.isCompleted ? `
                         <select onchange="updateAttendance('${c.id}', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333]">
