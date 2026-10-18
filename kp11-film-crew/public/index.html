@@ -26,10 +26,7 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block relative overflow-x-hidden">
 
-  <!-- Фон по слоям (z-10): Логотипы на уровне фона, смещены влево на 60px, не перекрывают панели -->
-  <div class="fixed bottom-32 right-[calc(24rem-60px)] z-10 hidden 2xl:block opacity-90 pointer-events-none">
-    <img src="/img/logo2.png" alt="Логотип 2" class="h-20 w-auto object-contain">
-  </div>
+  <!-- Логотип 3 на уровне фона (z-10), смещен влево ровно на 60 пикселей, не перекрывает панели -->
   <div class="fixed top-1/3 right-[calc(16rem-60px)] z-10 hidden xl:block opacity-60 pointer-events-none">
     <img src="/img/logo3.png" alt="Логотип 3" class="h-24 w-auto object-contain">
   </div>
@@ -85,11 +82,11 @@
         <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
 
-      <!-- Главная вкладка "Смены": слева постоянная панель уведомлений, посередине смены, справа учетная запись -->
+      <!-- Главная вкладка "Смены" с фиксированным серым блоком уведомлений слева и исходными пропорциями съёмок справа -->
       <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <!-- Левая колонка: Центр уведомлений -->
-        <div class="lg:col-span-3 space-y-6">
+        <!-- Фиксированный серый блок уведомлений слева -->
+        <div class="lg:col-span-4 space-y-6">
           <div class="p-6 shoot-card-pure unified-parallelogram space-y-4 shadow-xl">
             <div class="flex items-center justify-between border-b border-[var(--brand-beige)]/30 pb-2">
               <h3 class="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-beige)]">Уведомления</h3>
@@ -101,23 +98,26 @@
           </div>
         </div>
 
-        <!-- Центральная колонка: Смены -->
-        <div class="lg:col-span-6 space-y-6">
-          <div class="flex items-center justify-between">
-            <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
-            <span id="shootCount" class="text-xs px-3 py-1 bg-[#030303] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
-          </div>
-          <div id="shootsList" class="space-y-6">
-            <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
-          </div>
-        </div>
-        
-        <!-- Правая колонка: Учётная запись -->
-        <div class="lg:col-span-3 space-y-6">
-          <div class="p-6 account-card">
-            <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
-            <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
-              <p>Загрузка данных профиля...</p>
+        <!-- Основная область съёмок (возвращены исходные пропорции lg:col-span-8) -->
+        <div class="lg:col-span-8 space-y-6">
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div class="xl:col-span-8 space-y-6">
+              <div class="flex items-center justify-between">
+                <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
+                <span id="shootCount" class="text-xs px-3 py-1 bg-[#030303] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
+              </div>
+              <div id="shootsList" class="space-y-6">
+                <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
+              </div>
+            </div>
+            
+            <div class="xl:col-span-4 space-y-6">
+              <div class="p-6 account-card">
+                <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
+                <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
+                  <p>Загрузка данных профиля...</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -173,7 +173,6 @@
               <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
             </div>
             <div class="flex items-center space-x-3 w-full md:w-auto">
-              <!-- Полностью рабочая кнопка отправки персонального сообщения -->
               <button onclick="openMessageModal()" class="px-4 py-2 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Отправить сообщение</button>
               <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-64 border border-[#222222]">
             </div>
@@ -214,6 +213,7 @@
     </div>
   </div>
 
+  <!-- Стандартные модальные окна -->
   <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
@@ -292,6 +292,75 @@
       </form>
     </div>
   </div>
+
+  <!-- Встроенный скрипт для гарантированной работы модальных окон и кнопки сообщений -->
+  <script>
+    async function openMessageModal() {
+      const modal = document.getElementById('messageModal');
+      if (modal) modal.classList.remove('hidden');
+      try {
+        const res = await fetch('/api/admin/data', {
+          headers: { 'Authorization': 'Bearer ' + (typeof token !== 'undefined' ? token : localStorage.getItem('token')) }
+        });
+        const data = await res.json();
+        if (res.ok && data.users) {
+          window.allUsersForMsg = data.users;
+          renderMsgRecipients(data.users);
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки пользователей для сообщений:', err);
+      }
+    }
+
+    function closeMessageModal() {
+      const modal = document.getElementById('messageModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderMsgRecipients(users) {
+      const select = document.getElementById('msgRecipientId');
+      if (!select) return;
+      select.innerHTML = '<option value="">Выберите получателя из списка...</option>' + 
+        users.map(u => '<option value="' + u.id + '">' + u.fullName + ' [' + (u.groupName || 'Группа') + '] (' + (u.email) + ')</option>').join('');
+    }
+
+    function filterMsgRecipients() {
+      const query = document.getElementById('msgRecipientSearch').value.toLowerCase();
+      if (!window.allUsersForMsg) return;
+      const filtered = window.allUsersForMsg.filter(u => 
+        u.fullName.toLowerCase().includes(query) || (u.groupName && u.groupName.toLowerCase().includes(query))
+      );
+      renderMsgRecipients(filtered);
+    }
+
+    async function handleSendMessage(e) {
+      e.preventDefault();
+      const recipientId = document.getElementById('msgRecipientId').value;
+      const messageText = document.getElementById('msgBodyText').value;
+
+      if (!recipientId) {
+        alert('Выберите получателя!');
+        return;
+      }
+
+      try {
+        const activeToken = typeof token !== 'undefined' ? token : localStorage.getItem('token');
+        const res = await fetch('/api/admin/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + activeToken },
+          body: JSON.stringify({ recipientId, message: messageText })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка отправки');
+
+        alert('Сообщение успешно отправлено!');
+        document.getElementById('msgBodyText').value = '';
+        closeMessageModal();
+      } catch (err) {
+        alert('Ошибка отправки: ' + err.message);
+      }
+    }
+  </script>
 
   <script src="/js/app.js"></script>
 </body>
