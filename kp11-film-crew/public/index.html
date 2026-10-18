@@ -8,6 +8,21 @@
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    @keyframes recPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.2; transform: scale(0.9); }
+    }
+    .rec-dot {
+      width: 12px;
+      height: 12px;
+      background-color: #FC2C2C;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #FC2C2C;
+      animation: recPulse 1.5s infinite ease-in-out;
+      display: inline-block;
+    }
+  </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block">
 
@@ -31,26 +46,18 @@
 
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
     
+    <!-- Бесшовный главный заголовок без рамок с интеграцией мигающего красного огонька -->
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-      <div>
-        <div class="flex items-center space-x-2 mb-2">
-          <span class="px-2 py-0.5 bg-[var(--brand-red)] text-[var(--brand-beige)] text-[10px] font-extrabold uppercase unified-parallelogram pixel-text-invert">ПРАКТИЧЕСКИЙ КОНТУР</span>
+      <div class="space-y-1 max-w-3xl">
+        <div class="flex items-center space-x-2.5">
+          <span class="rec-dot"></span>
+          <span class="text-[11px] font-extrabold uppercase tracking-widest text-[var(--brand-red)]">Я хочу кое что тебе сказать..</span>
         </div>
-        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight uppercase pixel-text-invert">Реестр производств</h2>
+        <h2 id="cinemaBoardText" class="text-xl md:text-2xl font-extrabold tracking-tight uppercase pixel-text-invert leading-snug">
+          Загрузка эфира...
+        </h2>
       </div>
       <div id="actionButtonContainer"></div>
-    </div>
-
-    <!-- Интерактивный кино-информер (табло с цитатами, меняющееся каждые 3 часа) -->
-    <div id="cinemaBoardWidget" class="hidden p-4 bg-gradient-to-r from-neutral-900 via-[var(--brand-black)] to-neutral-900 text-[var(--brand-beige)] unified-parallelogram border border-[var(--brand-beige)]/40 shadow-lg flex items-center justify-between gap-4">
-      <div class="flex items-center space-x-3">
-        <span class="text-xl animate-pulse">💫</span>
-        <div>
-          <span class="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 block">Я хочу тебе кое-что сказать...</span>
-          <p id="cinemaBoardText" class="text-xs font-extrabold uppercase text-[var(--brand-beige)] mt-0.5">Загрузка эфира...</p>
-        </div>
-      </div>
-      <span id="cinemaBoardBadge" class="text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-[var(--brand-red)] text-white">В эфире</span>
     </div>
 
     <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
