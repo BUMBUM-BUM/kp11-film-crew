@@ -14,10 +14,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-async function authenticateToken(req, res, next) {
+// Middleware опциональной проверки токена (не блокирует гостей)
+async function optionalAuthToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  if (!token) {
+    req.user = null;
+    return next();
+  }
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
@@ -25,12 +29,40 @@ async function authenticateToken(req, res, next) {
       where: { id: payload.userId },
       include: { role: true }
     });
-    if (!user) return res.status(403).json({ error: 'User not found' });
+    req.user = user || null;
+    next();
+  } catch (err) {
+    req.user = null;
+    next();
+  }
+}
+
+// Middleware обязательной авторизации
+async function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Требуется авторизация' });
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { role: true }
+    });
+    if (!user) return res.status(403).json({ error: 'Пользователь не найден' });
     req.user = user;
     next();
   } catch (err) {
-    return res.status(403).json({ error: 'Invalid token' });
+    return res.status(403).json({ error: 'Недействительный сеанс или токен' });
   }
+}
+
+// Middleware проверки прав администратора
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role?.name !== 'Администратор') {
+    return res.status(403).json({ error: 'Доступ запрещён. Требуются права Администратора.' });
+  }
+  next();
 }
 
 async function initDatabase() {
@@ -42,19 +74,25 @@ async function initDatabase() {
 
     let teacherRole = await prisma.role.findUnique({ where: { name: 'Мастер / Преподаватель' } });
     if (!teacherRole) {
-      teacherRole = await prisma.role.create({ data: { name: 'Мастер / Преподаватель', description: 'Руководитель смен' } });
+      teacherRole = await prisma.role.create({ data: { name: 'Мастер / Преподаватель', description: 'Руководитель съёмочных смен' } });
     }
 
     let adminRole = await prisma.role.findUnique({ where: { name: 'Администратор' } });
     if (!adminRole) {
-      adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Управление системой' } });
+      adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Полное управление системой' } });
     }
 
     const adminExists = await prisma.user.findUnique({ where: { email: 'admin@ckt.ru' } });
     if (!adminExists) {
       const passwordHash = await bcrypt.hash('admin123', 10);
       await prisma.user.create({
-        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', groupName: 'Админ', roleId: adminRole.id }
+        data: { 
+          email: 'admin@ckt.ru', 
+          passwordHash, 
+          fullName: 'Главный Администратор', 
+          groupName: 'Администрация', 
+          roleId: adminRole.id 
+        }
       });
     }
 
@@ -74,7 +112,7 @@ async function initDatabase() {
             roleId: studentRole.id,
             course: 2,
             rating: randomRating,
-            skills: ['Оператор', 'Звукорежиссер', 'Осветитель']
+            skills: ['Оператор', 'Звукорежиссёр', 'Осветитель']
           }
         });
       }
@@ -85,11 +123,12 @@ async function initDatabase() {
 }
 initDatabase();
 
+// Авторизация и регистрация
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, groupName, course } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) return res.status(400).json({ error: 'Email занят' });
+    if (existingUser) return res.status(400).json({ error: 'Данный Email уже зарегистрирован' });
 
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
     const passwordHash = await bcrypt.hash(password, 10);
@@ -109,7 +148,16 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, groupName: user.groupName, role: user.role?.name || 'Студент' } });
+    res.json({ 
+      token, 
+      user: { 
+        id: user.id, 
+        fullName: user.fullName, 
+        email: user.email, 
+        groupName: user.groupName, 
+        role: user.role?.name || 'Студент' 
+      } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -122,11 +170,11 @@ app.post('/api/auth/login', async (req, res) => {
       where: { email },
       include: { role: true }
     });
-    if (!user) return res.status(400).json({ error: 'Неверные данные' });
-    if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт временно отстранен администрацией' });
+    if (!user) return res.status(400).json({ error: 'Неверный email или пароль' });
+    if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт временно отстранён администрацией' });
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return res.status(400).json({ error: 'Неверные данные' });
+    if (!isValid) return res.status(400).json({ error: 'Неверный email или пароль' });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
     res.json({ 
@@ -144,18 +192,21 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/admin/data', authenticateToken, async (req, res) => {
+// Администрирование
+app.get('/api/admin/data', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const roles = await prisma.role.findMany();
-    const users = await prisma.user.findMany({ include: { role: true } });
+    const users = await prisma.user.findMany({ 
+      include: { role: true },
+      orderBy: { fullName: 'asc' }
+    });
     res.json({ roles, users });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Отстранить / вернуть студента
-app.post('/api/admin/suspend', authenticateToken, async (req, res) => {
+app.post('/api/admin/suspend', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId, isSuspended } = req.body;
     const updated = await prisma.user.update({
@@ -168,22 +219,31 @@ app.post('/api/admin/suspend', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/admin/assign-role', authenticateToken, async (req, res) => {
+// Смена роли пользователю администратором
+app.patch('/api/admin/users/:id/role', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { userId, roleId } = req.body;
+    const { id } = req.params;
+    const { roleName } = req.body; // 'Студент', 'Мастер / Преподаватель', 'Администратор'
+
+    const targetRole = await prisma.role.findUnique({ where: { name: roleName } });
+    if (!targetRole) {
+      return res.status(400).json({ error: 'Указанная роль не найдена' });
+    }
+
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { roleId },
+      where: { id },
+      data: { roleId: targetRole.id },
       include: { role: true }
     });
+
     res.json({ success: true, user: updatedUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Получить смены и статистику
-app.get('/api/shoots', authenticateToken, async (req, res) => {
+// Получить смены и статистику (доступно и для незарегистрированных)
+app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   try {
     const shoots = await prisma.shoot.findMany({
       include: {
@@ -192,25 +252,22 @@ app.get('/api/shoots', authenticateToken, async (req, res) => {
       },
       orderBy: { date: 'asc' }
     });
-    
+
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
-    // Отдаем только не отстраненных студентов для выбора в смену
     const students = await prisma.user.findMany({
       where: {
         isSuspended: false,
         OR: [
           { roleId: studentRole ? studentRole.id : undefined },
-          { roleId: null }
+          { role: { name: 'Студент' } }
         ]
       },
       select: { id: true, fullName: true, groupName: true, rating: true, skills: true }
     });
 
-    // Общая статистика для профиля
     const totalShoots = shoots.length;
     const completedShoots = shoots.filter(s => s.isCompleted).length;
 
-    // Статистика конкретного студента, если передан токен
     let userStats = null;
     if (req.user) {
       const myParticipations = await prisma.crewMember.findMany({
@@ -260,10 +317,9 @@ app.post('/api/shoots', authenticateToken, async (req, res) => {
   }
 });
 
-// Отметка отсутствия (прогула) и снижение рейтинга
 app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
   try {
-    const { crewMemberId, attendance } = req.body; // 'PRESENT' или 'ABSENT'
+    const { crewMemberId, attendance } = req.body;
     const crewMember = await prisma.crewMember.findUnique({
       where: { id: crewMemberId },
       include: { user: true }
@@ -271,7 +327,6 @@ app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
 
     if (!crewMember) return res.status(404).json({ error: 'Участник не найден' });
 
-    // Если отметили прогул, снижаем рейтинг на 0.3 балла
     if (attendance === 'ABSENT' && crewMember.attendance === 'PRESENT') {
       const newRating = Math.max(1.0, parseFloat((crewMember.user.rating - 0.3).toFixed(1)));
       await prisma.user.update({
@@ -291,7 +346,6 @@ app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
   }
 });
 
-// Завершить смену
 app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
   try {
     const { shootId } = req.body;
@@ -301,7 +355,6 @@ app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
       include: { crew: true }
     });
 
-    // За успешно завершенную смену повышаем рейтинг присутствовавшим на 0.1
     for (const member of shoot.crew) {
       if (member.status === 'ACCEPTED' && member.attendance === 'PRESENT') {
         const user = await prisma.user.findUnique({ where: { id: member.userId } });
