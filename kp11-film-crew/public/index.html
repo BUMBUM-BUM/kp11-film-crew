@@ -22,7 +22,7 @@
       animation: recPulse 1.5s infinite ease-in-out;
       display: inline-block;
     }
-    /* Бесшовная бесконечная вертикальная бегущая строка без отступов */
+    /* Непрозрачная бесшовная вертикальная бегущая строка на всю высоту экрана */
     @keyframes verticalInfiniteScroll {
       0% { transform: translateY(0); }
       100% { transform: translateY(-50%); }
@@ -36,12 +36,13 @@
       overflow: hidden;
       pointer-events: none;
       z-index: 40;
-      opacity: 0.8;
+      opacity: 1; /* Полная непрозрачность */
     }
     .vertical-ticker-track {
       display: flex;
       flex-direction: column;
-      animation: verticalInfiniteScroll 12s linear infinite;
+      height: 200%;
+      animation: verticalInfiniteScroll 10s linear infinite;
     }
     .vertical-ticker-track:hover {
       animation-play-state: paused;
@@ -50,190 +51,204 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block relative overflow-x-hidden">
 
-  <!-- Бесконечная вертикальная бегущая строка с увеличенным logo3.png без отступов (дубль для бесшовности) -->
+  <!-- Бесконечная непрозрачная бегущая строка на всю высоту экрана справа -->
   <div class="vertical-ticker-container hidden xl:block">
     <div class="vertical-ticker-track">
-      <!-- Блок 1 -->
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <!-- Блок 2 (точная копия для бесшовного цикла) -->
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-block block m-0 p-0">
+      <!-- Набор картинок с запасом для покрытия всей высоты экрана в цикле -->
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <!-- Точная копия для бесшовного цикла -->
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
+      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
     </div>
   </div>
 
-  <!-- Статичный Логотип 2 на красной линии фона (вне перекрываемых панелей) -->
-  <div class="fixed bottom-6 right-16 z-30 hidden lg:block opacity-90 pointer-events-none">
-    <img src="/img/logo2.png" alt="Логотип 2" class="h-10 w-auto object-contain">
+  <!-- Статичный Логотип 2 (увеличен в 2 раза, ближе к центру, справа от контента смен и ниже профиля) -->
+  <div class="fixed bottom-32 right-96 z-30 hidden 2xl:block opacity-100 pointer-events-none">
+    <img src="/img/logo2.png" alt="Логотип 2" class="h-20 w-auto object-contain">
   </div>
 
-  <!-- Левая панель уведомлений на всю вертикальную часть экрана -->
-  <aside class="fixed left-0 top-0 bottom-0 w-80 bg-[#141414] border-r border-[#222222] p-6 hidden xl:flex flex-col z-40 overflow-y-auto space-y-4 shadow-2xl">
-    <div class="flex items-center justify-between border-b border-[#333333] pb-3">
-      <h3 class="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-beige)]">Центр уведомлений</h3>
-      <span class="text-[10px] px-2 py-0.5 bg-[var(--brand-red)] text-white unified-parallelogram font-extrabold">Live</span>
-    </div>
-    <div id="notificationsContainer" class="space-y-3 flex-grow">
-      <p class="text-xs text-neutral-400 uppercase font-bold">Загрузка уведомлений...</p>
-    </div>
-  </aside>
-
-  <!-- Основной контейнер с отступом слева под фиксированную панель уведомлений -->
-  <div class="xl:pl-80 flex-grow flex flex-col">
-    <header class="bg-[#030303] border-b border-[#1A1A1A] sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
-        <div class="flex items-center space-x-6">
-          <img src="/img/logo.png" alt="КП11 Логотип" class="h-12 w-auto object-contain">
-          <div class="border-l border-[#222222] pl-4">
-            <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
-            <p class="text-[10px] text-neutral-500 font-bold uppercase">Производственная система</p>
+  <header class="bg-[#030303] border-b border-[#1A1A1A] sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
+      <div class="flex items-center space-x-6">
+        <img src="/img/logo.png" alt="КП11 Логотип" class="h-12 w-auto object-contain">
+        <div class="border-l border-[#222222] pl-4">
+          <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
+          <p class="text-[10px] text-neutral-500 font-bold uppercase">Производственная система</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <!-- Интерактивная кнопка-колокольчик с выпадающим блоком уведомлений в хэдере -->
+        <div class="relative hidden" id="headerNotificationWrapper">
+          <button onclick="toggleNotificationDropdown()" class="relative p-2.5 bg-[#141414] text-[var(--brand-beige)] unified-parallelogram border border-[#333333] hover:bg-neutral-900 transition flex items-center justify-center">
+            <span class="text-base">🔔</span>
+            <span id="notificationBadgeCount" class="absolute -top-1 -right-1 bg-[var(--brand-red)] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full hidden">0</span>
+          </button>
+          
+          <!-- Выпадающий блок уведомлений -->
+          <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-[#141414] border border-[#333333] unified-parallelogram shadow-2xl p-4 z-50 space-y-3">
+            <div class="flex items-center justify-between border-b border-[#333333] pb-2">
+              <h4 class="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-beige)]">Уведомления</h4>
+              <span class="text-[9px] px-2 py-0.5 bg-[var(--brand-red)] text-white unified-parallelogram font-extrabold">Live</span>
+            </div>
+            <div id="notificationsContainer" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <p class="text-xs text-neutral-400 font-bold">Нет новых уведомлений.</p>
+            </div>
           </div>
         </div>
+
         <div id="userNav" class="flex items-center space-x-4">
           <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
           <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
         </div>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
-      
-      <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div class="space-y-1 max-w-3xl">
-          <div class="flex items-center space-x-2.5">
-            <span class="rec-dot"></span>
-            <span class="text-[11px] font-extrabold uppercase tracking-widest text-[var(--brand-red)]">Я хочу кое что тебе сказать..</span>
-          </div>
-          <h2 id="cinemaBoardText" class="text-xl md:text-2xl font-extrabold tracking-tight uppercase pixel-text-invert leading-snug">
-            Загрузка эфира...
-          </h2>
+  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
+    
+    <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div class="space-y-1 max-w-3xl">
+        <div class="flex items-center space-x-2.5">
+          <span class="rec-dot"></span>
+          <span class="text-[11px] font-extrabold uppercase tracking-widest text-[var(--brand-red)]">Я хочу кое что тебе сказать..</span>
         </div>
-        <div id="actionButtonContainer"></div>
+        <h2 id="cinemaBoardText" class="text-xl md:text-2xl font-extrabold tracking-tight uppercase pixel-text-invert leading-snug">
+          Загрузка эфира...
+        </h2>
+      </div>
+      <div id="actionButtonContainer"></div>
+    </div>
+
+    <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
+      <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
+      <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
+        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться.
+      </p>
+      <div class="pt-2 flex justify-center space-x-4">
+        <button onclick="openModal('login')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Войти в аккаунт</button>
+        <button onclick="openModal('register')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-neutral-900 transition">Регистрация</button>
+      </div>
+    </div>
+
+    <div id="authenticatedContent" class="hidden space-y-8">
+
+      <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
+        <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
+        <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
+        <button onclick="switchTab('stats')" id="tabStatsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Статистика</button>
+        <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
 
-      <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
-        <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
-        <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
-          Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться.
-        </p>
-        <div class="pt-2 flex justify-center space-x-4">
-          <button onclick="openModal('login')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Войти в аккаунт</button>
-          <button onclick="openModal('register')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-neutral-900 transition">Регистрация</button>
-        </div>
-      </div>
-
-      <div id="authenticatedContent" class="hidden space-y-8">
-
-        <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
-          <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
-          <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
-          <button onclick="switchTab('stats')" id="tabStatsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Статистика</button>
-          <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
-        </div>
-
-        <!-- Вкладка "Смены" с событиями слева и блоком "Учётная запись" справа -->
-        <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          <div class="lg:col-span-8 space-y-6">
-            <div class="flex items-center justify-between">
-              <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
-              <span id="shootCount" class="text-xs px-3 py-1 bg-[#030303] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
-            </div>
-            <div id="shootsList" class="space-y-6">
-              <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
-            </div>
+      <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <div class="lg:col-span-8 space-y-6">
+          <div class="flex items-center justify-between">
+            <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
+            <span id="shootCount" class="text-xs px-3 py-1 bg-[#030303] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
           </div>
-          
-          <!-- Возвращенный блок "Учётная запись" справа от событий -->
-          <div class="lg:col-span-4 space-y-6">
-            <div class="p-6 account-card">
-              <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
-              <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
-                <p>Загрузка данных профиля...</p>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <div id="viewMap" class="hidden space-y-4">
-          <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A]">
-            <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг и управление метками</h3>
-            <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов и съёмочных площадок.</p>
-            <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
+          <div id="shootsList" class="space-y-6">
+            <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
           </div>
         </div>
-
-        <div id="viewStats" class="hidden space-y-8">
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div class="lg:col-span-6 p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
-              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг проф. пригодности (Лидеры)</h3>
-              <div id="statsLeadersList" class="space-y-2 max-h-[420px] overflow-y-auto pr-2">
-                <p class="text-xs text-neutral-400">Загрузка данных...</p>
-              </div>
-            </div>
-
-            <div class="lg:col-span-6 space-y-6">
-              <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
-                <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Общие показатели</h3>
-                <div class="flex justify-between text-xs font-extrabold uppercase">
-                  <span class="text-neutral-400">Завершено смен:</span>
-                  <span id="statCompletedCount" class="text-[var(--brand-beige)]">0</span>
-                </div>
-              </div>
-
-              <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
-                <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг по учебным группам</h3>
-                <div id="statsGroupsList" class="space-y-2 max-h-56 overflow-y-auto pr-2">
-                  <p class="text-xs text-neutral-400">Загрузка групп...</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
-            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Часто повторяющиеся проекты и шоу</h3>
-            <div id="statsFrequentShoots" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-          </div>
-        </div>
-
-        <div id="viewAdmin" class="hidden space-y-6">
-          <div class="p-6 bg-[#030303] text-white unified-parallelogram space-y-4 border border-[#1A1A1A]">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учётными записями</h3>
-                <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
-              </div>
-              <div class="flex items-center space-x-3 w-full md:w-auto">
-                <button onclick="openMessageModal()" class="px-4 py-2 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Отправить сообщение</button>
-                <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-64 border border-[#222222]">
-              </div>
-            </div>
-            <div id="adminUsersList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-              <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
+        
+        <div class="lg:col-span-4 space-y-6">
+          <div class="p-6 account-card">
+            <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
+            <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
+              <p>Загрузка данных профиля...</p>
             </div>
           </div>
         </div>
 
       </div>
-    </main>
 
-    <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
-      Колледж Предпринимательства №11 • Реестр производственных смен
-    </footer>
-  </div>
+      <div id="viewMap" class="hidden space-y-4">
+        <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A]">
+          <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг и управление метками</h3>
+          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов и съёмочных площадок.</p>
+          <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
+        </div>
+      </div>
+
+      <div id="viewStats" class="hidden space-y-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div class="lg:col-span-6 p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
+            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг проф. пригодности (Лидеры)</h3>
+            <div id="statsLeadersList" class="space-y-2 max-h-[420px] overflow-y-auto pr-2">
+              <p class="text-xs text-neutral-400">Загрузка данных...</p>
+            </div>
+          </div>
+
+          <div class="lg:col-span-6 space-y-6">
+            <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
+              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Общие показатели</h3>
+              <div class="flex justify-between text-xs font-extrabold uppercase">
+                <span class="text-neutral-400">Завершено смен:</span>
+                <span id="statCompletedCount" class="text-[var(--brand-beige)]">0</span>
+              </div>
+            </div>
+
+            <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
+              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг по учебным группам</h3>
+              <div id="statsGroupsList" class="space-y-2 max-h-56 overflow-y-auto pr-2">
+                <p class="text-xs text-neutral-400">Загрузка групп...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
+          <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Часто повторяющиеся проекты и шоу</h3>
+          <div id="statsFrequentShoots" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        </div>
+      </div>
+
+      <div id="viewAdmin" class="hidden space-y-6">
+        <div class="p-6 bg-[#030303] text-white unified-parallelogram space-y-4 border border-[#1A1A1A]">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учётными записями</h3>
+              <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
+            </div>
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+              <button onclick="openMessageModal()" class="px-4 py-2 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Отправить сообщение</button>
+              <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-64 border border-[#222222]">
+            </div>
+          </div>
+          <div id="adminUsersList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+            <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
+    Колледж Предпринимательства №11 • Реестр производственных смен
+  </footer>
 
   <!-- Модальное окно отправки личного сообщения мастером/админом -->
   <div id="messageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
