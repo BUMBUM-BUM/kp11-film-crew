@@ -6,13 +6,24 @@
   <title>КП11 • Производственная система</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_апи_ключ&lang=ru_RU" type="text/javascript"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --brand-red: #FC2C2C;
+      --brand-beige: #EEE4B5;
+      --brand-black: #1E1E1E;
+      --brand-gray: #555555;
+    }
+
     body { 
       font-family: 'Manrope', sans-serif; 
-      background-color: #0A0A0A;
-      /* Фирменная красная диагональная линия */
-      background-image: linear-gradient(135deg, #0A0A0A 36.5%, #E63B2E 36.5%, #E63B2E 63.5%, #0A0A0A 63.5%);
+      background-color: var(--brand-black);
+      /* Фирменный многослойный фон с двумя диагональными линиями согласно брендбуку */
+      background-image: 
+        /* Вторая линия от центра к нижнему правому краю, видна только снизу от первой */
+        linear-gradient(135deg, transparent 63.5%, var(--brand-red) 63.5%, var(--brand-red) 80%, transparent 80%),
+        /* Первая диагональная линия */
+        linear-gradient(135deg, var(--brand-black) 36.5%, var(--brand-red) 36.5%, var(--brand-red) 63.5%, var(--brand-black) 63.5%);
       background-size: 100% 100%;
       background-attachment: fixed;
       color: #FFFFFF; 
@@ -26,136 +37,151 @@
       -ms-user-select: none;
     }
 
-    /* Единый аккуратный наклон в одну сторону для всех блоков */
+    /* Единый мягкий параллелограмм для всех блоков и элементов */
     .unified-parallelogram {
       clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
     }
 
-    /* Попиксельное переключение цвета текста */
-    .pixel-text-invert {
-      color: #FFFFFF;
-      mix-blend-mode: exclusion;
-    }
-
-    .paper-cut-text-dark {
-      color: #111111;
-      text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.6);
-    }
-
-    /* Блоки смен: однотонные, с инверсией фона и бежевой рамкой */
+    /* Блок смены: фон инвертирован к фону сайта (Красный над Чёрным, Чёрный над Красным) */
     .shoot-card-pure {
       position: relative;
-      background-color: #E63B2E;
-      border: 2px solid #EEDDBF;
+      background-color: var(--brand-red);
+      border: 2px solid var(--brand-beige);
       overflow: hidden;
     }
 
+    /* Инвертированная диагональная линия внутри карточки для точного соответствия фону */
     .shoot-card-pure::after {
       content: '';
       position: absolute;
       inset: 0;
-      background-image: linear-gradient(135deg, #0A0A0A 36.5%, transparent 36.5%, transparent 63.5%, #0A0A0A 63.5%);
+      background-image: 
+        linear-gradient(135deg, transparent 63.5%, var(--brand-black) 63.5%, var(--brand-black) 80%, transparent 80%),
+        linear-gradient(135deg, transparent 36.5%, var(--brand-black) 36.5%, var(--brand-black) 63.5%, transparent 63.5%);
       background-attachment: fixed;
       pointer-events: none;
       z-index: 1;
     }
 
-    .shoot-card-pure > * {
-      position: relative;
+    /* Небольшой красный градиент снизу справа (виден только над красной линией фона, где плашка чёрная) */
+    .shoot-card-pure::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle at bottom right, rgba(252, 44, 44, 0.45), transparent 70%);
+      pointer-events: none;
       z-index: 2;
     }
 
-    /* Блок учётной записи: бежевый, чёрный текст */
+    .shoot-card-pure > * {
+      position: relative;
+      z-index: 3;
+    }
+
+    /* Текст внутри смены: Бежевый над Чёрной частью, Чёрный над Красной частью */
+    .shoot-card-text {
+      position: relative;
+      color: var(--brand-black); /* Чёрный текст над красной частью карточки */
+      background-color: transparent;
+    }
+
+    .shoot-card-text::before {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      color: var(--brand-beige); /* Светло-бежевый текст над чёрной частью */
+      background-image: 
+        linear-gradient(135deg, transparent 63.5%, var(--brand-beige) 63.5%, var(--brand-beige) 80%, transparent 80%),
+        linear-gradient(135deg, transparent 36.5%, var(--brand-beige) 36.5%, var(--brand-beige) 63.5%, transparent 63.5%);
+      background-attachment: fixed;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      pointer-events: none;
+    }
+
+    /* Текст в шапке / общих блоках */
+    .pixel-text-invert {
+      color: var(--brand-beige);
+    }
+
+    .paper-cut-text-dark {
+      color: var(--brand-black);
+      text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.4);
+    }
+
+    /* Блок учётной записи: пастельно-бежевый */
     .account-card {
-      background-color: #EEDDBF;
-      color: #111111;
-      border: 2px solid #C8B393;
+      background-color: var(--brand-beige);
+      color: var(--brand-black);
+      border: 2px solid #D5C895;
       clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-[#E63B2E] selection:text-white paper-block font-bold">
+<body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block">
 
   <!-- Шапка -->
-  <header class="bg-[#0A0A0A] border-b border-[#222222] sticky top-0 z-50">
+  <header class="bg-[var(--brand-black)] border-b border-[#2A2A2A] sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
-        <div class="bg-[#E63B2E] text-[#F5F2EB] px-4 py-2 font-black text-lg tracking-widest unified-parallelogram pixel-text-invert">
+        <div class="bg-[var(--brand-red)] text-[var(--brand-beige)] px-4 py-2 font-extrabold text-lg tracking-widest unified-parallelogram pixel-text-invert">
           КП11
         </div>
         <div class="border-l border-[#333333] pl-4">
-          <h1 class="text-sm font-black tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
-          <p class="text-[11px] text-neutral-300 font-extrabold uppercase">Производственная система</p>
+          <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
+          <p class="text-[10px] text-neutral-400 font-bold uppercase">Производственная система</p>
         </div>
       </div>
       <div id="userNav" class="flex items-center space-x-4">
-        <button onclick="openModal('login')" class="text-xs font-black uppercase px-4 py-2 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
-        <button onclick="openModal('register')" class="text-xs font-black uppercase px-4 py-2 bg-[#F5F2EB] text-[#111111] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
+        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
+        <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
       </div>
     </div>
   </header>
 
   <!-- Основное содержимое -->
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
-
-    <!-- Стильная плашка-предупреждение для неавторизованных пользователей -->
-    <div id="authBanner" class="p-6 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram border-2 border-[#EEDDBF] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-      <div class="space-y-1">
-        <div class="flex items-center space-x-2">
-          <span class="bg-[#0A0A0A] text-[#F5F2EB] px-2.5 py-0.5 text-[10px] font-black uppercase unified-parallelogram">Внимание</span>
-          <h3 class="text-sm font-black uppercase tracking-wider pixel-text-invert">Требуется авторизация</h3>
-        </div>
-        <p class="text-xs text-neutral-100 font-extrabold leading-relaxed">
-          Для доступа к управлению производственными сменами, назначениям и реестру необходимо войти в аккаунт или пройти регистрацию.
-        </p>
-      </div>
-      <div class="flex items-center space-x-3 shrink-0">
-        <button onclick="openModal('login')" class="text-xs font-black uppercase px-5 py-2.5 bg-[#0A0A0A] text-[#F5F2EB] unified-parallelogram hover:bg-black transition border border-[#333333]">
-          Авторизоваться
-        </button>
-        <button onclick="openModal('register')" class="text-xs font-black uppercase px-5 py-2.5 bg-[#F5F2EB] text-[#111111] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">
-          Регистрация
-        </button>
-      </div>
-    </div>
     
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
         <div class="flex items-center space-x-2 mb-2">
-          <span class="px-2.5 py-1 bg-[#E63B2E] text-[#F5F2EB] text-[11px] font-black uppercase unified-parallelogram pixel-text-invert">ПРАКТИЧЕСКИЙ КОНТУР</span>
+          <span class="px-2 py-0.5 bg-[var(--brand-red)] text-[var(--brand-beige)] text-[10px] font-extrabold uppercase unified-parallelogram pixel-text-invert">ПРАКТИЧЕСКИЙ КОНТУР</span>
         </div>
-        <h2 class="text-4xl md:text-5xl font-black tracking-tight uppercase pixel-text-invert">Реестр производств</h2>
+        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight uppercase pixel-text-invert">Реестр производств</h2>
       </div>
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Уведомления и назначения на смены -->
+    <!-- Уведомления приглашений -->
     <div id="notificationsContainer"></div>
 
     <!-- Навигационные вкладки -->
     <div id="tabNav" class="hidden flex space-x-4 border-b border-[#333333] pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-black text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition">Смены</button>
-      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-black text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
-      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-black text-xs uppercase bg-[#EEDDBF] text-[#111111] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
+      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
+      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
     </div>
 
     <!-- Смены -->
     <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
       <div class="lg:col-span-8 space-y-6">
         <div class="flex items-center justify-between">
-          <span id="globalStatsText" class="text-xs font-black uppercase text-neutral-300">Загрузка статистики...</span>
-          <span id="shootCount" class="text-xs px-3 py-1 bg-[#1A1A1A] text-[#F5F2EB] font-black unified-parallelogram">0 смен</span>
+          <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
+          <span id="shootCount" class="text-xs px-3 py-1 bg-[var(--brand-black)] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-6">
-          <div class="p-8 shoot-card-pure unified-parallelogram text-center font-black text-xs uppercase pixel-text-invert">Загрузка данных...</div>
+          <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
         </div>
       </div>
       
       <!-- Боковая панель профиля -->
       <div class="lg:col-span-4 space-y-6">
         <div class="p-6 account-card">
-          <h3 class="text-xs font-black uppercase tracking-widest mb-4 border-b border-[#C8B393] pb-2 text-[#111111]">Учётная запись</h3>
-          <div id="sidebarProfile" class="text-xs space-y-3 font-extrabold text-[#111111]">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
+          <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
             <p>Авторизуйтесь для доступа к управлению сменами.</p>
           </div>
         </div>
@@ -164,25 +190,25 @@
 
     <!-- Карта -->
     <div id="viewMap" class="hidden space-y-4">
-      <div class="p-6 bg-[#1A1A1A] text-white unified-parallelogram border border-[#333333]">
-        <h3 class="text-sm font-black uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг</h3>
-        <p class="text-xs text-neutral-300 mb-4 font-extrabold">Координаты павильонов, съёмочных площадок и мастерских.</p>
+      <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333]">
+        <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг</h3>
+        <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
         <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
       </div>
     </div>
 
     <!-- Админ-панель -->
     <div id="viewAdmin" class="hidden space-y-6">
-      <div class="p-6 bg-[#1A1A1A] text-white unified-parallelogram space-y-4 border border-[#333333]">
+      <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram space-y-4 border border-[#333333]">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h3 class="text-sm font-black uppercase tracking-wider pixel-text-invert">Управление ролями и учетными записями</h3>
-            <p class="text-xs text-neutral-300 font-extrabold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
+            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учетными записями</h3>
+            <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
           </div>
-          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#0A0A0A] text-[#F5F2EB] px-3.5 py-2 text-xs font-black unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
+          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
         </div>
         <div id="adminUsersList" class="space-y-3">
-          <div class="text-neutral-300 text-xs font-extrabold">Загрузка базы...</div>
+          <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
         </div>
       </div>
     </div>
@@ -192,52 +218,52 @@
   <!-- Модальное окно создания смены -->
   <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
-      <button onclick="closeShootModal()" class="absolute top-4 right-4 font-black text-base pixel-text-invert hover:opacity-80">✕</button>
-      <h3 class="text-sm font-black uppercase tracking-wider mb-4 border-b border-[#EEDDBF]/30 pb-2 pixel-text-invert">Создание производственной смены</h3>
+      <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
+      <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[var(--brand-beige)]/30 pb-2 text-[var(--brand-beige)]">Создание производственной смены</h3>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
-          <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Название проекта / смены</label>
-          <input type="text" id="shootTitle" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Название проекта / смены</label>
+          <input type="text" id="shootTitle" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
         </div>
         <div>
-          <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Описание задач</label>
-          <textarea id="shootDesc" rows="2" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]"></textarea>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Описание задач</label>
+          <textarea id="shootDesc" rows="2" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Тип производства</label>
-            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
+            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Тип производства</label>
+            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
               <option value="СТУДИЯ">Студия</option>
               <option value="ВЫЕЗД">Выезд</option>
             </select>
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Дата и время</label>
-            <input type="datetime-local" id="shootDate" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
+            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Дата и время</label>
+            <input type="datetime-local" id="shootDate" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Локация</label>
-          <input type="text" id="shootLocation" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Павильон №1">
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Локация</label>
+          <input type="text" id="shootLocation" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Павильон №1">
         </div>
 
         <div id="pickerMapContainerWrapper" class="hidden space-y-2">
-          <label class="block text-[11px] font-black pixel-text-invert uppercase">Укажите точку выезда на карте:</label>
-          <div id="pickerMap" class="w-full h-44 bg-[#0A0A0A] unified-parallelogram overflow-hidden border border-[#333333]"></div>
+          <label class="block text-[11px] font-extrabold text-[var(--brand-beige)] uppercase">Укажите точку выезда на карте:</label>
+          <div id="pickerMap" class="w-full h-44 bg-[var(--brand-black)] unified-parallelogram overflow-hidden border border-[#333333]"></div>
           <input type="hidden" id="selectedLat" value="55.751244">
           <input type="hidden" id="selectedLon" value="37.618423">
         </div>
         
         <div>
-          <label class="block text-[11px] font-black uppercase mb-2 pixel-text-invert">Назначение участников в съёмочную группу:</label>
-          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-1.5 text-xs font-black unified-parallelogram mb-2 focus:outline-none border border-[#333333]">
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[#0A0A0A] p-3 unified-parallelogram border border-[#333333]">
+          <label class="block text-[11px] font-extrabold uppercase mb-2 text-[var(--brand-beige)]">Назначение цеховых ролей участникам:</label>
+          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-1.5 text-xs font-bold unified-parallelogram mb-2 focus:outline-none border border-[#333333]">
+          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[var(--brand-black)] p-3 unified-parallelogram border border-[#333333]">
             <!-- Заполняется через JS -->
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-black uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Опубликовать смену и отправить назначения</button>
+        <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Опубликовать смену</button>
       </form>
     </div>
   </div>
@@ -245,34 +271,34 @@
   <!-- Модальное окно Вход / Регистрация -->
   <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-sm relative shadow-2xl">
-      <button onclick="closeModal()" class="absolute top-4 right-4 font-black text-base pixel-text-invert hover:opacity-80">✕</button>
-      <h3 id="modalTitle" class="text-sm font-black uppercase tracking-wider mb-4 border-b border-[#EEDDBF]/30 pb-2 pixel-text-invert">Авторизация</h3>
+      <button onclick="closeModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
+      <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[var(--brand-beige)]/30 pb-2 text-[var(--brand-beige)]">Авторизация</h3>
       
       <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3">
         <div id="registerFields" class="hidden space-y-3">
           <div>
-            <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">ФИО</label>
-            <input type="text" id="fullName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
+            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">ФИО</label>
+            <input type="text" id="fullName" class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Учебная группа</label>
-            <input type="text" id="groupName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Напр. КИТ-21">
+            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Учебная группа</label>
+            <input type="text" id="groupName" class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Напр. КИТ-21">
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Email</label>
-          <input type="email" id="email" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]" placeholder="user@ckt.ru">
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Email</label>
+          <input type="email" id="email" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="user@ckt.ru">
         </div>
         <div>
-          <label class="block text-[11px] font-black uppercase mb-1 pixel-text-invert">Пароль</label>
-          <input type="password" id="password" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Пароль</label>
+          <input type="password" id="password" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
         </div>
-        <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-black uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Подтвердить</button>
+        <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Подтвердить</button>
       </form>
     </div>
   </div>
 
-  <footer class="border-t border-[#222222] bg-[#0A0A0A] py-6 text-center text-xs font-black uppercase tracking-widest pixel-text-invert">
+  <footer class="border-t border-[#2A2A2A] bg-[var(--brand-black)] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
     Колледж Предпринимательства №11 • Реестр производственных смен
   </footer>
 
@@ -298,47 +324,24 @@
       });
     }
 
-    // Запрос разрешения на браузерные Push-уведомления
-    function requestPushPermission() {
-      if ('Notification' in window && Notification.permission !== 'granted') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            console.log('Push-уведомления разрешены пользователем.');
-          }
-        });
-      }
-    }
-
-    function sendBrowserPush(title, bodyText) {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, {
-          body: bodyText,
-          icon: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
-        });
-      }
-    }
-
     function updateNav() {
       const nav = document.getElementById('userNav');
       const tabNav = document.getElementById('tabNav');
       const tabAdminBtn = document.getElementById('tabAdminBtn');
       const actionContainer = document.getElementById('actionButtonContainer');
-      const authBanner = document.getElementById('authBanner');
 
       if (currentUser) {
-        if (authBanner) authBanner.classList.add('hidden');
-        requestPushPermission();
         tabNav.classList.remove('hidden');
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
-            <span class="text-xs bg-[#EEDDBF] text-[#111111] px-3.5 py-1.5 font-black unified-parallelogram paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-800">[${currentUser.groupName || 'Группа'}]</span></span>
-            <button onclick="logout()" class="text-xs font-black uppercase px-3 py-1.5 bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert hover:bg-black transition">Выход</button>
+            <span class="text-xs bg-[var(--brand-beige)] text-[var(--brand-black)] px-3.5 py-1.5 font-extrabold unified-parallelogram paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
+            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-black transition">Выход</button>
           </div>
         `;
 
         if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
           actionContainer.innerHTML = `
-            <button onclick="openShootModal()" class="bg-[#E63B2E] text-[#F5F2EB] px-5 py-2.5 font-black text-xs uppercase tracking-wider unified-parallelogram pixel-text-invert hover:opacity-95 transition flex items-center space-x-2">
+            <button onclick="openShootModal()" class="bg-[var(--brand-red)] text-[var(--brand-beige)] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider unified-parallelogram pixel-text-invert hover:opacity-95 transition flex items-center space-x-2">
               <span>+ Новая смена</span>
             </button>
           `;
@@ -350,8 +353,6 @@
         }
 
         loadNotifications();
-      } else {
-        if (authBanner) authBanner.classList.remove('hidden');
       }
     }
 
@@ -364,9 +365,9 @@
       document.getElementById('viewMap').classList.toggle('hidden', !isMap);
       document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
 
-      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-black text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-black text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition';
-      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-black text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-black text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition';
-      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-black text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-black text-xs uppercase bg-[#EEDDBF] text-[#111111] unified-parallelogram paper-cut-text-dark transition';
+      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
+      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
+      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition';
 
       if (isMap && fullMap) {
         setTimeout(() => fullMap.container.fitToViewport(), 150);
@@ -390,27 +391,23 @@
 
     function renderAdminUsers(users) {
       const container = document.getElementById('adminUsersList');
-      container.innerHTML = users.map(u => {
-        const currentRole = u.role?.name || u.role || 'Студент';
-        return `
-          <div class="flex items-center justify-between p-3 bg-[#0A0A0A] unified-parallelogram ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
-            <div>
-              <h4 class="font-black text-xs uppercase pixel-text-invert">${u.fullName} <span class="text-neutral-300 font-extrabold">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-black">⭐${u.rating || 0}</span> ${u.isSuspended ? '<span class="text-red-500 font-black">[ОТСТРАНЕН]</span>' : ''}</h4>
-              <p class="text-[11px] text-neutral-300 font-extrabold">${u.email}</p>
-            </div>
-            <div class="flex items-center space-x-2">
-              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-black unified-parallelogram focus:outline-none border border-[#333333]">
-                <option value="STUDENT" ${currentRole === 'Студент' || currentRole === 'STUDENT' ? 'selected' : ''}>Студент</option>
-                <option value="MASTER" ${currentRole === 'Мастер / Преподаватель' || currentRole === 'MASTER' ? 'selected' : ''}>Мастер / Преподаватель</option>
-                <option value="ADMIN" ${currentRole === 'Администратор' || currentRole === 'ADMIN' ? 'selected' : ''}>Администратор</option>
-              </select>
-              <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-black uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white pixel-text-invert'}">
-                ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
-              </button>
-            </div>
+      container.innerHTML = users.map(u => `
+        <div class="flex items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
+          <div>
+            <h4 class="font-extrabold text-xs uppercase pixel-text-invert">${u.fullName} <span class="text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
+            <p class="text-[11px] text-neutral-400 font-bold">${u.email}</p>
           </div>
-        `;
-      }).join('');
+          <div class="flex items-center space-x-2">
+            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
+              <option value="">Роль: ${u.role?.name || 'Студент'}</option>
+              <option value="STUDENT">Студент</option>
+            </select>
+            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[var(--brand-red)] text-white pixel-text-invert'}">
+              ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
+            </button>
+          </div>
+        </div>
+      `).join('');
     }
 
     function filterAdminUsers() {
@@ -426,7 +423,7 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ userId, isSuspended })
         });
-        if (!res.ok) throw new Error('Ошибка при изменении статуса');
+        if (!res.ok) throw new Error('Ошибка');
         loadAdminPanel();
       } catch (err) {
         alert(err.message);
@@ -434,46 +431,34 @@
     }
 
     async function changeUserRole(userId, roleId) {
-      try {
-        const res = await fetch('/api/admin/role', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ userId, role: roleId })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Ошибка при изменении роли');
-        loadAdminPanel();
-      } catch (err) {
-        alert(err.message);
-        loadAdminPanel();
-      }
+      loadAdminPanel();
     }
 
-    // Загрузка уведомлений и информирование о назначении на съёмку
     async function loadNotifications() {
       if (!token) return;
       try {
         const res = await fetch('/api/notifications', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        const assignments = await res.json();
+        const invites = await res.json();
         const container = document.getElementById('notificationsContainer');
-        if (!assignments || assignments.length === 0) {
+        if (!invites || invites.length === 0) {
           container.innerHTML = '';
           return;
         }
 
         container.innerHTML = `
-          <div class="p-4 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram mb-6 space-y-2 border border-[#EEDDBF]">
-            <h4 class="text-xs font-black uppercase tracking-wider pixel-text-invert">Важные назначения в съёмочные группы:</h4>
-            ${assignments.map(ass => `
-              <div class="flex items-center justify-between bg-[#0A0A0A] text-[#F5F2EB] p-3 text-xs unified-parallelogram">
+          <div class="p-4 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram mb-6 space-y-2 border border-[var(--brand-beige)]">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider pixel-text-invert">Приглашения в состав смены:</h4>
+            ${invites.map(inv => `
+              <div class="flex items-center justify-between bg-[var(--brand-black)] text-[var(--brand-beige)] p-3 text-xs unified-parallelogram">
                 <div>
-                  <strong class="text-xs font-black uppercase pixel-text-invert">Назначение: ${ass.shoot.title}</strong>
-                  <p class="text-neutral-300 text-[11px] font-extrabold">Локация: ${ass.shoot.location} \vert{} Роль: ${ass.roleInShoot}</p>
+                  <strong class="text-xs font-extrabold uppercase pixel-text-invert">${inv.shoot.title}</strong>
+                  <p class="text-neutral-400 text-[11px] font-bold">Локация: ${inv.shoot.location}</p>
                 </div>
-                <div>
-                  <span class="bg-emerald-600 text-white px-3 py-1 text-xs font-black uppercase unified-parallelogram">Назначен ✓</span>
+                <div class="space-x-2">
+                  <button onclick="respondCrew('${inv.id}', 'ACCEPTED')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram">Принять</button>
+                  <button onclick="respondCrew('${inv.id}', 'DECLINED')" class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram">Отклонить</button>
                 </div>
               </div>
             `).join('')}
@@ -481,6 +466,21 @@
         `;
       } catch (err) {
         console.error(err);
+      }
+    }
+
+    async function respondCrew(crewMemberId, status) {
+      try {
+        const res = await fetch('/api/crew/response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ crewMemberId, status })
+        });
+        if (!res.ok) throw new Error('Ошибка');
+        loadNotifications();
+        loadShoots();
+      } catch (err) {
+        alert(err.message);
       }
     }
 
@@ -519,12 +519,12 @@
     function renderModalStudents(students) {
       const box = document.getElementById('studentsCheckboxes');
       box.innerHTML = students.map(s => `
-        <div class="flex items-center justify-between p-2 bg-[#0A0A0A] text-xs unified-parallelogram">
+        <div class="flex items-center justify-between p-2 bg-[var(--brand-black)] text-xs unified-parallelogram">
           <label class="flex items-center space-x-2.5 cursor-pointer flex-grow">
-            <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-[#0A0A0A] text-[#E63B2E]">
-            <span class="font-black text-xs uppercase pixel-text-invert">${s.fullName} <span class="text-neutral-300 font-extrabold">[${s.groupName}]</span> <span class="text-amber-400 font-black">⭐${s.rating || 0}</span></span>
+            <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-[var(--brand-black)] text-[var(--brand-red)]">
+            <span class="font-extrabold text-xs uppercase text-[var(--brand-beige)]">${s.fullName} <span class="text-neutral-400">[${s.groupName}]</span> <span class="text-amber-400 font-extrabold">⭐${s.rating}</span></span>
           </label>
-          <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-black unified-parallelogram border border-[#333333]">
+          <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram border border-[#333333]">
             <option value="Оператор">Оператор</option>
             <option value="Звукорежиссер">Звукорежиссер</option>
             <option value="Осветитель">Осветитель</option>
@@ -577,9 +577,6 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-
-        // Отправка браузерного push-уведомления мастеру об успешном назначении группы
-        sendBrowserPush("Производственная система КП11", "Смена успешно создана, участники назначены в группу!");
 
         closeShootModal();
         loadShoots();
@@ -656,27 +653,6 @@
       }
     }
 
-    // Проверка приближения смены (за 2 часа) и отправка фонового Push-уведомления
-    function checkUpcomingShoots(shoots) {
-      if (!currentUser) return;
-      const now = new Date().getTime();
-      shoots.forEach(s => {
-        const shootTime = new Date(s.date).getTime();
-        const diffHours = (shootTime - now) / (1000 * 60 * 60);
-        // Если до смены от 0 до 2 часов, и текущий пользователь назначен в съёмочную группу
-        if (diffHours > 0 && diffHours <= 2) {
-          const isAssigned = s.crew && s.crew.some(c => c.user && c.user.email === currentUser.email);
-          if (isAssigned) {
-            const notifiedKey = `notified_shoot_${s.id}`;
-            if (!localStorage.getItem(notifiedKey)) {
-              sendBrowserPush("Напоминание о смене!", `Внимание! Смена «${s.title}» начнется через ${Math.round(diffHours * 60)} минут. Локация: ${s.location}`);
-              localStorage.setItem(notifiedKey, 'true');
-            }
-          }
-        }
-      });
-    }
-
     async function loadShoots() {
       try {
         const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -688,32 +664,27 @@
         document.getElementById('shootCount').innerText = `${shoots.length} смен`;
         document.getElementById('globalStatsText').innerText = `Всего смен: ${stats.totalShoots} | Завершено: ${stats.completedShoots}`;
 
-        // Запуск проверки приближения смен для Push-уведомлений
-        checkUpcomingShoots(shoots);
-
         const sidebar = document.getElementById('sidebarProfile');
         if (currentUser) {
           sidebar.innerHTML = `
-            <div class="space-y-2 text-xs font-extrabold uppercase">
-              <div class="flex justify-between border-b border-[#C8B393] pb-1.5"><span class="text-neutral-800">ФИО:</span><span class="text-[#111111] font-black">${currentUser.fullName}</span></div>
-              <div class="flex justify-between border-b border-[#C8B393] pb-1.5"><span class="text-neutral-800">Группа:</span><span class="text-[#E63B2E] font-black">${currentUser.groupName || '—'}</span></div>
-              <div class="flex justify-between border-b border-[#C8B393] pb-1.5"><span class="text-neutral-800">Роль:</span><span class="text-[#111111] font-black">${currentUser.role}</span></div>
+            <div class="space-y-2 text-xs font-bold uppercase">
+              <div class="flex justify-between border-b border-[#D5C895] pb-1.5"><span class="text-neutral-700">ФИО:</span><span class="text-[var(--brand-black)]">${currentUser.fullName}</span></div>
+              <div class="flex justify-between border-b border-[#D5C895] pb-1.5"><span class="text-neutral-700">Группа:</span><span class="text-[var(--brand-red)]">${currentUser.groupName || '—'}</span></div>
+              <div class="flex justify-between border-b border-[#D5C895] pb-1.5"><span class="text-neutral-700">Роль:</span><span class="text-[var(--brand-black)]">${currentUser.role}</span></div>
               ${userStats ? `
-                <div class="pt-2 space-y-1.5 text-[#111111]">
-                  <div class="flex justify-between"><span class="text-neutral-800">Рейтинг:</span><span class="text-amber-800 font-black">⭐ ${userStats.rating}</span></div>
-                  <div class="flex justify-between"><span class="text-neutral-800">Активных смен:</span><span class="text-[#111111] font-black">${userStats.completedParticipated} /${userStats.totalParticipated}</span></div>
+                <div class="pt-2 space-y-1.5 text-[var(--brand-black)]">
+                  <div class="flex justify-between"><span class="text-neutral-700">Рейтинг:</span><span class="text-amber-800 font-extrabold">⭐ ${userStats.rating}</span></div>
+                  <div class="flex justify-between"><span class="text-neutral-700">Активных смен:</span><span class="text-[var(--brand-black)]">${userStats.completedParticipated} / ${userStats.totalParticipated}</span></div>
                 </div>
               ` : ''}
             </div>
           `;
-        } else {
-          sidebar.innerHTML = `<p>Авторизуйтесь для доступа к управлению сменами.</p>`;
         }
 
         const container = document.getElementById('shootsList');
 
         if (shoots.length === 0) {
-          container.innerHTML = `<div class="p-8 shoot-card-pure unified-parallelogram text-center font-black text-xs uppercase pixel-text-invert">Нет активных смен.</div>`;
+          container.innerHTML = `<div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Нет активных смен.</div>`;
           return;
         }
 
@@ -731,37 +702,44 @@
 
         const canManage = currentUser && (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор');
 
-        // Плоская структура карточек смен без вложенных контейнеров
         container.innerHTML = shoots.map((s) => {
+          const formattedDate = new Date(s.date).toLocaleString();
+          const locationText = `Локация: ${s.location}`;
+          const masterText = `Мастер: ${s.creator.fullName}`;
+          
           return `
             <div class="p-6 shoot-card-pure unified-parallelogram space-y-4">
               <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-2">
-                  <span class="text-[10px] bg-black text-white px-2.5 py-1 uppercase font-black unified-parallelogram">СМЕНА</span>
-                  ${s.isCompleted ? '<span class="text-[10px] bg-emerald-600 text-white px-2.5 py-1 uppercase font-black unified-parallelogram">Завершено</span>' : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-black unified-parallelogram">В процессе</span>'}
+                  <span class="text-[10px] bg-[var(--brand-black)] text-[var(--brand-beige)] px-2.5 py-1 uppercase font-extrabold unified-parallelogram">СМЕНА</span>
+                  ${s.isCompleted ? '<span class="text-[10px] bg-emerald-600 text-white px-2.5 py-1 uppercase font-extrabold unified-parallelogram">Завершено</span>' : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-extrabold unified-parallelogram">В процессе</span>'}
                 </div>
-                <span class="text-xs text-neutral-200 font-black">${new Date(s.date).toLocaleString()}</span>
+                <span class="text-xs font-bold shoot-card-text" data-text="${formattedDate}">${formattedDate}</span>
               </div>
               <div>
-                <h4 class="text-base font-black uppercase pixel-text-invert mb-1">${s.title}</h4>
-                <p class="text-xs font-extrabold leading-relaxed pixel-text-invert">${s.description}</p>
+                <h4 class="text-base font-extrabold uppercase mb-1 shoot-card-text" data-text="${s.title}">${s.title}</h4>
+                <p class="text-xs font-medium leading-relaxed shoot-card-text" data-text="${s.description}">${s.description}</p>
               </div>
-              <div class="text-xs font-black border-t border-[#EEDDBF]/30 pt-3 flex justify-between uppercase pixel-text-invert">
-                <span>Локация: <strong class="pixel-text-invert">${s.location}</strong></span>
-                <span>Мастер: <strong class="pixel-text-invert">${s.creator ? s.creator.fullName : 'Не указан'}</strong></span>
+              <div class="text-xs font-bold border-t border-[var(--brand-beige)]/30 pt-3 flex justify-between uppercase">
+                <span class="shoot-card-text" data-text="${locationText}">${locationText}</span>
+                <span class="shoot-card-text" data-text="${masterText}">${masterText}</span>
               </div>
               <div class="pt-2 text-xs space-y-2">
                 <div class="flex justify-between items-center mb-1">
-                  <span class="uppercase tracking-wider text-[10px] font-black pixel-text-invert">Съёмочная группа (Назначены):</span>
-                  ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-white text-black px-3 py-1 text-[10px] font-black uppercase unified-parallelogram hover:bg-neutral-200 transition">Завершить смену</button>` : ''}
+                  <span class="uppercase tracking-wider text-[10px] font-extrabold shoot-card-text" data-text="Съёмочная группа:">Съёмочная группа:</span>
+                  ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-3 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark">Завершить смену</button>` : ''}
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  ${!s.crew || s.crew.length === 0 ? '<span class="text-xs font-black uppercase pixel-text-invert">Команда не назначена</span>' : s.crew.map(c => `
-                    <div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-black unified-parallelogram bg-emerald-950 text-emerald-100 border border-emerald-700">
-                      <span class="uppercase">${c.user ? c.user.fullName : 'Пользователь'} [${c.user ? c.user.groupName || 'Группа' : ''}] (${c.roleInShoot}) ⭐${c.user ? c.user.rating || 0 : 0}</span>
-                      <span class="font-black text-emerald-400">[НАЗНАЧЕН]</span>
-                      ${canManage && !s.isCompleted ? `
-                        <select onchange="updateAttendance('${c.id}', this.value)" class="bg-black text-white text-xs font-black px-1 py-0.5 unified-parallelogram border border-[#333333]">
+                  ${s.crew.length === 0 ? `<span class="text-xs font-bold uppercase shoot-card-text" data-text="Команда не назначена">Команда не назначена</span>` : s.crew.map(c => `
+                    <div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ${
+                      c.status === 'ACCEPTED' ? 'bg-emerald-900 text-emerald-100' :
+                      c.status === 'DECLINED' ? 'bg-red-900 text-red-100' :
+                      'bg-neutral-800 text-neutral-200'
+                    }">
+                      <span class="uppercase">${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
+                      <span class="font-extrabold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '···'}</span>
+                      ${canManage && c.status === 'ACCEPTED' && !s.isCompleted ? `
+                        <select onchange="updateAttendance('${c.id}', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333]">
                           <option value="PRESENT" ${c.attendance === 'PRESENT' ? 'selected' : ''}>Присутствовал</option>
                           <option value="ABSENT" ${c.attendance === 'ABSENT' ? 'selected' : ''}>Прогул (-0.3⭐)</option>
                         </select>
@@ -778,9 +756,10 @@
       }
     }
 
-    // Первичная инициализация
-    updateNav();
-    loadShoots();
+    if (token) {
+      updateNav();
+      loadShoots();
+    }
   </script>
 </body>
 </html>
