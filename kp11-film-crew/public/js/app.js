@@ -182,6 +182,7 @@ async function loadAdminPanel() {
   }
 }
 
+// Рендер админки с инлайн-редактированием профилей на сайте
 function renderAdminUsers(users) {
   const container = document.getElementById('adminUsersList');
   if (!container) return;
@@ -203,19 +204,24 @@ function renderAdminUsers(users) {
       deleteBtn = '<button onclick="deleteUser(\'' + u.id + '\')" class="px-3 py-1 text-xs font-extrabold uppercase bg-red-700 text-white unified-parallelogram">Удалить</button>';
     }
 
-    let editProfileBtn = '<button onclick="editUserProfile(\'' + u.id + '\', \'' + u.fullName.replace(/'/g, "\\'") + '\', \'' + (u.groupName || '') + '\', ' + u.rating + ')" class="px-3 py-1 text-xs font-extrabold uppercase bg-amber-600 text-black unified-parallelogram font-bold">Изменить</button>';
-
-    return '<div class="flex flex-col md:flex-row md:items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram gap-3 border border-[#333333] ' + borderClass + '">' +
-      '<div>' +
+    return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram gap-3 border border-[#333333] ' + borderClass + '">' +
+      '<div id="user_info_' + u.id + '" class="flex-grow">' +
         '<h4 class="font-extrabold text-xs uppercase pixel-text-invert">' +
-          u.fullName + ' <span class="text-neutral-400">[' + (u.groupName || 'Группа не указана') + ']</span> ' +
+          '<span id="display_name_' + u.id + '">' + u.fullName + '</span> ' +
+          '<span class="text-neutral-400">[Группа: <span id="display_group_' + u.id + '">' + (u.groupName || '—') + '</span>]</span> ' +
           '<span class="text-amber-400 font-extrabold">⭐' + ratingText + '</span> ' +
           suspendedText +
         '</h4>' +
         '<p class="text-[11px] text-neutral-400 font-bold">' + u.email + '</p>' +
       '</div>' +
-      '<div class="flex items-center space-x-2 flex-wrap gap-y-2">' +
-        editProfileBtn +
+      '<div id="user_edit_form_' + u.id + '" class="hidden flex items-center space-x-2 flex-grow">' +
+        '<input type="text" id="edit_name_' + u.id + '" value="' + u.fullName.replace(/"/g, '&quot;') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs border border-neutral-700 unified-parallelogram">' +
+        '<input type="text" id="edit_group_' + u.id + '" value="' + (u.groupName || '') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs w-24 border border-neutral-700 unified-parallelogram" placeholder="Группа">' +
+        '<button onclick="saveUserProfile(\'' + u.id + '\')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram">Сохранить</button>' +
+        '<button onclick="toggleUserEdit(\'' + u.id + '\', false)" class="bg-neutral-700 text-white px-2 py-1 text-xs font-extrabold uppercase unified-parallelogram">Отмена</button>' +
+      '</div>' +
+      '<div class="flex items-center space-x-2 flex-wrap gap-y-2" id="user_actions_' + u.id + '">' +
+        '<button onclick="toggleUserEdit(\'' + u.id + '\', true)" class="px-3 py-1 text-xs font-extrabold uppercase bg-amber-600 text-black unified-parallelogram font-bold">Изменить</button>' +
         '<select onchange="changeUserRole(\'' + u.id + '\', this.value)" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">' +
           '<option value="Студент" ' + (currentRole === 'Студент' ? 'selected' : '') + '>Студент</option>' +
           '<option value="Мастер / Преподаватель" ' + (currentRole === 'Мастер / Преподаватель' ? 'selected' : '') + '>Мастер / Преподаватель</option>' +
@@ -230,6 +236,36 @@ function renderAdminUsers(users) {
   }).join('');
 }
 
+function toggleUserEdit(userId, show) {
+  const infoBlock = document.getElementById('user_info_' + userId);
+  const editBlock = document.getElementById('user_edit_form_' + userId);
+  const actionsBlock = document.getElementById('user_actions_' + userId);
+  if (infoBlock && editBlock && actionsBlock) {
+    infoBlock.classList.toggle('hidden', show);
+    editBlock.classList.toggle('hidden', !show);
+    actionsBlock.classList.toggle('hidden', show);
+  }
+}
+
+async function saveUserProfile(userId) {
+  const newName = document.getElementById('edit_name_' + userId).value;
+  const newGroup = document.getElementById('edit_group_' + userId).value;
+
+  try {
+    const res = await fetch('/api/admin/users/' + userId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ fullName: newName, groupName: newGroup })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert('Профиль успешно обновлен!');
+    loadAdminPanel();
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+  }
+}
+
 async function resetAllRatings() {
   if (!confirm('Вы уверены, что хотите сбросить рейтинг ВСЕХ пользователей в системе?')) return;
   try {
@@ -241,58 +277,6 @@ async function resetAllRatings() {
     if (!res.ok) throw new Error(data.error);
     alert('Рейтинг всех пользователей успешно сброшен!');
     loadAdminPanel();
-  } catch (err) {
-    alert('Ошибка: ' + err.message);
-  }
-}
-
-async function editUserProfile(userId, currentName, currentGroup, currentRating) {
-  const newName = prompt('Введите новое ФИО:', currentName);
-  if (newName === null) return;
-  const newGroup = prompt('Введите новую группу:', currentGroup);
-  if (newGroup === null) return;
-  const newRatingInput = prompt('Введите рейтинг (от 0 до 5 или оставьте пустым):', currentRating !== null && currentRating !== 'null' ? currentRating : '');
-  if (newRatingInput === null) return;
-
-  const body = {
-    fullName: newName,
-    groupName: newGroup,
-    rating: newRatingInput.trim() === '' ? null : parseFloat(newRatingInput)
-  };
-
-  try {
-    const res = await fetch('/api/admin/users/' + userId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    alert('Профиль успешно обновлен!');
-    loadAdminPanel();
-  } catch (err) {
-    alert('Ошибка: ' + err.message);
-  }
-}
-
-async function editShoot(shootId, currentTitle, currentDesc, currentLoc, currentType) {
-  const title = prompt('Название смены:', currentTitle);
-  if (title === null) return;
-  const description = prompt('Описание задач:', currentDesc);
-  if (description === null) return;
-  const location = prompt('Локация:', currentLoc);
-  if (location === null) return;
-
-  try {
-    const res = await fetch('/api/shoots/' + shootId, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ title, description, location, type: currentType })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    alert('Смена успешно отредактирована!');
-    loadShoots();
   } catch (err) {
     alert('Ошибка: ' + err.message);
   }
@@ -528,27 +512,27 @@ async function handleCreateShoot(e) {
   }
 }
 
-async function completeShoot(shootId) {
-  if (!confirm('Завершить смену? Вы сможете выставить оценку студентам.')) return;
-  
-  const gradeInput = prompt('Введите оценку участникам этой смены (от 0 до 5):', '5');
-  if (gradeInput === null) return;
-  const grade = parseFloat(gradeInput);
-  if (isNaN(grade) || grade < 0 || grade > 5) {
-    alert('Пожалуйста, введите корректное число от 0 до 5.');
-    return;
+// Завершение смены со сбором индивидуальных оценок с инпута на странице
+async function completeShoot(shootId, crewMemberIds) {
+  const grades = {};
+  for (const memberId of crewMemberIds) {
+    const inputEl = document.getElementById('grade_input_' + memberId);
+    if (inputEl) {
+      grades[memberId] = parseFloat(inputEl.value) || 5.0;
+    }
   }
 
   try {
     const res = await fetch('/api/shoots/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ shootId, grade })
+      body: JSON.stringify({ shootId, grades })
     });
     if (!res.ok) throw new Error('Ошибка завершения смены');
+    alert('Смена успешно завершена, оценки сохранены!');
     loadShoots();
   } catch (err) {
-    alert('Ошибка: ' + err.message);
+    alert(err.message);
   }
 }
 
@@ -563,6 +547,40 @@ async function updateAttendance(crewMemberId, attendance) {
     loadShoots();
   } catch (err) {
     alert(err.message);
+  }
+}
+
+function toggleShootExpand(shootId) {
+  const detailsBlock = document.getElementById('shoot_details_' + shootId);
+  const btn = document.getElementById('expand_btn_' + shootId);
+  if (detailsBlock) {
+    const isHidden = detailsBlock.classList.contains('hidden');
+    detailsBlock.classList.toggle('hidden', !isHidden);
+    if (btn) btn.innerText = isHidden ? 'Свернуть ▴' : 'Развернуть ▾';
+
+    // Инициализация мини-карты съёмки при разворачивании
+    if (isHidden) {
+      const mapContainer = document.getElementById('mini_map_' + shootId);
+      const lat = parseFloat(mapContainer.getAttribute('data-lat'));
+      const lon = parseFloat(mapContainer.getAttribute('data-lon'));
+      const title = mapContainer.getAttribute('data-title');
+
+      if (mapContainer && !mapContainer.hasChildNodes() && typeof ymaps !== 'undefined') {
+        ymaps.ready(() => {
+          const miniMap = new ymaps.Map(mapContainer, {
+            center: [lat, lon],
+            zoom: 14,
+            controls: ['zoomControl']
+          });
+          const placemark = new ymaps.Placemark([lat, lon], {
+            balloonContent: '<strong>' + title + '</strong>'
+          }, {
+            preset: 'islands#redDotIcon'
+          });
+          miniMap.geoObjects.add(placemark);
+        });
+      }
+    }
   }
 }
 
@@ -671,8 +689,8 @@ async function loadShoots() {
         : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-extrabold unified-parallelogram">В процессе</span>';
 
       let deleteBtn = isAdmin ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="bg-[var(--brand-black)] text-red-400 px-2.5 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-900 transition">Удалить</button>' : '';
-      let editShootBtn = canManage ? '<button onclick="editShoot(\'' + s.id + '\', \'' + s.title.replace(/'/g, "\\'") + '\', \'' + s.description.replace(/'/g, "\\'") + '\', \'' + s.location.replace(/'/g, "\\'") + '\', \'' + s.type + '\')" class="bg-[var(--brand-black)] text-amber-300 px-2.5 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-900 transition">Изменить</button>' : '';
-      let completeBtn = canManage && !s.isCompleted ? '<button onclick="completeShoot(\'' + s.id + '\')" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-3 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark">Завершить смену</button>' : '';
+
+      const acceptedMemberIds = s.crew.filter(c => c.status === 'ACCEPTED').map(c => '\'' + c.id + '\'').join(', ');
 
       let crewHtml = '';
       if (s.crew.length === 0) {
@@ -694,23 +712,31 @@ async function loadShoots() {
           }
 
           let attendanceSelect = '';
-          if (canManage && c.status === 'ACCEPTED' && !s.isCompleted) {
-            let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
-            let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
-            attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333] ml-2">' +
-              '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
-              '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3⭐)</option>' +
-            '</select>';
+          let gradeInput = '';
+          if (canManage && c.status === 'ACCEPTED') {
+            if (!s.isCompleted) {
+              let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
+              let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
+              attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333] ml-2">' +
+                '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
+                '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3⭐)</option>' +
+              '</select>';
+            } else {
+              gradeInput = '<span class="ml-2 text-amber-300 font-bold">Оценка: <input type="number" min="0" max="5" step="0.5" id="grade_input_' + c.id + '" value="5" class="w-14 bg-black text-white px-1 text-center border border-neutral-600"></span>';
+            }
           }
 
-          return '<div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + ' flex-wrap gap-y-1">' +
+          return '<div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + ' flex-wrap gap-y-1 mb-1">' +
             '<span class="uppercase">' + cUserName + ' [' + cGroupName + '] (' + c.roleInShoot + ') ⭐' + cRating + '</span>' +
             '<span class="font-extrabold">' + cIcon + '</span>' +
             manualAcceptBtn +
             attendanceSelect +
+            gradeInput +
           '</div>';
         }).join('');
       }
+
+      let completeBtn = canManage && !s.isCompleted ? '<button onclick="completeShoot(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-4 py-2 text-xs font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark w-full mt-4">Завершить смену и выставить оценки</button>' : '';
 
       return '<div class="p-6 shoot-card-pure unified-parallelogram space-y-4">' +
         '<div class="flex justify-between items-center">' +
@@ -720,7 +746,7 @@ async function loadShoots() {
           '</div>' +
           '<div class="flex items-center space-x-2">' +
             '<span class="text-xs font-bold shoot-card-text" data-text="' + formattedDate + '">' + formattedDate + '</span>' +
-            editShootBtn +
+            '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-900 transition">Развернуть ▾</button>' +
             deleteBtn +
           '</div>' +
         '</div>' +
@@ -732,13 +758,20 @@ async function loadShoots() {
           '<span class="shoot-card-text" data-text="' + locationText + '">' + locationText + '</span>' +
           '<span class="shoot-card-text" data-text="' + masterText + '">' + masterText + '</span>' +
         '</div>' +
-        '<div class="pt-2 text-xs space-y-2">' +
-          '<div class="flex justify-between items-center mb-1">' +
-            '<span class="uppercase tracking-wider text-[10px] font-extrabold shoot-card-text" data-text="Съёмочная группа:">Съёмочная группа:</span>' +
+        
+        // Разворачиваемый блок
+        '<div id="shoot_details_' + s.id + '" class="hidden pt-4 border-t border-neutral-700 space-y-4">' +
+          '<div class="space-y-2">' +
+            '<span class="uppercase tracking-wider text-xs font-extrabold text-[var(--brand-beige)]">Съёмочная группа и выставление оценок:</span>' +
+            '<div class="space-y-1">' + crewHtml + '</div>' +
             completeBtn +
           '</div>' +
-          '<div class="flex flex-wrap gap-2">' + crewHtml + '</div>' +
+          '<div class="space-y-2">' +
+            '<span class="uppercase tracking-wider text-xs font-extrabold text-[var(--brand-beige)]">Расположение объекта на карте:</span>' +
+            '<div id="mini_map_' + s.id + '" data-lat="' + (s.latitude || 55.751244) + '" data-lon="' + (s.longitude || 37.618423) + '" data-title="' + s.title.replace(/"/g, '&quot;') + '" class="w-full h-48 bg-neutral-900 unified-parallelogram border border-[#333333]"></div>' +
+          '</div>' +
         '</div>' +
+
       '</div>';
     }).join('');
   } catch (err) {
