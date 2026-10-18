@@ -14,7 +14,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware опциональной проверки токена (не блокирует гостей)
 async function optionalAuthToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -37,7 +36,6 @@ async function optionalAuthToken(req, res, next) {
   }
 }
 
-// Middleware обязательной авторизации
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -57,7 +55,6 @@ async function authenticateToken(req, res, next) {
   }
 }
 
-// Middleware проверки прав администратора
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role?.name !== 'Администратор') {
     return res.status(403).json({ error: 'Доступ запрещён. Требуются права Администратора.' });
@@ -74,48 +71,20 @@ async function initDatabase() {
 
     let teacherRole = await prisma.role.findUnique({ where: { name: 'Мастер / Преподаватель' } });
     if (!teacherRole) {
-      teacherRole = await prisma.role.create({ data: { name: 'Мастер / Преподаватель', description: 'Руководитель съёмочных смен' } });
+      teacherRole = await prisma.role.create({ data: { name: 'Мастер / Преподаватель', description: 'Руководитель смен' } });
     }
 
     let adminRole = await prisma.role.findUnique({ where: { name: 'Администратор' } });
     if (!adminRole) {
-      adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Полное управление системой' } });
+      adminRole = await prisma.role.create({ data: { name: 'Администратор', description: 'Управление системой' } });
     }
 
     const adminExists = await prisma.user.findUnique({ where: { email: 'admin@ckt.ru' } });
     if (!adminExists) {
       const passwordHash = await bcrypt.hash('admin123', 10);
       await prisma.user.create({
-        data: { 
-          email: 'admin@ckt.ru', 
-          passwordHash, 
-          fullName: 'Главный Администратор', 
-          groupName: 'Администрация', 
-          roleId: adminRole.id 
-        }
+        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', groupName: 'Админ', roleId: adminRole.id }
       });
-    }
-
-    const groups = ['КИТ-21', 'КИТ-22', 'РТ-31', 'АД-21'];
-    for (let i = 1; i <= 10; i++) {
-      const email = `test-${i}@ckt.ru`;
-      const exists = await prisma.user.findUnique({ where: { email } });
-      if (!exists) {
-        const passwordHash = await bcrypt.hash('123456', 10);
-        const randomRating = parseFloat((4.2 + Math.random() * 0.8).toFixed(1));
-        await prisma.user.create({
-          data: {
-            email,
-            passwordHash,
-            fullName: `Студент ${i < 10 ? '0' + i : i}`,
-            groupName: groups[i % groups.length],
-            roleId: studentRole.id,
-            course: 2,
-            rating: randomRating,
-            skills: ['Оператор', 'Звукорежиссёр', 'Осветитель']
-          }
-        });
-      }
     }
   } catch (err) {
     console.error('DB Init Error:', err.message);
@@ -123,12 +92,11 @@ async function initDatabase() {
 }
 initDatabase();
 
-// Авторизация и регистрация
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, groupName, course } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) return res.status(400).json({ error: 'Данный Email уже зарегистрирован' });
+    if (existingUser) return res.status(400).json({ error: 'Email занят' });
 
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
     const passwordHash = await bcrypt.hash(password, 10);
@@ -148,16 +116,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-    res.json({ 
-      token, 
-      user: { 
-        id: user.id, 
-        fullName: user.fullName, 
-        email: user.email, 
-        groupName: user.groupName, 
-        role: user.role?.name || 'Студент' 
-      } 
-    });
+    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, groupName: user.groupName, role: user.role?.name || 'Студент' } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -170,11 +129,11 @@ app.post('/api/auth/login', async (req, res) => {
       where: { email },
       include: { role: true }
     });
-    if (!user) return res.status(400).json({ error: 'Неверный email или пароль' });
-    if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт временно отстранён администрацией' });
+    if (!user) return res.status(400).json({ error: 'Неверные данные' });
+    if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт отстранен администрацией' });
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return res.status(400).json({ error: 'Неверный email или пароль' });
+    if (!isValid) return res.status(400).json({ error: 'Неверные данные' });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
     res.json({ 
@@ -192,14 +151,10 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Администрирование
 app.get('/api/admin/data', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const roles = await prisma.role.findMany();
-    const users = await prisma.user.findMany({ 
-      include: { role: true },
-      orderBy: { fullName: 'asc' }
-    });
+    const users = await prisma.user.findMany({ include: { role: true } });
     res.json({ roles, users });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -219,30 +174,46 @@ app.post('/api/admin/suspend', authenticateToken, requireAdmin, async (req, res)
   }
 });
 
-// Смена роли пользователю администратором
 app.patch('/api/admin/users/:id/role', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { roleName } = req.body; // 'Студент', 'Мастер / Преподаватель', 'Администратор'
-
+    const { roleName } = req.body;
     const targetRole = await prisma.role.findUnique({ where: { name: roleName } });
-    if (!targetRole) {
-      return res.status(400).json({ error: 'Указанная роль не найдена' });
-    }
+    if (!targetRole) return res.status(400).json({ error: 'Роль не найдена' });
 
     const updatedUser = await prisma.user.update({
       where: { id },
       data: { roleId: targetRole.id },
       include: { role: true }
     });
-
     res.json({ success: true, user: updatedUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Получить смены и статистику (доступно и для незарегистрированных)
+// Удаление пользователя администратором
+app.delete('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Удаление смены (события) или метки администратором
+app.delete('/api/admin/shoots/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.shoot.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   try {
     const shoots = await prisma.shoot.findMany({
@@ -252,7 +223,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       },
       orderBy: { date: 'asc' }
     });
-
+    
     const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
     const students = await prisma.user.findMany({
       where: {
