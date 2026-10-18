@@ -35,6 +35,13 @@ function initMaps() {
   });
 }
 
+function getRatingBadgeColor(rating) {
+  if (rating === null || rating === undefined) return 'text-neutral-400';
+  if (rating <= 2.0) return 'text-red-500 font-extrabold'; // Красный
+  if (rating <= 4.0) return 'text-blue-400 font-extrabold';  // Синий
+  return 'text-emerald-400 font-extrabold';                   // Зеленый (5)
+}
+
 function updateNav() {
   const nav = document.getElementById('userNav');
   const tabAdminBtn = document.getElementById('tabAdminBtn');
@@ -130,12 +137,30 @@ async function loadStatisticsData() {
 
     const leadersContainer = document.getElementById('statsLeadersList');
     if (leadersContainer) {
-      leadersContainer.innerHTML = data.leaders.map((u, index) => 
-        '<div class="flex items-center justify-between p-2 bg-[#1A1A1A] unified-parallelogram text-xs">' +
-          '<span class="font-extrabold text-[var(--brand-beige)]">' + (index + 1) + '. ' + u.fullName + ' <span class="text-neutral-400">[' + u.groupName + ']</span></span>' +
-          '<span class="text-amber-400 font-extrabold">⭐ ' + (u.rating !== null ? u.rating : 'Нет рейтинга') + '</span>' +
-        '</div>'
-      ).join('') || '<p class="text-xs text-neutral-400">Нет данных о лидерах.</p>';
+      leadersContainer.innerHTML = data.leaders.map((u, index) => {
+        let frameStyle = 'bg-[#1A1A1A] border border-[#333333]';
+        let badgeIcon = '';
+        if (index === 0) {
+          // 1 место: Алмазное обрамление (блестящая светлая рамка с голубым свечением)
+          frameStyle = 'bg-gradient-to-r from-cyan-950 via-[#1A1A1A] to-cyan-950 border-2 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.5)]';
+          badgeIcon = '💎 ';
+        } else if (index === 1) {
+          // 2 место: Золотое обрамление
+          frameStyle = 'bg-gradient-to-r from-amber-950 via-[#1A1A1A] to-amber-950 border-2 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)]';
+          badgeIcon = '👑 ';
+        } else if (index === 2) {
+          // 3 место: Бронзово-бежевое обрамление
+          frameStyle = 'bg-[#221E15] border-2 border-[var(--brand-beige)]';
+          badgeIcon = '🥉 ';
+        }
+
+        const colorClass = getRatingBadgeColor(u.rating);
+
+        return '<div class="flex items-center justify-between p-3 unified-parallelogram text-xs ' + frameStyle + '">' +
+          '<span class="font-extrabold text-[var(--brand-beige)]">' + badgeIcon + (index + 1) + '. ' + u.fullName + ' <span class="text-neutral-400">[' + u.groupName + ']</span></span>' +
+          '<span class="' + colorClass + '">⭐ ' + (u.rating !== null ? u.rating : 'Нет') + '</span>' +
+        '</div>';
+      }).join('') || '<p class="text-xs text-neutral-400">Нет данных о лидерах.</p>';
     }
 
     if (document.getElementById('statCompletedCount')) {
@@ -144,12 +169,25 @@ async function loadStatisticsData() {
 
     const groupsContainer = document.getElementById('statsGroupsList');
     if (groupsContainer) {
-      groupsContainer.innerHTML = data.groupsRating.map(g => 
-        '<div class="flex items-center justify-between p-2 bg-[#1A1A1A] unified-parallelogram text-xs">' +
-          '<span class="font-extrabold text-[var(--brand-beige)]">Группа: ' + g.groupName + '</span>' +
+      groupsContainer.innerHTML = data.groupsRating.map((g, index) => {
+        let groupFrame = 'bg-[#1A1A1A] border border-[#333333]';
+        let gBadge = '';
+        if (index === 0) {
+          groupFrame = 'bg-gradient-to-r from-cyan-950 via-[#1A1A1A] to-cyan-950 border-2 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.5)]';
+          gBadge = '💎 ТОП-1 ГРУППА: ';
+        } else if (index === 1) {
+          groupFrame = 'bg-gradient-to-r from-amber-950 via-[#1A1A1A] to-amber-950 border-2 border-amber-400';
+          gBadge = '👑 ';
+        } else if (index === 2) {
+          groupFrame = 'bg-[#221E15] border-2 border-[var(--brand-beige)]';
+          gBadge = '🥉 ';
+        }
+
+        return '<div class="flex items-center justify-between p-3 unified-parallelogram text-xs ' + groupFrame + '">' +
+          '<span class="font-extrabold text-[var(--brand-beige)]">' + gBadge + 'Группа: ' + g.groupName + '</span>' +
           '<span class="text-amber-400 font-extrabold">⭐ ' + g.avgRating + ' <span class="text-neutral-400 font-normal">(' + g.participations + ' смен)</span></span>' +
-        '</div>'
-      ).join('') || '<p class="text-xs text-neutral-400">Нет данных по группам.</p>';
+        '</div>';
+      }).join('') || '<p class="text-xs text-neutral-400">Нет данных по группам.</p>';
     }
 
     const freqContainer = document.getElementById('statsFrequentShoots');
@@ -195,6 +233,7 @@ function renderAdminUsers(users) {
     const currentRole = u.role && u.role.name ? u.role.name : 'Студент';
     const isAdminUser = currentUser && currentUser.id === u.id;
     const ratingText = u.rating !== null && u.rating !== undefined ? u.rating : '';
+    const colorClass = getRatingBadgeColor(u.rating);
     const suspendedText = u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЁН]</span>' : '';
     const borderClass = u.isSuspended ? 'border-red-600 bg-red-950/40' : '';
     
@@ -208,7 +247,7 @@ function renderAdminUsers(users) {
         '<h4 class="font-extrabold text-xs uppercase pixel-text-invert">' +
           '<span id="display_name_' + u.id + '">' + u.fullName + '</span> ' +
           '<span class="text-neutral-400">[Группа: <span id="display_group_' + u.id + '">' + (u.groupName || '—') + '</span>]</span> ' +
-          '<span class="text-amber-400 font-extrabold">⭐<span id="display_rating_' + u.id + '">' + (ratingText !== '' ? ratingText : 'Нет') + '</span></span> ' +
+          '<span class="' + colorClass + '">⭐<span id="display_rating_' + u.id + '">' + (ratingText !== '' ? ratingText : 'Нет') + '</span></span> ' +
           suspendedText +
         '</h4>' +
         '<p class="text-[11px] text-neutral-400 font-bold">' + u.email + '</p>' +
@@ -446,10 +485,11 @@ function renderModalStudents(students) {
   if (!box) return;
   box.innerHTML = students.map(s => {
     const ratingText = s.rating !== null && s.rating !== undefined ? s.rating : 'Нет';
+    const colorClass = getRatingBadgeColor(s.rating);
     return '<div class="flex items-center justify-between p-2 bg-[var(--brand-black)] text-xs unified-parallelogram">' +
       '<label class="flex items-center space-x-2.5 cursor-pointer flex-grow">' +
         '<input type="checkbox" name="studentSelect" value="' + s.id + '" class="bg-[var(--brand-black)] text-[var(--brand-red)]">' +
-        '<span class="font-extrabold text-xs uppercase text-[var(--brand-beige)]">' + s.fullName + ' <span class="text-neutral-400">[' + (s.groupName || 'Группа') + ']</span> <span class="text-amber-400 font-extrabold">⭐' + ratingText + '</span></span>' +
+        '<span class="font-extrabold text-xs uppercase text-[var(--brand-beige)]">' + s.fullName + ' <span class="text-neutral-400">[' + (s.groupName || 'Группа') + ']</span> <span class="' + colorClass + '">⭐' + ratingText + '</span></span>' +
       '</label>' +
       '<select name="craftRole_' + s.id + '" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram border border-[#333333]">' +
         '<option value="Оператор">Оператор</option>' +
@@ -517,15 +557,16 @@ async function handleCreateShoot(e) {
   }
 }
 
-// Визуальный выбор рейтинга звездочками
+// Исправленная логика клика по звездочкам (сколько жёлтых нужно — столько и загорается)
 function setStarRating(memberId, starValue) {
   const container = document.getElementById('stars_container_' + memberId);
   const hiddenInput = document.getElementById('grade_input_' + memberId);
   if (container && hiddenInput) {
     hiddenInput.value = starValue;
-    const stars = container.querySelectorAll('span');
-    stars.forEach((star, idx) => {
-      if (idx < starValue) {
+    const stars = container.querySelectorAll('span[data-star-idx]');
+    stars.forEach((star) => {
+      const idx = parseInt(star.getAttribute('data-star-idx'));
+      if (idx <= starValue) {
         star.classList.remove('text-neutral-600');
         star.classList.add('text-amber-400');
       } else {
@@ -536,7 +577,6 @@ function setStarRating(memberId, starValue) {
   }
 }
 
-// Применение общей оценки ко всем звездочкам участников
 function applyGlobalGrade(shootId, starValue) {
   const card = document.getElementById('shoot_details_' + shootId);
   if (card) {
@@ -548,7 +588,6 @@ function applyGlobalGrade(shootId, starValue) {
   }
 }
 
-// Сохранение или обновление оценок (работает как до завершения, так и после)
 async function saveShootGrades(shootId, crewMemberIds) {
   const grades = {};
   for (const memberId of crewMemberIds) {
@@ -586,6 +625,7 @@ async function updateAttendance(crewMemberId, attendance) {
   }
 }
 
+// Окно не сворачивается автоматически при подтверждении участия, сворачивается только по кнопке
 function toggleShootExpand(shootId) {
   const detailsBlock = document.getElementById('shoot_details_' + shootId);
   const btn = document.getElementById('expand_btn_' + shootId);
@@ -673,6 +713,7 @@ async function loadShoots() {
     const sidebar = document.getElementById('sidebarProfile');
     if (currentUser && sidebar) {
       let userRatingText = userStats && userStats.rating !== null && userStats.rating !== undefined ? userStats.rating : 'Нет рейтинга';
+      let userRatingColor = getRatingBadgeColor(userStats ? userStats.rating : null);
       let completedPart = userStats ? userStats.completedParticipated : 0;
       let totalPart = userStats ? userStats.totalParticipated : 0;
 
@@ -683,7 +724,7 @@ async function loadShoots() {
           '<div class="flex justify-between border-b border-[#D5C895] pb-1.5"><span class="text-neutral-700">Роль:</span><span class="text-[var(--brand-black)]">' + currentUser.role + '</span></div>' +
           (userStats ? 
             '<div class="pt-2 space-y-1.5 text-[var(--brand-black)]">' +
-              '<div class="flex justify-between"><span class="text-neutral-700">Рейтинг:</span><span class="text-amber-800 font-extrabold">⭐ ' + userRatingText + '</span></div>' +
+              '<div class="flex justify-between"><span class="text-neutral-700">Рейтинг:</span><span class="' + userRatingColor + '">⭐ ' + userRatingText + '</span></div>' +
               '<div class="flex justify-between"><span class="text-neutral-700">Активных смен:</span><span class="text-[var(--brand-black)]">' + completedPart + ' / ' + totalPart + '</span></div>' +
             '</div>' : '') +
         '</div>';
@@ -742,6 +783,7 @@ async function loadShoots() {
           let cUserName = c.user && c.user.fullName ? c.user.fullName : 'Участник';
           let cGroupName = c.user && c.user.groupName ? c.user.groupName : 'Группа';
           let cRating = c.user && c.user.rating !== null && c.user.rating !== undefined ? c.user.rating : 'Нет';
+          let cRatingColor = getRatingBadgeColor(c.user ? c.user.rating : null);
           let cIcon = c.status === 'ACCEPTED' ? '✓' : (c.status === 'DECLINED' ? '✕' : '···');
 
           let manualAcceptBtn = '';
@@ -764,7 +806,7 @@ async function loadShoots() {
               let starsHTML = '';
               for (let i = 1; i <= 5; i++) {
                 let colorClass = i <= defaultVal ? 'text-amber-400' : 'text-neutral-600';
-                starsHTML += '<span onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="cursor-pointer text-sm ' + colorClass + ' hover:scale-125 transition">★</span>';
+                starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="cursor-pointer text-sm ' + colorClass + ' hover:scale-125 transition">★</span>';
               }
               starsBlock = '<div class="ml-auto flex items-center space-x-1" id="stars_container_' + c.id + '">' +
                 '<span class="text-[10px] uppercase font-bold text-neutral-400 mr-1">Оценка:</span>' +
@@ -775,7 +817,7 @@ async function loadShoots() {
           }
 
           return '<div class="px-3 py-2 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + ' flex-wrap gap-y-1 mb-1">' +
-            '<span class="uppercase">' + cUserName + ' [' + cGroupName + '] (' + c.roleInShoot + ') ⭐' + cRating + '</span>' +
+            '<span class="uppercase">' + cUserName + ' [' + cGroupName + '] (' + c.roleInShoot + ') <span class="' + cRatingColor + '">⭐' + cRating + '</span></span>' +
             '<span class="font-extrabold">' + cIcon + '</span>' +
             manualAcceptBtn +
             attendanceSelect +
