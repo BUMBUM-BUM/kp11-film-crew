@@ -182,7 +182,6 @@ async function loadAdminPanel() {
   }
 }
 
-// Рендер админки с инлайн-редактированием профилей на сайте
 function renderAdminUsers(users) {
   const container = document.getElementById('adminUsersList');
   if (!container) return;
@@ -195,7 +194,7 @@ function renderAdminUsers(users) {
   container.innerHTML = adminTopBar + users.map(u => {
     const currentRole = u.role && u.role.name ? u.role.name : 'Студент';
     const isAdminUser = currentUser && currentUser.id === u.id;
-    const ratingText = u.rating !== null && u.rating !== undefined ? u.rating : 'Нет';
+    const ratingText = u.rating !== null && u.rating !== undefined ? u.rating : '';
     const suspendedText = u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЁН]</span>' : '';
     const borderClass = u.isSuspended ? 'border-red-600 bg-red-950/40' : '';
     
@@ -209,14 +208,15 @@ function renderAdminUsers(users) {
         '<h4 class="font-extrabold text-xs uppercase pixel-text-invert">' +
           '<span id="display_name_' + u.id + '">' + u.fullName + '</span> ' +
           '<span class="text-neutral-400">[Группа: <span id="display_group_' + u.id + '">' + (u.groupName || '—') + '</span>]</span> ' +
-          '<span class="text-amber-400 font-extrabold">⭐' + ratingText + '</span> ' +
+          '<span class="text-amber-400 font-extrabold">⭐<span id="display_rating_' + u.id + '">' + (ratingText !== '' ? ratingText : 'Нет') + '</span></span> ' +
           suspendedText +
         '</h4>' +
         '<p class="text-[11px] text-neutral-400 font-bold">' + u.email + '</p>' +
       '</div>' +
-      '<div id="user_edit_form_' + u.id + '" class="hidden flex items-center space-x-2 flex-grow">' +
-        '<input type="text" id="edit_name_' + u.id + '" value="' + u.fullName.replace(/"/g, '&quot;') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs border border-neutral-700 unified-parallelogram">' +
-        '<input type="text" id="edit_group_' + u.id + '" value="' + (u.groupName || '') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs w-24 border border-neutral-700 unified-parallelogram" placeholder="Группа">' +
+      '<div id="user_edit_form_' + u.id + '" class="hidden flex items-center space-x-2 flex-grow flex-wrap gap-y-2">' +
+        '<input type="text" id="edit_name_' + u.id + '" value="' + u.fullName.replace(/"/g, '&quot;') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs border border-neutral-700 unified-parallelogram" placeholder="ФИО">' +
+        '<input type="text" id="edit_group_' + u.id + '" value="' + (u.groupName || '') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs w-20 border border-neutral-700 unified-parallelogram" placeholder="Группа">' +
+        '<input type="number" min="0" max="5" step="0.1" id="edit_rating_' + u.id + '" value="' + (ratingText !== '' ? ratingText : '') + '" class="bg-neutral-900 text-white px-2 py-1 text-xs w-20 border border-neutral-700 unified-parallelogram" placeholder="Рейтинг">' +
         '<button onclick="saveUserProfile(\'' + u.id + '\')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram">Сохранить</button>' +
         '<button onclick="toggleUserEdit(\'' + u.id + '\', false)" class="bg-neutral-700 text-white px-2 py-1 text-xs font-extrabold uppercase unified-parallelogram">Отмена</button>' +
       '</div>' +
@@ -250,12 +250,17 @@ function toggleUserEdit(userId, show) {
 async function saveUserProfile(userId) {
   const newName = document.getElementById('edit_name_' + userId).value;
   const newGroup = document.getElementById('edit_group_' + userId).value;
+  const newRating = document.getElementById('edit_rating_' + userId).value;
 
   try {
     const res = await fetch('/api/admin/users/' + userId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ fullName: newName, groupName: newGroup })
+      body: JSON.stringify({ 
+        fullName: newName, 
+        groupName: newGroup, 
+        rating: newRating !== '' ? parseFloat(newRating) : null 
+      })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
@@ -292,7 +297,7 @@ async function deleteUser(userId) {
     if (!res.ok) throw new Error('Не удалось удалить пользователя');
     loadAdminPanel();
   } catch (err) {
-    alert(err.message);
+    alert('Ошибка: ' + err.message);
   }
 }
 
@@ -306,7 +311,7 @@ async function deleteShoot(shootId) {
     if (!res.ok) throw new Error('Не удалось удалить событие');
     loadShoots();
   } catch (err) {
-    alert(err.message);
+    alert('Ошибка: ' + err.message);
   }
 }
 
@@ -512,7 +517,21 @@ async function handleCreateShoot(e) {
   }
 }
 
-// Завершение смены со сбором индивидуальных оценок с инпута на странице
+// Применение общей оценки ко всем инпутам участников
+function applyGlobalGrade(shootId) {
+  const globalInput = document.getElementById('global_grade_' + shootId);
+  if (!globalInput) return;
+  const val = globalInput.value;
+  const card = document.getElementById('shoot_details_' + shootId);
+  if (card) {
+    const individualInputs = card.querySelectorAll('input[id^="grade_input_"]');
+    individualInputs.forEach(input => {
+      input.value = val;
+    });
+  }
+}
+
+// Завершение смены со сбором индивидуальных оценок
 async function completeShoot(shootId, crewMemberIds) {
   const grades = {};
   for (const memberId of crewMemberIds) {
@@ -550,16 +569,20 @@ async function updateAttendance(crewMemberId, attendance) {
   }
 }
 
+// Плавная анимация разворачивания карточки через max-height
 function toggleShootExpand(shootId) {
   const detailsBlock = document.getElementById('shoot_details_' + shootId);
   const btn = document.getElementById('expand_btn_' + shootId);
   if (detailsBlock) {
-    const isHidden = detailsBlock.classList.contains('hidden');
-    detailsBlock.classList.toggle('hidden', !isHidden);
-    if (btn) btn.innerText = isHidden ? 'Свернуть ▴' : 'Развернуть ▾';
+    const isOpen = detailsBlock.style.maxHeight && detailsBlock.style.maxHeight !== '0px';
+    if (isOpen) {
+      detailsBlock.style.maxHeight = '0px';
+      if (btn) btn.innerText = 'Развернуть ▾';
+    } else {
+      detailsBlock.style.maxHeight = detailsBlock.scrollHeight + 'px';
+      if (btn) btn.innerText = 'Свернуть ▴';
 
-    // Инициализация мини-карты съёмки при разворачивании
-    if (isHidden) {
+      // Инициализация мини-карты съёмки при разворачивании
       const mapContainer = document.getElementById('mini_map_' + shootId);
       const lat = parseFloat(mapContainer.getAttribute('data-lat'));
       const lon = parseFloat(mapContainer.getAttribute('data-lon'));
@@ -713,7 +736,7 @@ async function loadShoots() {
 
           let attendanceSelect = '';
           let gradeInput = '';
-          if (canManage && c.status === 'ACCEPTED') {
+          if (canManage) {
             if (!s.isCompleted) {
               let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
               let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
@@ -721,8 +744,8 @@ async function loadShoots() {
                 '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
                 '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3⭐)</option>' +
               '</select>';
-            } else {
-              gradeInput = '<span class="ml-2 text-amber-300 font-bold">Оценка: <input type="number" min="0" max="5" step="0.5" id="grade_input_' + c.id + '" value="5" class="w-14 bg-black text-white px-1 text-center border border-neutral-600"></span>';
+            } else if (c.status === 'ACCEPTED') {
+              gradeInput = '<span class="ml-2 text-amber-300 font-bold">Оценка: <input type="number" min="1" max="5" step="0.5" id="grade_input_' + c.id + '" value="5" class="w-14 bg-black text-white px-1 text-center border border-neutral-600"></span>';
             }
           }
 
@@ -736,7 +759,17 @@ async function loadShoots() {
         }).join('');
       }
 
-      let completeBtn = canManage && !s.isCompleted ? '<button onclick="completeShoot(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-4 py-2 text-xs font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark w-full mt-4">Завершить смену и выставить оценки</button>' : '';
+      let globalGradeControl = '';
+      let completeBtn = '';
+      if (canManage && !s.isCompleted) {
+        globalGradeControl = '<div class="flex items-center space-x-2 bg-neutral-900 p-2 unified-parallelogram border border-neutral-700 mt-2">' +
+          '<span class="text-xs uppercase font-extrabold text-[var(--brand-beige)]">Общая оценка для всех:</span>' +
+          '<input type="number" min="1" max="5" step="0.5" id="global_grade_' + s.id + '" value="5" class="w-16 bg-black text-white px-2 py-1 text-xs border border-neutral-600 text-center">' +
+          '<button onclick="applyGlobalGrade(\'' + s.id + '\')" class="bg-amber-600 text-black px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram">Применить ко всем</button>' +
+        '</div>';
+        
+        completeBtn = '<button onclick="completeShoot(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-4 py-2.5 text-xs font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark w-full mt-4">Завершить смену и сохранить оценки</button>';
+      }
 
       return '<div class="p-6 shoot-card-pure unified-parallelogram space-y-4">' +
         '<div class="flex justify-between items-center">' +
@@ -759,14 +792,15 @@ async function loadShoots() {
           '<span class="shoot-card-text" data-text="' + masterText + '">' + masterText + '</span>' +
         '</div>' +
         
-        // Разворачиваемый блок
-        '<div id="shoot_details_' + s.id + '" class="hidden pt-4 border-t border-neutral-700 space-y-4">' +
-          '<div class="space-y-2">' +
+        // Разворачиваемый блок с плавной анимацией через max-height
+        '<div id="shoot_details_' + s.id + '" style="max-height: 0px; overflow: hidden; transition: max-height 0.4s ease-out;" class="pt-2 border-t border-neutral-700 space-y-4">' +
+          '<div class="space-y-2 pt-2">' +
             '<span class="uppercase tracking-wider text-xs font-extrabold text-[var(--brand-beige)]">Съёмочная группа и выставление оценок:</span>' +
-            '<div class="space-y-1">' + crewHtml + '</div>' +
+            globalGradeControl +
+            '<div class="space-y-1 mt-2">' + crewHtml + '</div>' +
             completeBtn +
           '</div>' +
-          '<div class="space-y-2">' +
+          '<div class="space-y-2 pt-2">' +
             '<span class="uppercase tracking-wider text-xs font-extrabold text-[var(--brand-beige)]">Расположение объекта на карте:</span>' +
             '<div id="mini_map_' + s.id + '" data-lat="' + (s.latitude || 55.751244) + '" data-lon="' + (s.longitude || 37.618423) + '" data-title="' + s.title.replace(/"/g, '&quot;') + '" class="w-full h-48 bg-neutral-900 unified-parallelogram border border-[#333333]"></div>' +
           '</div>' +
