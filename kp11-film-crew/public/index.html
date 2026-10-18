@@ -3,250 +3,674 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>КП11 • Производственная система</title>
+  <title>КП11 • Производственная система Медиацентра</title>
+  
+  <!-- Tailwind CSS для утилит сетки и позиционирования -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              red: '#FC2C2C',
+              beige: '#EEE4B5',
+              dark: '#121212',
+              surface: '#1E1E1E',
+              card: '#181818',
+              elevated: '#242424',
+              border: '#333333'
+            }
+          },
+          fontFamily: {
+            sans: ['Manrope', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Yandex Maps API -->
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    @keyframes recPulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.2; transform: scale(0.9); }
-    }
-    .rec-dot {
-      width: 12px;
-      height: 12px;
-      background-color: #FC2C2C;
-      border-radius: 50%;
-      box-shadow: 0 0 10px #FC2C2C;
-      animation: recPulse 1.5s infinite ease-in-out;
-      display: inline-block;
-    }
-  </style>
+  
+  <!-- Google Fonts: Manrope + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Инициализация темы без мерцания -->
+  <script>
+    const savedTheme = localStorage.getItem('kp11_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
+  
+  <!-- Дизайн-система КП11 -->
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block">
+<body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white relative">
 
-  <!-- Глубокий чёрный цвет шапки -->
-  <header class="bg-[#030303] border-b border-[#1A1A1A] sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
-      <div class="flex items-center space-x-6">
-        <img src="/img/logo.png" alt="КП11 Логотип" class="h-12 w-auto object-contain">
-        <div class="border-l border-[#222222] pl-4">
-          <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
-          <p class="text-[10px] text-neutral-500 font-bold uppercase">Производственная система</p>
+  <!-- Асимметричный геометрический фон в стиле логотипа, брендбука и заставки КП11 -->
+  <div class="geom-canvas-backdrop" aria-hidden="true">
+    <div class="geom-canvas-grid"></div>
+    <div class="geom-film-lightleak"></div>
+    <div class="geom-k-facet-top"></div>
+    <div class="geom-k-facet-arrow"></div>
+    <div class="geom-k-facet-bottom"></div>
+    <div class="geom-k-facet-mid"></div>
+    <div class="geom-crosshair-1"></div>
+    <div class="geom-crosshair-2"></div>
+    <div class="geom-framing-line"></div>
+
+    <!-- Метки видоискателя 2.39:1 (Ground Glass) -->
+    <div class="geom-scope-corner geom-scope-tl"></div>
+    <div class="geom-scope-corner geom-scope-tr"></div>
+    <div class="geom-scope-corner geom-scope-bl"></div>
+    <div class="geom-scope-corner geom-scope-br"></div>
+
+    <!-- Тонкие кинематографические пасхалки на фоне (левая кромка кадра) -->
+    <div class="geom-easter-edge">
+      <span>FUJINON CINE</span>
+      <span>ARRI MASTER PRIME</span>
+      <span>REDCODE RAW 8K</span>
+      <span>LOG-C 3200K</span>
+      <span>CANON CINE-SERVO</span>
+      <span>35MM EMULSION 500T</span>
+      <span>SAFETY FILM ▸ 24A</span>
+    </div>
+
+    <!-- Симметричная правая кромка киноплёнки (правая кромка кадра) -->
+    <div class="geom-easter-edge-right">
+      <span>EASTMAN DOUBLE-X 5222</span>
+      <span>2.39:1 SCOPE</span>
+      <span>RED MONSTRO 8K</span>
+      <span>ARRI MASTER PRIME</span>
+      <span>ISO 800</span>
+      <span>24.000 FPS</span>
+      <span>REEL 11-B</span>
+    </div>
+
+    <div class="geom-easter-coord-1">ISO 800 // 180.0° SHUTTER // 24 FPS</div>
+    <div class="geom-easter-coord-2">LAT 55.751244 // LON 37.618423 // REEL 11</div>
+  </div>
+
+  <!-- Органическое плёночное зерно (35mm Film Grain Overlay) -->
+  <div class="film-grain-overlay" aria-hidden="true"></div>
+
+  <!-- ================= HEADER (Официальная шапка КП11) ================= -->
+  <header class="backdrop-blur-md border-b sticky top-0 z-50 transition-colors relative" style="background-color: var(--bg-secondary); border-color: var(--border-color);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
+      
+      <!-- Фирменный блок логотипа (Красный знак КП11 по брендбуку) -->
+      <a href="/" class="flex items-center space-x-3 group flex-shrink-0">
+        <div class="h-9 w-auto flex items-center justify-center">
+          <img src="img/logo_red.png" alt="КП11" class="h-7 sm:h-8 w-auto object-contain">
+        </div>
+        <div class="border-l pl-3" style="border-color: var(--border-color);">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-extrabold uppercase tracking-widest" style="color: var(--text-primary);">КП11</span>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 border tracking-widest uppercase font-mono" style="background-color: var(--brand-beige-subtle); color: var(--brand-beige-text); border-color: var(--brand-beige-dark);">Медиацентр</span>
+          </div>
+          <p class="hidden md:block text-[10px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Съёмочные смены</p>
+        </div>
+      </a>
+
+      <!-- Правая панель: Студийный таймер, переключатель темы и авторизация -->
+      <div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+        
+        <!-- Студийный таймер (Минималистичный вид) -->
+        <div class="hidden sm:flex items-center space-x-2 text-[11px] font-mono px-2.5 py-1.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-color); color: var(--text-secondary);">
+          <span class="rec-dot"></span>
+          <span class="font-bold text-[10px]" style="color: var(--brand-red);">REC</span>
+          <span id="studioClock" class="font-tabular font-bold">00:00:00</span>
+          <span class="text-[8px] font-mono opacity-50 ml-0.5" title="Камера RAW">RAW</span>
+        </div>
+
+        <!-- Переключатель темы (Светлая / Тёмная) -->
+        <button id="themeToggleBtn" onclick="toggleTheme()" class="theme-toggle-btn px-2.5 py-1.5" title="Переключить тему оформления">
+          <span id="themeToggleIcon" class="inline-flex items-center justify-center"></span>
+          <span id="themeToggleText" class="hidden md:inline text-[10px] font-bold ml-1">ТЕМА</span>
+        </button>
+
+        <div id="userNav" class="flex items-center space-x-2">
+          <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-3 py-1.5 btn-brand-ghost">Вход</button>
+          <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-3 py-1.5 btn-brand-primary">Регистрация</button>
         </div>
       </div>
-      <div id="userNav" class="flex items-center space-x-4">
-        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
-        <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
-      </div>
+
     </div>
+    <!-- Тонкая плёночная дорожка ракорда -->
+    <div class="header-film-edge" aria-hidden="true"></div>
   </header>
 
-  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
+  <!-- ================= ОСНОВНОЙ КОНТЕНТ ================= -->
+  <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full space-y-6 relative z-10">
     
-    <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-      <div class="space-y-1 max-w-3xl">
+    <!-- Студийный информер / Кино-цитата дня (Стиль Viewfinder Slate) -->
+    <section class="cinema-banner p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+      <div class="space-y-2 max-w-3xl relative z-10">
         <div class="flex items-center space-x-2.5">
           <span class="rec-dot"></span>
-          <span class="text-[11px] font-extrabold uppercase tracking-widest text-[var(--brand-red)]">Я хочу кое что тебе сказать..</span>
+          <span class="text-[10px] font-extrabold uppercase tracking-widest font-mono" style="color: var(--brand-red);">СИСТЕМА ВЕЩАНИЯ // ЦИТАТА ДНЯ</span>
         </div>
-        <h2 id="cinemaBoardText" class="text-xl md:text-2xl font-extrabold tracking-tight uppercase pixel-text-invert leading-snug">
-          Загрузка эфира...
+        <h2 id="cinemaBoardText" class="text-lg md:text-xl font-bold tracking-tight leading-relaxed cinema-banner-title">
+          «Кино — это жизнь, с которой вывели пятна». Продолжаем двигаться по сценарию! — Альфред Хичкок
         </h2>
       </div>
-      <div id="actionButtonContainer"></div>
-    </div>
+      <div id="actionButtonContainer" class="flex-shrink-0 relative z-10"></div>
+    </section>
 
-    <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
-      <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
-      <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
-        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться.
-      </p>
-      <div class="pt-2 flex justify-center space-x-4">
-        <button onclick="openModal('login')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Войти в аккаунт</button>
-        <button onclick="openModal('register')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-neutral-900 transition">Регистрация</button>
-      </div>
-    </div>
+    <!-- Контейнер входящих приглашений на смены -->
+    <div id="notificationsContainer"></div>
 
-    <div id="authenticatedContent" class="hidden space-y-8">
-      <div id="notificationsContainer"></div>
+    <!-- Швейцарская навигационная панель табов (Векторные иконки без эмодзи) -->
+    <nav id="tabNav" class="flex flex-wrap items-center gap-2.5 border-b pb-3" style="border-color: var(--border-color);" role="tablist">
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="studio-tab active text-xs font-extrabold uppercase" role="tab">
+        <span class="inline-flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8H4Z"/><path d="m4 11 3-7h13l-3 7H4Z"/><path d="m9 4 3 7"/><path d="m14 4 3 7"/></svg>
+        </span>
+        <span>Смены</span>
+      </button>
+      <button onclick="switchTab('map')" id="tabMapBtn" class="studio-tab text-xs font-extrabold uppercase" role="tab">
+        <span class="inline-flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        </span>
+        <span>Карта объектов</span>
+      </button>
+      <button onclick="switchTab('stats')" id="tabStatsBtn" class="studio-tab text-xs font-extrabold uppercase" role="tab">
+        <span class="inline-flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        </span>
+        <span>Статистика</span>
+      </button>
+      <button onclick="switchTab('media')" id="tabMediaBtn" class="studio-tab text-xs font-extrabold uppercase" role="tab">
+        <span class="inline-flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </span>
+        <span>Медиатека & Шоурилы</span>
+      </button>
+      <!-- Вкладка администрирования (только Мастера и Администраторы) -->
+      <button onclick="switchTab('admin')" id="tabAdminBtn" class="studio-tab text-xs font-extrabold uppercase hidden" role="tab">
+        <span class="inline-flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
+        <span>Администрирование</span>
+      </button>
+    </nav>
 
-      <!-- Глубокий чёрный цвет для неактивных кнопок навигации -->
-      <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
-        <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
-        <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
-        <button onclick="switchTab('stats')" id="tabStatsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Статистика</button>
-        <!-- Вкладка Администрирование скрыта по умолчанию для всех, появляется в updateNav() только для Администраторов и Мастеров / Преподавателей -->
-        <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
-      </div>
+    <!-- Рабочая область табов -->
+    <div id="mainDashboardArea" class="space-y-6">
 
-      <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div class="lg:col-span-8 space-y-6">
-          <div class="flex items-center justify-between">
-            <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
-            <span id="shootCount" class="text-xs px-3 py-1 bg-[#030303] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
+      <!-- Вкладка 1: СМЕНЫ -->
+      <section id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-8 space-y-4">
+          <div class="flex items-center justify-between px-4 py-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">
+            <span id="globalStatsText" class="text-xs font-bold uppercase tracking-wider font-mono" style="color: var(--text-muted);">Всего смен: 2 | Завершено: 2</span>
+            <span id="shootCount" class="text-xs px-2.5 py-1 font-extrabold font-mono border" style="background-color: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-color);">1 смен</span>
           </div>
-          <div id="shootsList" class="space-y-6">
-            <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
+          
+          <div id="shootsList" class="space-y-4">
+            <!-- Начальное отображение смены (предотвращает зависание "Загрузка...") -->
+            <div class="viewfinder-card viewfinder-corners shoot-card completed-shoot p-5 sm:p-6 space-y-4">
+              <div class="flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center space-x-2">
+                  <span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">ВЫЕЗД</span>
+                  <span class="badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> ЗАВЕРШЕНО</span>
+                  <span class="hidden sm:inline-block font-mono text-[9px] px-1.5 py-0.5 border uppercase tracking-wider opacity-60" style="border-color: var(--border-subtle); color: var(--text-muted);">ARRI • 2.39:1 • RAW</span>
+                </div>
+                <div class="flex items-center space-x-3 text-xs font-mono">
+                  <span class="font-semibold" style="color: var(--text-muted);">19.10.2026, 01:23</span>
+                  <button id="expand_btn_demo-shoot-1" onclick="toggleShootExpand('demo-shoot-1')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">Свернуть ▴</button>
+                </div>
+              </div>
+              <div>
+                <h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">ТЕСТ 2</h4>
+                <p class="text-xs leading-relaxed font-medium" style="color: var(--text-secondary);">Съёмка короткометражного эпизода на выездной локации. Отработка ракурсов и экспозиции.</p>
+              </div>
+              <div class="text-xs border-t pt-3 flex flex-wrap justify-between items-center gap-2 font-mono text-[11px]" style="border-color: var(--border-subtle); color: var(--text-muted);">
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 inline-block text-[var(--brand-red)] mr-1 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ПАРК ЗЕЛЁНАЯ РЕКА</span>
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 inline-block text-[var(--brand-red)] mr-1 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8H4Z"/><path d="m4 11 3-7h13l-3 7H4Z"/></svg> Мастер: <span style="color: var(--text-primary);">Главный администратор ЦКТ</span></span>
+              </div>
+              <div id="shoot_details_demo-shoot-1" class="border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">
+                <div class="space-y-2 pt-1">
+                  <div class="flex items-center justify-between">
+                    <span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>
+                    <span class="text-[10px] font-mono" style="color: var(--text-muted);">ОЦЕНКИ И ПОСЕЩАЕМОСТЬ</span>
+                  </div>
+                  <div class="space-y-1.5 mt-2">
+                    <div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center flex-wrap gap-2">
+                        <span class="crew-dept-tag dept-badge-light">ГАФФЕР</span>
+                        <span class="font-bold text-xs uppercase" style="color: var(--text-primary);">Гусев Андрей Алексеевич</span>
+                        <span class="font-mono text-[11px]" style="color: var(--text-muted);">[КТ-25]</span>
+                        <span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">★ 3.5</span>
+                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5">✓ Принят</span>
+                      </div>
+                      <div class="flex items-center space-x-2 ml-auto">
+                        <span class="text-xs font-bold font-mono" style="color: var(--text-muted);">Присутствовал</span>
+                        <span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ 5</span>
+                      </div>
+                    </div>
+                    <div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center flex-wrap gap-2">
+                        <span class="crew-dept-tag dept-badge-cinema">ОПЕРАТОР</span>
+                        <span class="font-bold text-xs uppercase" style="color: var(--text-primary);">Жемчужников Ярослав Станиславович</span>
+                        <span class="font-mono text-[11px]" style="color: var(--text-muted);">[КТ-25]</span>
+                        <span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">★ 4.5</span>
+                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5">✓ Принят</span>
+                      </div>
+                      <div class="flex items-center space-x-2 ml-auto">
+                        <span class="text-xs font-bold font-mono" style="color: var(--text-muted);">Присутствовал</span>
+                        <span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ 5</span>
+                      </div>
+                    </div>
+                    <div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center flex-wrap gap-2">
+                        <span class="crew-dept-tag dept-badge-sound">ЗВУКОРЕЖИССЁР</span>
+                        <span class="font-bold text-xs uppercase" style="color: var(--text-primary);">Бадиков Семён Станиславович</span>
+                        <span class="font-mono text-[11px]" style="color: var(--text-muted);">[КТ-26]</span>
+                        <span class="text-emerald-400 font-mono text-xs font-bold inline-flex items-center gap-1">★ 5.0</span>
+                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5">✓ Принят</span>
+                      </div>
+                      <div class="flex items-center space-x-2 ml-auto">
+                        <span class="text-xs font-bold font-mono" style="color: var(--text-muted);">Присутствовал</span>
+                        <span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ 5</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        <div class="lg:col-span-4 space-y-6">
-          <div class="p-6 account-card">
-            <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
-            <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
-              <p>Загрузка данных профиля...</p>
+        <!-- Сайдбар: Бейдж аккредитации пользователя -->
+        <aside class="lg:col-span-4 space-y-4">
+          <div class="accreditation-badge p-5">
+            <div class="accreditation-clip-hole"></div>
+            <div class="flex items-center justify-between border-b pb-2.5 mb-4" style="border-color: rgba(0,0,0,0.12);">
+              <span class="text-[10px] font-mono uppercase tracking-widest font-extrabold" style="color: #6A5618;">АККРЕДИТАЦИЯ // KP11</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.5 uppercase font-bold" style="background-color: rgba(0,0,0,0.08); color: #141414;">В СЕТИ</span>
+            </div>
+            <div id="sidebarProfile" class="text-xs space-y-3">
+              <p style="color: #737380;">Загрузка данных профиля...</p>
             </div>
           </div>
-        </div>
-      </div>
+        </aside>
+      </section>
 
-      <div id="viewMap" class="hidden space-y-4">
-        <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A]">
-          <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг и управление метками</h3>
-          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов и съёмочных площадок.</p>
-          <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
+      <!-- Вкладка 2: КАРТА ОБЪЕКТОВ -->
+      <section id="viewMap" class="hidden space-y-4">
+        <div class="viewfinder-card p-5 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3" style="border-color: var(--border-color);">
+            <div>
+              <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Геолокационный мониторинг и площадки</h3>
+              <p class="text-[11px] font-medium" style="color: var(--text-muted);">Координаты павильонов, киностудий и точек выездных съёмок.</p>
+            </div>
+            <span class="text-[10px] font-mono px-2.5 py-1 border self-start sm:self-auto" style="background-color: var(--bg-elevated); color: var(--brand-beige-text); border-color: var(--border-color);">ИНТЕРАКТИВНЫЙ РЕЖИМ</span>
+          </div>
+          <div id="fullMapContainer" class="w-full h-[520px] border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
         </div>
-      </div>
+      </section>
 
-      <div id="viewStats" class="hidden space-y-8">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <!-- Лидеры с прокруткой для 150+ пользователей -->
-          <div class="lg:col-span-6 p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
-            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг проф. пригодности (Лидеры)</h3>
-            <div id="statsLeadersList" class="space-y-2 max-h-[420px] overflow-y-auto pr-2">
-              <p class="text-xs text-neutral-400">Загрузка данных...</p>
+      <!-- Вкладка 3: СТАТИСТИКА -->
+      <section id="viewStats" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Рейтинг лидеров -->
+          <div class="lg:col-span-6 viewfinder-card p-5 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3" style="border-color: var(--border-color);">
+              <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Рейтинг проф. пригодности (Лидеры)</h3>
+              <span class="text-[10px] font-mono" style="color: var(--text-muted);">ТОП РЕЙТИНГ</span>
+            </div>
+            <div id="statsLeadersList" class="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+              <p class="text-xs" style="color: var(--text-muted);">Загрузка данных...</p>
             </div>
           </div>
 
+          <!-- Показатели и рейтинг учебных групп -->
           <div class="lg:col-span-6 space-y-6">
-            <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
-              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Общие показатели</h3>
-              <div class="flex justify-between text-xs font-extrabold uppercase">
-                <span class="text-neutral-400">Завершено смен:</span>
-                <span id="statCompletedCount" class="text-[var(--brand-beige)]">0</span>
+            <div class="viewfinder-card p-5 space-y-3">
+              <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-color);">
+                <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Общие показатели медиацентра</h3>
+                <span class="text-[10px] font-mono font-bold" style="color: var(--brand-red);">PRODUCTION KPI</span>
+              </div>
+              <div class="flex justify-between items-center text-xs pt-1">
+                <span class="font-bold uppercase" style="color: var(--text-secondary);">Завершено смен:</span>
+                <span id="statCompletedCount" class="text-sm font-extrabold font-mono" style="color: var(--brand-beige-text);">0</span>
               </div>
             </div>
 
-            <!-- Группы с прокруткой -->
-            <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
-              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг по учебным группам</h3>
-              <div id="statsGroupsList" class="space-y-2 max-h-56 overflow-y-auto pr-2">
-                <p class="text-xs text-neutral-400">Загрузка групп...</p>
+            <div class="viewfinder-card p-5 space-y-3">
+              <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-color);">
+                <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Рейтинг по учебным группам</h3>
+                <span class="text-[10px] font-mono" style="color: var(--text-muted);">ГРУППЫ КП11</span>
+              </div>
+              <div id="statsGroupsList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <p class="text-xs" style="color: var(--text-muted);">Загрузка групп...</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
-          <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Часто повторяющиеся проекты и шоу</h3>
+        <!-- Часто повторяющиеся проекты -->
+        <div class="viewfinder-card p-5 space-y-4">
+          <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-color);">
+            <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Часто повторяющиеся проекты и шоу</h3>
+            <span class="text-[10px] font-mono" style="color: var(--text-muted);">РЕЕСТР ФОРМАТОВ</span>
+          </div>
           <div id="statsFrequentShoots" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
         </div>
-      </div>
+      </section>
 
-      <div id="viewAdmin" class="hidden space-y-6">
-        <div class="p-6 bg-[#030303] text-white unified-parallelogram space-y-4 border border-[#1A1A1A]">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <!-- Вкладка 4: МЕДИАТЕКА & ШОУРИЛЫ (Модуль 4) -->
+      <section id="viewMedia" class="hidden space-y-6">
+        <div class="viewfinder-card p-5 sm:p-6 space-y-5">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4" style="border-color: var(--border-color);">
             <div>
-              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учётными записями</h3>
-              <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
+              <div class="flex items-center space-x-2">
+                <span class="rec-dot"></span>
+                <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Медиатека готовых проектов и студенческих шоурилов</h3>
+              </div>
+              <p class="text-[11px] font-medium mt-0.5" style="color: var(--text-muted);">Цифровое видеохранилище, портфолио участников и верифицированные кредиты цехов.</p>
             </div>
-            <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#222222]">
+            
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <div class="relative flex-grow md:w-64">
+                <input type="text" id="mediaSearch" oninput="filterMediaItems()" placeholder="Поиск по проекту, студенту..." class="w-full studio-input text-xs font-bold px-3 py-1.5 pl-8 focus:outline-none">
+                <span class="absolute left-2.5 top-2 flex items-center pointer-events-none" style="color: var(--text-muted);"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+              </div>
+            </div>
           </div>
-          <!-- Административный список с прокруткой -->
-          <div id="adminUsersList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-            <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
+
+          <!-- Фильтры по цехам (Операторы, Звук, Свет, Монтаж) -->
+          <div class="flex flex-wrap gap-2 pb-1" id="mediaFilterBar">
+            <button onclick="setMediaFilter('ALL')" id="mediaFilter_ALL" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide bg-[var(--brand-red)] text-white border-[var(--brand-red)]">Все цеха</button>
+            <button onclick="setMediaFilter('CAMERA')" id="mediaFilter_CAMERA" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Операторский цех</button>
+            <button onclick="setMediaFilter('SOUND')" id="mediaFilter_SOUND" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Звуковой цех</button>
+            <button onclick="setMediaFilter('LIGHT')" id="mediaFilter_LIGHT" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Осветители / Гафферы</button>
+            <button onclick="setMediaFilter('EDIT')" id="mediaFilter_EDIT" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Монтаж & Цветокоррекция</button>
+          </div>
+
+          <!-- Сетка видеопроектов -->
+          <div id="mediaGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Загрузка проектов -->
           </div>
         </div>
-      </div>
+      </section>
+
+      <!-- Вкладка 5: АДМИНИСТРИРОВАНИЕ -->
+      <section id="viewAdmin" class="hidden space-y-6">
+        <div class="viewfinder-card p-5 sm:p-6 space-y-5">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4" style="border-color: var(--border-color);">
+            <div>
+              <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Управление ролями и учётными записями</h3>
+              <p class="text-[11px] font-medium" style="color: var(--text-muted);">Поиск по студентам и мастерам, назначение уровней доступа и управление базой.</p>
+            </div>
+            <div class="relative w-full md:w-80">
+              <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="w-full studio-input text-xs font-bold px-3 py-2 pl-8 focus:outline-none">
+              <span class="absolute left-2.5 top-2.5 flex items-center pointer-events-none" style="color: var(--text-muted);"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+            </div>
+          </div>
+          
+          <div id="adminUsersList" class="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+            <div class="text-xs font-medium" style="color: var(--text-muted);">Загрузка реестра пользователей...</div>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 
-  <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
-      <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
-      <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[var(--brand-beige)]/30 pb-2 text-[var(--brand-beige)]">Создание производственной смены</h3>
+  <!-- ================= МОДАЛЬНОЕ ОКНО: СОЗДАНИЕ СМЕНЫ ================= -->
+  <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
+      <button onclick="closeShootModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      
+      <div class="flex items-center space-x-2 border-b pb-3 mb-5" style="border-color: var(--border-color);">
+        <span class="rec-dot"></span>
+        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Создание производственной смены</h3>
+      </div>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Название проекта / смены</label>
-          <input type="text" id="shootTitle" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]">
+          <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Название проекта / смены</label>
+          <input type="text" id="shootTitle" required class="w-full studio-input px-3 py-2 text-xs font-bold" placeholder="Напр. Подкаст Медиацентра №3">
         </div>
+
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Описание задач</label>
-          <textarea id="shootDesc" rows="2" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]"></textarea>
+          <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Техническое задание и задачи</label>
+          <textarea id="shootDesc" rows="2" required class="w-full studio-input px-3 py-2 text-xs font-medium" placeholder="Подробный бриф, оборудование, хронометраж..."></textarea>
         </div>
-        <div class="grid grid-cols-2 gap-4">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Тип производства</label>
-            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]">
-              <option value="СТУДИЯ">Студия</option>
-              <option value="ВЫЕЗД">Выезд</option>
+            <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Формат производства</label>
+            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full studio-input px-3 py-2 text-xs font-bold">
+              <option value="СТУДИЯ">Студия (Павильон)</option>
+              <option value="ВЫЕЗД">Выезд (Экспедиция / Натура)</option>
             </select>
           </div>
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Дата и время</label>
-            <input type="datetime-local" id="shootDate" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]">
+            <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Дата и время начала</label>
+            <input type="datetime-local" id="shootDate" required class="w-full studio-input px-3 py-2 text-xs font-bold">
           </div>
         </div>
+
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Локация</label>
-          <input type="text" id="shootLocation" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]" placeholder="Павильон №1">
+          <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Адрес / Локация</label>
+          <input type="text" id="shootLocation" required class="w-full studio-input px-3 py-2 text-xs font-bold" placeholder="Павильон №1 или точный адрес объекта">
         </div>
 
+        <!-- Выбор точки на карте для выездных съемок -->
         <div id="pickerMapContainerWrapper" class="hidden space-y-2">
-          <label class="block text-[11px] font-extrabold text-[var(--brand-beige)] uppercase">Укажите точку выезда на карте:</label>
-          <div id="pickerMap" class="w-full h-44 bg-[#030303] unified-parallelogram overflow-hidden border border-[#222222]"></div>
+          <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Укажите точку выезда на карте:</label>
+          <div id="pickerMap" class="w-full h-44 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
           <input type="hidden" id="selectedLat" value="55.751244">
           <input type="hidden" id="selectedLon" value="37.618423">
         </div>
+
+        <!-- Медиаматериалы и видео ссылки (Модуль 4) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t" style="border-color: var(--border-subtle);">
+          <div>
+            <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Ссылка на видео (VK / RuTube / Диск / YouTube)</label>
+            <input type="url" id="shootVideoUrl" class="w-full studio-input px-3 py-1.5 text-xs font-mono" placeholder="https://vk.com/video... или rutube...">
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Постер / кадр смены (URL опционально)</label>
+            <input type="url" id="shootPreviewUrl" class="w-full studio-input px-3 py-1.5 text-xs font-mono" placeholder="https://... или локальный путь">
+          </div>
+        </div>
         
-        <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-2 text-[var(--brand-beige)]">Назначение ролей участникам:</label>
-          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов..." class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-1.5 text-xs font-bold unified-parallelogram mb-2 focus:outline-none border border-[#222222]">
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[#030303] p-3 unified-parallelogram border border-[#222222]"></div>
+        <!-- Назначение съемочной группы -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Назначение съёмочной группы:</label>
+            <span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И СПЕЦИАЛЬНОСТИ</span>
+          </div>
+          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр по ФИО или группе..." class="w-full studio-input px-3 py-1.5 text-xs font-medium">
+          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 p-2 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
         </div>
 
-        <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Опубликовать смену</button>
+        <div class="pt-2">
+          <button type="submit" class="w-full py-3 text-xs font-extrabold uppercase btn-brand-primary">Опубликовать смену в производство</button>
+        </div>
       </form>
     </div>
   </div>
 
-  <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-sm relative shadow-2xl">
-      <button onclick="closeModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
-      <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[var(--brand-beige)]/30 pb-2 text-[var(--brand-beige)]">Авторизация</h3>
+  <!-- ================= МОДАЛЬНОЕ ОКНО: АВТОРИЗАЦИЯ / РЕГИСТРАЦИЯ ================= -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="studio-modal-box p-6 w-full max-w-sm relative">
+      <button onclick="closeModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      
+      <div class="border-b pb-3 mb-4" style="border-color: var(--border-color);">
+        <h3 id="modalTitle" class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Авторизация</h3>
+        <p class="text-[10px] mt-0.5" style="color: var(--text-muted);">Вход в производственную систему Медиацентра КП11</p>
+      </div>
       
       <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3">
         <div id="registerFields" class="hidden space-y-3">
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">ФИО</label>
-            <input type="text" id="fullName" class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]">
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ФИО полностью</label>
+            <input type="text" id="fullName" class="w-full studio-input px-3 py-2 text-xs font-bold" placeholder="Иванов Иван Иванович">
           </div>
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Учебная группа</label>
-            <input type="text" id="groupName" autocomplete="off" class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]" placeholder="Напр. КИТ-21">
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Учебная группа</label>
+            <input type="text" id="groupName" autocomplete="off" class="w-full studio-input px-3 py-2 text-xs font-bold" placeholder="Напр. КТ-26 или ФВТ-22">
+          </div>
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Telegram для вызывных листов</label>
+            <input type="text" id="registerTelegram" class="w-full studio-input px-3 py-2 text-xs font-bold" placeholder="@username">
           </div>
         </div>
+
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Email</label>
-          <input type="email" id="email" autocomplete="email" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]" placeholder="user@ckt.ru">
+          <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Корпоративный Email</label>
+          <input type="email" id="email" autocomplete="email" required class="w-full studio-input px-3 py-2 text-xs font-medium" placeholder="name@edu.mos.ru">
         </div>
+
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Пароль</label>
-          <input type="password" id="password" autocomplete="current-password" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]">
+          <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Пароль доступа</label>
+          <input type="password" id="password" autocomplete="current-password" required class="w-full studio-input px-3 py-2 text-xs font-medium">
         </div>
-        <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Подтвердить</button>
+
+        <div class="pt-2">
+          <button type="submit" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary">Подтвердить</button>
+        </div>
       </form>
     </div>
   </div>
 
-  <!-- Глубокий чёрный цвет футера -->
-  <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
-    Колледж Предпринимательства №11 • Реестр производственных смен
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ОПЕРАТИВНЫЙ ВЫЗЫВНОЙ ЛИСТ TELEGRAM (МОДУЛЬ 3) ================= -->
+  <div id="callsheetModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
+      <button onclick="closeCallsheetModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="flex items-center space-x-2 border-b pb-3 mb-4" style="border-color: var(--border-color);">
+        <span class="w-3 h-3 text-[#229ED9] inline-flex items-center">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5"><path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.672c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.411Z"/></svg>
+        </span>
+        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: #229ED9;">Оперативный вызывной лист // Telegram Bot Dispatch</h3>
+      </div>
+
+      <p class="text-xs mb-3 font-medium" style="color: var(--text-secondary);">
+        Автоматически сгенерированный вызывной лист для рассылки цехам с интерактивными кнопками подтверждения участия.
+      </p>
+
+      <div id="callsheetContent" class="callsheet-codeblock mb-4 max-h-72 overflow-y-auto"></div>
+
+      <div class="flex flex-col sm:flex-row gap-2.5 pt-2 border-t" style="border-color: var(--border-color);">
+        <button onclick="copyCallsheetText()" class="flex-1 py-2.5 text-xs font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          <span>Скопировать для Telegram</span>
+        </button>
+        <button onclick="dispatchTelegramBot()" class="flex-1 py-2.5 text-xs font-extrabold uppercase bg-[#229ED9] hover:bg-[#1b8ec5] text-white flex items-center justify-center gap-2 transition">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5"><path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.672c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.411Z"/></svg>
+          <span>Отправить в @KP11_FilmCrew_Bot</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ШОУРИЛ И ПОРТФОЛИО СТУДЕНТА (МОДУЛИ 4 & 6) ================= -->
+  <div id="showreelModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
+      <button onclick="closeShowreelModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div id="showreelContent" class="space-y-5">
+        <!-- Генерируется динамически -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ОЦЕНИВАНИЕ ПО МАТРИЦЕ ЦЕХОВ (МОДУЛЬ 6) ================= -->
+  <div id="competencyModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
+      <button onclick="closeCompetencyModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="flex items-center space-x-2 border-b pb-3 mb-4" style="border-color: var(--border-color);">
+        <span class="rec-dot"></span>
+        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Оценивание участника по матрице цеховых компетенций</h3>
+      </div>
+
+      <div id="competencyModalContent" class="space-y-4">
+        <!-- Формируется динамически в зависимости от цеха участника -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ВИДЕОПЛЕЕР ПРОЕКТА ================= -->
+  <div id="videoPlayerModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box p-4 sm:p-6 w-full max-w-4xl relative my-8">
+      <button onclick="closeVideoPlayerModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div id="videoPlayerContainer" class="space-y-4">
+        <!-- Встраивание плеера и кредитов -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Всплывающий студийный тост -->
+  <div id="studioToast" class="studio-toast">
+    <span class="rec-dot"></span>
+    <span id="studioToastText">Уведомление</span>
+  </div>
+
+  <!-- ================= FOOTER (35mm Film Negative Edge Aesthetic) ================= -->
+  <footer class="border-t transition-colors relative" style="background-color: var(--bg-secondary); border-color: var(--border-color);">
+    <!-- Тонкая плёночная перфорация по кромке футера -->
+    <div class="film-sprocket-track opacity-50" aria-hidden="true"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between text-[11px] gap-3">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full" style="background-color: var(--brand-red);"></span>
+        <span class="font-bold uppercase tracking-wider" style="color: var(--text-secondary);">ГАПОУ КП №11 • МЕДИАЦЕНТР</span>
+        <span class="hidden md:inline-block font-mono text-[10px] text-black/40 dark:text-white/30">• ПРОИЗВОДСТВЕННАЯ ПЛАТФОРМА</span>
+      </div>
+
+      <!-- Пасхалка с техническими кодами плёнки и кинооптики -->
+      <div class="font-mono text-[9px] uppercase tracking-widest text-center sm:text-right" style="color: var(--text-muted);">
+        <div class="flex items-center justify-center sm:justify-end gap-2 text-[8px] opacity-75 mb-0.5">
+          <span>◄◄ HEAD [REEL 11]</span>
+          <span>•</span>
+          <span>EASTMAN KODAK // SAFETY FILM</span>
+          <span>•</span>
+          <span>[KP11-STUDIO] ►► TAIL</span>
+        </div>
+        <span>KODAK VISION3 500T // ARRI MASTER PRIME // REDCODE RAW // LOG-C // FUJINON // CANON CINE</span>
+        <div class="text-[8px] opacity-60 mt-0.5">EMULSION #5219-4822 • 24.000 FPS • REEL 11-A</div>
+      </div>
+    </div>
   </footer>
 
-  <script src="/js/app.js"></script>
+  <!-- Студийный таймер для шапки -->
+  <script>
+    function updateStudioClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      const clockEl = document.getElementById('studioClock');
+      if (clockEl) clockEl.innerText = `${h}:${m}:${s}`;
+    }
+    setInterval(updateStudioClock, 1000);
+    updateStudioClock();
+  </script>
+
+  <!-- Скрипт платформы -->
+  <script src="js/app.js"></script>
 </body>
 </html>

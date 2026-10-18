@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.db
+*.db-journal
+*.log
+*— копия*
+*.tmp
+.vscode/
+live_*.png
+theme_*.png
+screenshot.png

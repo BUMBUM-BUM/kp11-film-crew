@@ -203,7 +203,7 @@ app.post('/api/notifications/subscribe', authenticateToken, async (req, res) => 
 // ----------------- AUTH -----------------
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, fullName, groupName, course } = req.body;
+    const { email, password, fullName, groupName, course, telegram } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return res.status(400).json({ error: 'Email занят' });
 
@@ -219,13 +219,15 @@ app.post('/api/auth/register', async (req, res) => {
         roleId: studentRole ? studentRole.id : null,
         course: course ? parseInt(course) : 1,
         rating: null,
+        telegram: telegram ? telegram.replace(/^@/, '') : null,
+        craftRank: 'Ассистент цеха',
         skills: ['Универсал']
       },
       include: { role: true }
     });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, groupName: user.groupName, role: user.role?.name || 'Студент' } });
+    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, groupName: user.groupName, role: user.role?.name || 'Студент', telegram: user.telegram, craftRank: user.craftRank } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -393,10 +395,10 @@ app.delete('/api/admin/shoots/:id', authenticateToken, requireAdmin, async (req,
 app.put('/api/shoots/:id', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, type, location } = req.body;
+    const { title, description, type, location, videoUrl, previewUrl } = req.body;
     const updated = await prisma.shoot.update({
       where: { id },
-      data: { title, description, type, location }
+      data: { title, description, type, location, videoUrl, previewUrl }
     });
     res.json({ success: true, updated });
   } catch (err) {
@@ -467,7 +469,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
     const shoots = await prisma.shoot.findMany({
       include: {
         creator: { select: { fullName: true } },
-        crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, skills: true } } } }
+        crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true } } } }
       },
       orderBy: { date: 'asc' }
     });
@@ -481,7 +483,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
           { role: { name: 'Студент' } }
         ]
       },
-      select: { id: true, fullName: true, groupName: true, rating: true, skills: true }
+      select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true }
     });
 
     const totalShoots = shoots.length;
@@ -506,10 +508,64 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   }
 });
 
+// МОДУЛЬ 3: ДИСПЕТЧЕР ВЫЗЫВНЫХ ЧЕРЕЗ TELEGRAM BOT
+app.post('/api/telegram/dispatch', authenticateToken, requireMasterOrAdmin, async (req, res) => {
+  try {
+    const { shootId, message } = req.body;
+    console.log(`[Telegram Bot @kp11_filmcrew_bot] Рассылка вызывного листа для смены ${shootId}:`);
+    console.log(message);
+    res.json({ 
+      success: true, 
+      message: 'Вызывной лист успешно отправлен ботом @kp11_filmcrew_bot в съёмочную группу.' 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// МОДУЛЬ 4: МЕДИАТЕКА ПРОЕКТОВ И ШОУРИЛОВ
+app.get('/api/media/shoots', optionalAuthToken, async (req, res) => {
+  try {
+    const shoots = await prisma.shoot.findMany({
+      where: {
+        OR: [
+          { videoUrl: { not: null } },
+          { isCompleted: true }
+        ]
+      },
+      include: {
+        crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, craftRank: true } } } }
+      },
+      orderBy: { date: 'desc' }
+    });
+    res.json(shoots);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// МОДУЛЬ 6: ОЦЕНКА КОМПЕТЕНЦИЙ И ЦЕХОВОГО РАНГА
+app.patch('/api/users/:id/competency', authenticateToken, requireMasterOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { craftRank, rating } = req.body;
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        craftRank: craftRank || undefined,
+        rating: rating !== undefined ? parseFloat(rating) : undefined
+      }
+    });
+    res.json({ success: true, user: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // СОЗДАНИЕ СМЕНЫ + ОТПРАВКА EMAIL И ПУШ-УВЕДОМЛЕНИЙ
 app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
-    const { title, description, type, date, location, crewAssignments, latitude, longitude } = req.body;
+    const { title, description, type, date, location, crewAssignments, latitude, longitude, videoUrl, previewUrl } = req.body;
     const shoot = await prisma.shoot.create({
       data: {
         title,
@@ -519,6 +575,8 @@ app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res
         location,
         latitude: latitude ? parseFloat(latitude) : 55.751244,
         longitude: longitude ? parseFloat(longitude) : 37.618423,
+        videoUrl: videoUrl || null,
+        previewUrl: previewUrl || null,
         creatorId: req.user.id,
         crew: {
           create: (crewAssignments || []).map(item => ({

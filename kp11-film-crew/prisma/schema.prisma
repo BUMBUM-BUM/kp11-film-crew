@@ -42,6 +42,8 @@ model User {
   role              Role?              @relation(fields: [roleId], references: [id])
   course            Int?
   rating            Float?
+  telegram          String?
+  craftRank         String?            @default("Ассистент цеха")
   isSuspended       Boolean            @default(false)
   skills            String[]
   shoots            Shoot[]            @relation("CreatedShoots")
@@ -69,6 +71,8 @@ model Shoot {
   location    String
   latitude    Float?       @default(55.751244)
   longitude   Float?       @default(37.618423)
+  videoUrl    String?
+  previewUrl  String?
   isCompleted Boolean      @default(false)
   creatorId   String
   creator     User         @relation("CreatedShoots", fields: [creatorId], references: [id])
