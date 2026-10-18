@@ -41,6 +41,18 @@
       <div id="actionButtonContainer"></div>
     </div>
 
+    <!-- Интерактивный кино-информер (табло с цитатами, меняющееся каждые 3 часа) -->
+    <div id="cinemaBoardWidget" class="hidden p-4 bg-gradient-to-r from-neutral-900 via-[var(--brand-black)] to-neutral-900 text-[var(--brand-beige)] unified-parallelogram border border-[var(--brand-beige)]/40 shadow-lg flex items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl animate-pulse">🎬</span>
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 block">Эфирный кино-информер (обновление каждые 3 часа)</span>
+          <p id="cinemaBoardText" class="text-xs font-extrabold uppercase text-[var(--brand-beige)] mt-0.5">Загрузка эфира...</p>
+        </div>
+      </div>
+      <span id="cinemaBoardBadge" class="text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-[var(--brand-red)] text-white">В эфире</span>
+    </div>
+
     <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
       <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
       <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
