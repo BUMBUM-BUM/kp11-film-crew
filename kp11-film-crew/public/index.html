@@ -29,14 +29,14 @@
   <header class="bg-[var(--brand-black)] border-b border-[#2A2A2A] sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
-  <!-- Ваш собственный логотип-картинка -->
-  <img src="/img/logo.png" alt="КП11 Логотип" class="h-12 w-auto object-contain">
-  
-  <div class="border-l border-[#333333] pl-4">
-    <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
-    <p class="text-[10px] text-neutral-400 font-bold uppercase">Производственная система</p>
-  </div>
-</div>
+        <div class="bg-[var(--brand-red)] text-[var(--brand-beige)] px-4 py-2 font-extrabold text-lg tracking-widest unified-parallelogram pixel-text-invert">
+          КП11
+        </div>
+        <div class="border-l border-[#333333] pl-4">
+          <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
+          <p class="text-[10px] text-neutral-400 font-bold uppercase">Производственная система</p>
+        </div>
+      </div>
       <div id="userNav" class="flex items-center space-x-4">
         <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
         <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
@@ -46,7 +46,6 @@
 
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
     
-    <!-- Бесшовный главный заголовок без рамок с интеграцией мигающего красного огонька -->
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div class="space-y-1 max-w-3xl">
         <div class="flex items-center space-x-2.5">
@@ -112,9 +111,10 @@
 
       <div id="viewStats" class="hidden space-y-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <!-- Блок с прокруткой для лидеров (до 150+ пользователей) -->
           <div class="lg:col-span-6 p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333] space-y-4">
             <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#333333] pb-2">Рейтинг проф. пригодности (Лидеры)</h3>
-            <div id="statsLeadersList" class="space-y-2">
+            <div id="statsLeadersList" class="space-y-2 max-h-[420px] overflow-y-auto pr-2">
               <p class="text-xs text-neutral-400">Загрузка данных...</p>
             </div>
           </div>
@@ -128,9 +128,10 @@
               </div>
             </div>
 
+            <!-- Блок с прокруткой для групп -->
             <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333] space-y-3">
               <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#333333] pb-2">Рейтинг по учебным группам</h3>
-              <div id="statsGroupsList" class="space-y-2">
+              <div id="statsGroupsList" class="space-y-2 max-h-56 overflow-y-auto pr-2">
                 <p class="text-xs text-neutral-400">Загрузка групп...</p>
               </div>
             </div>
@@ -152,7 +153,8 @@
             </div>
             <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
           </div>
-          <div id="adminUsersList" class="space-y-3">
+          <!-- Административный список с прокруткой на 150+ пользователей -->
+          <div id="adminUsersList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
             <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
           </div>
         </div>
