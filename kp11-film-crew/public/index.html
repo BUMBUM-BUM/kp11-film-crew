@@ -20,16 +20,13 @@
       background-color: var(--brand-black);
       /* Фирменный многослойный фон с двумя диагональными линиями согласно брендбуку */
       background-image: 
-        /* Вторая линия от центра к нижнему правому краю, видна только снизу от первой */
         linear-gradient(135deg, transparent 63.5%, var(--brand-red) 63.5%, var(--brand-red) 80%, transparent 80%),
-        /* Первая диагональная линия */
         linear-gradient(135deg, var(--brand-black) 36.5%, var(--brand-red) 36.5%, var(--brand-red) 63.5%, var(--brand-black) 63.5%);
       background-size: 100% 100%;
       background-attachment: fixed;
       color: #FFFFFF; 
     }
 
-    /* Запрет выделения и копирования текста */
     .paper-block {
       user-select: none;
       -webkit-user-select: none;
@@ -37,12 +34,10 @@
       -ms-user-select: none;
     }
 
-    /* Единый мягкий параллелограмм для всех блоков и элементов */
     .unified-parallelogram {
       clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
     }
 
-    /* Блок смены: фон инвертирован к фону сайта (Красный над Чёрным, Чёрный над Красным) */
     .shoot-card-pure {
       position: relative;
       background-color: var(--brand-red);
@@ -50,7 +45,6 @@
       overflow: hidden;
     }
 
-    /* Инвертированная диагональная линия внутри карточки для точного соответствия фону */
     .shoot-card-pure::after {
       content: '';
       position: absolute;
@@ -63,7 +57,6 @@
       z-index: 1;
     }
 
-    /* Небольшой красный градиент снизу справа (виден только над красной линией фона, где плашка чёрная) */
     .shoot-card-pure::before {
       content: '';
       position: absolute;
@@ -81,10 +74,9 @@
       z-index: 3;
     }
 
-    /* Текст внутри смены: Бежевый над Чёрной частью, Чёрный над Красной частью */
     .shoot-card-text {
       position: relative;
-      color: var(--brand-black); /* Чёрный текст над красной частью карточки */
+      color: var(--brand-black);
       background-color: transparent;
     }
 
@@ -92,7 +84,7 @@
       content: attr(data-text);
       position: absolute;
       inset: 0;
-      color: var(--brand-beige); /* Светло-бежевый текст над чёрной частью */
+      color: var(--brand-beige);
       background-image: 
         linear-gradient(135deg, transparent 63.5%, var(--brand-beige) 63.5%, var(--brand-beige) 80%, transparent 80%),
         linear-gradient(135deg, transparent 36.5%, var(--brand-beige) 36.5%, var(--brand-beige) 63.5%, transparent 63.5%);
@@ -102,7 +94,6 @@
       pointer-events: none;
     }
 
-    /* Текст в шапке / общих блоках */
     .pixel-text-invert {
       color: var(--brand-beige);
     }
@@ -112,7 +103,6 @@
       text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.4);
     }
 
-    /* Блок учётной записи: пастельно-бежевый */
     .account-card {
       background-color: var(--brand-beige);
       color: var(--brand-black);
@@ -155,62 +145,79 @@
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Уведомления приглашений -->
-    <div id="notificationsContainer"></div>
-
-    <!-- Навигационные вкладки -->
-    <div id="tabNav" class="hidden flex space-x-4 border-b border-[#333333] pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
-      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
-      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
+    <!-- Плашка блокировки для неавторизованных пользователей -->
+    <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
+      <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
+      <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
+        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться или зарегистрировать учётную запись.
+      </p>
+      <div class="pt-2 flex justify-center space-x-4">
+        <button onclick="openModal('login')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Войти в аккаунт</button>
+        <button onclick="openModal('register')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-neutral-900 transition">Регистрация</button>
+      </div>
     </div>
 
-    <!-- Смены -->
-    <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      <div class="lg:col-span-8 space-y-6">
-        <div class="flex items-center justify-between">
-          <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
-          <span id="shootCount" class="text-xs px-3 py-1 bg-[var(--brand-black)] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
-        </div>
-        <div id="shootsList" class="space-y-6">
-          <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
-        </div>
+    <!-- Контент доступный после входа -->
+    <div id="authenticatedContent" class="hidden space-y-8">
+
+      <!-- Уведомления приглашений -->
+      <div id="notificationsContainer"></div>
+
+      <!-- Навигационные вкладки -->
+      <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
+        <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
+        <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
+        <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
-      
-      <!-- Боковая панель профиля -->
-      <div class="lg:col-span-4 space-y-6">
-        <div class="p-6 account-card">
-          <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
-          <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
-            <p>Авторизуйтесь для доступа к управлению сменами.</p>
+
+      <!-- Смены -->
+      <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div class="lg:col-span-8 space-y-6">
+          <div class="flex items-center justify-between">
+            <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
+            <span id="shootCount" class="text-xs px-3 py-1 bg-[var(--brand-black)] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
+          </div>
+          <div id="shootsList" class="space-y-6">
+            <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
+          </div>
+        </div>
+        
+        <!-- Боковая панель профиля -->
+        <div class="lg:col-span-4 space-y-6">
+          <div class="p-6 account-card">
+            <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
+            <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
+              <p>Загрузка данных профиля...</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Карта -->
-    <div id="viewMap" class="hidden space-y-4">
-      <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333]">
-        <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг</h3>
-        <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
-        <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
+      <!-- Карта -->
+      <div id="viewMap" class="hidden space-y-4">
+        <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333]">
+          <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг</h3>
+          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
+          <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
+        </div>
       </div>
-    </div>
 
-    <!-- Админ-панель -->
-    <div id="viewAdmin" class="hidden space-y-6">
-      <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram space-y-4 border border-[#333333]">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учетными записями</h3>
-            <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
+      <!-- Админ-панель -->
+      <div id="viewAdmin" class="hidden space-y-6">
+        <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram space-y-4 border border-[#333333]">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учётными записями</h3>
+              <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО и группе, назначение ролей (Студент, Мастер, Админ) и дисциплинарное отстранение.</p>
+            </div>
+            <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
           </div>
-          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
-        </div>
-        <div id="adminUsersList" class="space-y-3">
-          <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
+          <div id="adminUsersList" class="space-y-3">
+            <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
+          </div>
         </div>
       </div>
+
     </div>
 
   </main>
@@ -326,12 +333,15 @@
 
     function updateNav() {
       const nav = document.getElementById('userNav');
-      const tabNav = document.getElementById('tabNav');
       const tabAdminBtn = document.getElementById('tabAdminBtn');
       const actionContainer = document.getElementById('actionButtonContainer');
+      const authBanner = document.getElementById('authRequiredBanner');
+      const authContent = document.getElementById('authenticatedContent');
 
       if (currentUser) {
-        tabNav.classList.remove('hidden');
+        if (authBanner) authBanner.classList.add('hidden');
+        if (authContent) authContent.classList.remove('hidden');
+
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
             <span class="text-xs bg-[var(--brand-beige)] text-[var(--brand-black)] px-3.5 py-1.5 font-extrabold unified-parallelogram paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
@@ -345,14 +355,27 @@
               <span>+ Новая смена</span>
             </button>
           `;
+        } else {
+          actionContainer.innerHTML = '';
         }
 
         if (currentUser.role === 'Администратор') {
-          tabAdminBtn.classList.remove('hidden');
+          if (tabAdminBtn) tabAdminBtn.classList.remove('hidden');
           loadAdminPanel();
+        } else if (tabAdminBtn) {
+          tabAdminBtn.classList.add('hidden');
         }
 
         loadNotifications();
+        loadShoots();
+      } else {
+        if (authBanner) authBanner.classList.remove('hidden');
+        if (authContent) authContent.classList.add('hidden');
+        actionContainer.innerHTML = '';
+        nav.innerHTML = `
+          <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
+          <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
+        `;
       }
     }
 
@@ -391,23 +414,31 @@
 
     function renderAdminUsers(users) {
       const container = document.getElementById('adminUsersList');
-      container.innerHTML = users.map(u => `
-        <div class="flex items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
-          <div>
-            <h4 class="font-extrabold text-xs uppercase pixel-text-invert">${u.fullName} <span class="text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
-            <p class="text-[11px] text-neutral-400 font-bold">${u.email}</p>
+      container.innerHTML = users.map(u => {
+        const currentRole = u.role?.name || 'Студент';
+        return `
+          <div class="flex flex-col md:flex-row md:items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram gap-3 border border-[#333333] ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
+            <div>
+              <h4 class="font-extrabold text-xs uppercase pixel-text-invert">
+                ${u.fullName} <span class="text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> 
+                <span class="text-amber-400 font-extrabold">⭐${u.rating || 5.0}</span> 
+                ${u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЁН]</span>' : ''}
+              </h4>
+              <p class="text-[11px] text-neutral-400 font-bold">${u.email}</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
+                <option value="Студент" ${currentRole === 'Студент' ? 'selected' : ''}>Студент</option>
+                <option value="Мастер / Преподаватель" ${currentRole === 'Мастер / Преподаватель' ? 'selected' : ''}>Мастер / Преподаватель</option>
+                <option value="Администратор" ${currentRole === 'Администратор' ? 'selected' : ''}>Администратор</option>
+              </select>
+              <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[var(--brand-red)] text-white pixel-text-invert'}">
+                ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
+              </button>
+            </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
-              <option value="">Роль: ${u.role?.name || 'Студент'}</option>
-              <option value="STUDENT">Студент</option>
-            </select>
-            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[var(--brand-red)] text-white pixel-text-invert'}">
-              ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function filterAdminUsers() {
@@ -423,15 +454,35 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ userId, isSuspended })
         });
-        if (!res.ok) throw new Error('Ошибка');
+        if (!res.ok) throw new Error('Ошибка обновления статуса');
         loadAdminPanel();
       } catch (err) {
         alert(err.message);
       }
     }
 
-    async function changeUserRole(userId, roleId) {
-      loadAdminPanel();
+    async function changeUserRole(userId, roleName) {
+      try {
+        const res = await fetch(`/api/admin/users/${userId}/role`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ roleName })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка при изменении роли');
+
+        // Если администратор изменил роль самому себе, обновим локальное состояние
+        if (currentUser && currentUser.id === userId) {
+          currentUser.role = roleName;
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          updateNav();
+        } else {
+          loadAdminPanel();
+        }
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+        loadAdminPanel();
+      }
     }
 
     async function loadNotifications() {
@@ -522,13 +573,13 @@
         <div class="flex items-center justify-between p-2 bg-[var(--brand-black)] text-xs unified-parallelogram">
           <label class="flex items-center space-x-2.5 cursor-pointer flex-grow">
             <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-[var(--brand-black)] text-[var(--brand-red)]">
-            <span class="font-extrabold text-xs uppercase text-[var(--brand-beige)]">${s.fullName} <span class="text-neutral-400">[${s.groupName}]</span> <span class="text-amber-400 font-extrabold">⭐${s.rating}</span></span>
+            <span class="font-extrabold text-xs uppercase text-[var(--brand-beige)]">${s.fullName} <span class="text-neutral-400">[${s.groupName || 'Группа'}]</span> <span class="text-amber-400 font-extrabold">⭐${s.rating || 5.0}</span></span>
           </label>
           <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[var(--brand-beige)] px-2.5 py-1 text-xs font-bold unified-parallelogram border border-[#333333]">
             <option value="Оператор">Оператор</option>
-            <option value="Звукорежиссер">Звукорежиссер</option>
+            <option value="Звукорежиссёр">Звукорежиссёр</option>
             <option value="Осветитель">Осветитель</option>
-            <option value="Монтажер">Монтажер</option>
+            <option value="Монтажёр">Монтажёр</option>
             <option value="Гаффер">Гаффер</option>
           </select>
         </div>
@@ -646,14 +697,16 @@
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         currentUser = data.user;
+        token = data.token;
         closeModal();
-        location.reload();
+        updateNav();
       } catch (err) {
         alert('Ошибка: ' + err.message);
       }
     }
 
     async function loadShoots() {
+      if (!currentUser) return;
       try {
         const res = await fetch('/api/shoots', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
@@ -673,8 +726,8 @@
               <div class="flex justify-between border-b border-[#D5C895] pb-1.5"><span class="text-neutral-700">Роль:</span><span class="text-[var(--brand-black)]">${currentUser.role}</span></div>
               ${userStats ? `
                 <div class="pt-2 space-y-1.5 text-[var(--brand-black)]">
-                  <div class="flex justify-between"><span class="text-neutral-700">Рейтинг:</span><span class="text-amber-800 font-extrabold">⭐ ${userStats.rating}</span></div>
-                  <div class="flex justify-between"><span class="text-neutral-700">Активных смен:</span><span class="text-[var(--brand-black)]">${userStats.completedParticipated} / ${userStats.totalParticipated}</span></div>
+                  <div class="flex justify-between"><span class="text-neutral-700">Рейтинг:</span><span class="text-amber-800 font-extrabold">⭐ ${userStats.rating || 5.0}</span></div>
+                  <div class="flex justify-between"><span class="text-neutral-700">Активных смен:</span><span class="text-[var(--brand-black)]">${userStats.completedParticipated} /${userStats.totalParticipated}</span></div>
                 </div>
               ` : ''}
             </div>
@@ -705,7 +758,7 @@
         container.innerHTML = shoots.map((s) => {
           const formattedDate = new Date(s.date).toLocaleString();
           const locationText = `Локация: ${s.location}`;
-          const masterText = `Мастер: ${s.creator.fullName}`;
+          const masterText = `Мастер: ${s.creator?.fullName || 'Не указан'}`;
           
           return `
             <div class="p-6 shoot-card-pure unified-parallelogram space-y-4">
@@ -736,7 +789,7 @@
                       c.status === 'DECLINED' ? 'bg-red-900 text-red-100' :
                       'bg-neutral-800 text-neutral-200'
                     }">
-                      <span class="uppercase">${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
+                      <span class="uppercase">${c.user?.fullName \vert{}\vert{} 'Участник'} [${c.user?.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user?.rating || 5.0}</span>
                       <span class="font-extrabold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '···'}</span>
                       ${canManage && c.status === 'ACCEPTED' && !s.isCompleted ? `
                         <select onchange="updateAttendance('${c.id}', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333]">
@@ -756,10 +809,8 @@
       }
     }
 
-    if (token) {
-      updateNav();
-      loadShoots();
-    }
+    // Инициализация при загрузке страницы
+    updateNav();
   </script>
 </body>
 </html>
