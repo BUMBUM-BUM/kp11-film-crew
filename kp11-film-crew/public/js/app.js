@@ -72,11 +72,12 @@ function updateNav() {
       actionContainer.innerHTML = '';
     }
 
-    if (currentUser.role === 'Администратор') {
+    // СТРОГАЯ ПРОВЕРКА РОЛИ ДЛЯ АДМИНИСТРИРОВАНИЯ
+    if (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель') {
       if (tabAdminBtn) tabAdminBtn.classList.remove('hidden');
       loadAdminPanel();
-    } else if (tabAdminBtn) {
-      tabAdminBtn.classList.add('hidden');
+    } else {
+      if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
     }
 
     loadNotifications();
@@ -86,6 +87,7 @@ function updateNav() {
     if (authBanner) authBanner.classList.remove('hidden');
     if (authContent) authContent.classList.add('hidden');
     if (actionContainer) actionContainer.innerHTML = '';
+    if (tabAdminBtn) tabAdminBtn.classList.add('hidden'); // Скрываем для неавторизованных
     if (nav) {
       nav.innerHTML = 
         '<button onclick="openModal(\'login\')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>' +
@@ -100,8 +102,16 @@ function switchTab(tab) {
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
 
+  // ЗАЩИТА: если студент пытается открыть админку, прерываем действие и возвращаем на смены
+  if (isAdmin && (!currentUser || (currentUser.role !== 'Администратор' && currentUser.role !== 'Мастер / Преподаватель'))) {
+    alert('Доступ запрещён!');
+    switchTab('shoots');
+    return;
+  }
+
   document.getElementById('viewShoots').classList.toggle('hidden', !isShoots);
   document.getElementById('viewMap').classList.toggle('hidden', !isMap);
+  
   if (document.getElementById('viewAdmin')) {
     document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
   }
@@ -109,15 +119,16 @@ function switchTab(tab) {
     document.getElementById('viewStats').classList.toggle('hidden', !isStats);
   }
 
-  document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
-  document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
+  document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
+  document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
   
   if (document.getElementById('tabStatsBtn')) {
-    document.getElementById('tabStatsBtn').className = isStats ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
+    document.getElementById('tabStatsBtn').className = isStats ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
   }
 
-  if (document.getElementById('tabAdminBtn')) {
-    document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition';
+  const tabAdminBtn = document.getElementById('tabAdminBtn');
+  if (tabAdminBtn && !tabAdminBtn.classList.contains('hidden')) {
+    tabAdminBtn.className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition';
   }
 
   if (isMap && fullMap) {
