@@ -159,6 +159,59 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Эндпоинт кино-информера (цитаты и философия кино, меняющиеся каждые 3 часа с учетом рейтинга)
+app.get('/api/cinemaboard', authenticateToken, async (req, res) => {
+  try {
+    const user = req.user;
+    const rating = user.rating !== null && user.rating !== undefined ? user.rating : 5.0;
+    
+    const currentHour = new Date().getHours();
+    const timeBlock = Math.floor(currentHour / 3);
+
+    let messages = [];
+
+    if (rating <= 2.5) {
+      // Поддерживающие цитаты при низком рейтинге
+      messages = [
+        "«Не ошибается тот, кто ничего не делает». Соберись перед следующим дублем! — Народная мудрость",
+        "«То, что вы делаете сегодня, говорит громче, чем любые слова». Время переснять неудачный кадр. — Махатма Ганди",
+        "«Падение — это не поражение. Поражение — это оставаться лежать». Ждём тебя на съёмочной площадке! — Сократ",
+        "«Трудности закаляют характер». Камера остывает, но твой творческий потенциал ещё впереди! — Сенека",
+        "«Каждая ошибка — это скрытый урок». Время сделать работу над ошибками и выставить свет заново."
+      ];
+    } else if (rating <= 4.0) {
+      // Рабочие/стабильные цитаты
+      messages = [
+        "«Кино — это жизнь, с которой вывели пятна». Продолжаем двигаться по сценарию! — Альфред Хичкок",
+        "«Гениальность — это один процент вдохновения и девяносто девять процентов пота». Держи фокус! — Томас Эдисон",
+        "«Дисциплина — это мост между вашими целями и их достижением». Отличный темп работы! — Джим Рон",
+        "«Чтобы создать нечто исключительное, нужно безупречно делать привычные вещи». — Аристотель",
+        "«Лучший способ предсказать будущее — изобрести его». Создавай свой кадр прямо сейчас! — Алан Кей"
+      ];
+    } else {
+      // Вдохновляющие и триумфальные цитаты для высокого рейтинга
+      messages = [
+        "«Кинематограф не должен быть сплошным куском жизни; он должен быть произведением искусства». Ты творишь искусство! — Стэнли Кубрик",
+        "«Великие фильмы рождаются из великих идей и безупречной работы команды». Браво за твой уровень! — Жан-Люк Годар",
+        "«Искусство смывает пыль повседневности с души». Твои смены сияют ярче софитов! — Пабло Пикассо",
+        "«Верьте в то, что возможно невозможное». Твой рейтинг — доказательство мастерства! — Чарли Чаплин",
+        "«Творить значит объединять то, что до сих пор казалось несоединимым». Великолепный результат! — Фридрих Ницше"
+      ];
+    }
+
+    const selectedMessage = messages[timeBlock % messages.length];
+
+    res.json({
+      timeBlock,
+      rating,
+      message: selectedMessage,
+      statusType: rating <= 2.5 ? 'support' : (rating <= 4.0 ? 'neutral' : 'praise')
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req, res) => {
   try {
     await prisma.user.updateMany({
@@ -173,11 +226,15 @@ app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req
 app.patch('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, groupName } = req.body;
+    const { fullName, groupName, rating } = req.body;
     
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { fullName, groupName },
+      data: { 
+        fullName, 
+        groupName,
+        rating: rating !== undefined && rating !== null ? parseFloat(rating) : null
+      },
       include: { role: true }
     });
     res.json({ success: true, user: updatedUser });
