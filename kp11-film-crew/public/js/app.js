@@ -297,7 +297,7 @@ async function deleteUser(userId) {
     if (!res.ok) throw new Error('Не удалось удалить пользователя');
     loadAdminPanel();
   } catch (err) {
-    alert('Ошибка: ' + err.message);
+    alert(err.message);
   }
 }
 
@@ -311,7 +311,7 @@ async function deleteShoot(shootId) {
     if (!res.ok) throw new Error('Не удалось удалить событие');
     loadShoots();
   } catch (err) {
-    alert('Ошибка: ' + err.message);
+    alert(err.message);
   }
 }
 
@@ -517,27 +517,44 @@ async function handleCreateShoot(e) {
   }
 }
 
-// Применение общей оценки ко всем инпутам участников
-function applyGlobalGrade(shootId) {
-  const globalInput = document.getElementById('global_grade_' + shootId);
-  if (!globalInput) return;
-  const val = globalInput.value;
-  const card = document.getElementById('shoot_details_' + shootId);
-  if (card) {
-    const individualInputs = card.querySelectorAll('input[id^="grade_input_"]');
-    individualInputs.forEach(input => {
-      input.value = val;
+// Визуальный выбор рейтинга звездочками
+function setStarRating(memberId, starValue) {
+  const container = document.getElementById('stars_container_' + memberId);
+  const hiddenInput = document.getElementById('grade_input_' + memberId);
+  if (container && hiddenInput) {
+    hiddenInput.value = starValue;
+    const stars = container.querySelectorAll('span');
+    stars.forEach((star, idx) => {
+      if (idx < starValue) {
+        star.classList.remove('text-neutral-600');
+        star.classList.add('text-amber-400');
+      } else {
+        star.classList.remove('text-amber-400');
+        star.classList.add('text-neutral-600');
+      }
     });
   }
 }
 
-// Завершение смены со сбором индивидуальных оценок
-async function completeShoot(shootId, crewMemberIds) {
+// Применение общей оценки ко всем звездочкам участников
+function applyGlobalGrade(shootId, starValue) {
+  const card = document.getElementById('shoot_details_' + shootId);
+  if (card) {
+    const memberIdsInputs = card.querySelectorAll('input[id^="grade_input_"]');
+    memberIdsInputs.forEach(input => {
+      const memberId = input.id.replace('grade_input_', '');
+      setStarRating(memberId, starValue);
+    });
+  }
+}
+
+// Сохранение или обновление оценок (работает как до завершения, так и после)
+async function saveShootGrades(shootId, crewMemberIds) {
   const grades = {};
   for (const memberId of crewMemberIds) {
     const inputEl = document.getElementById('grade_input_' + memberId);
     if (inputEl) {
-      grades[memberId] = parseFloat(inputEl.value) || 5.0;
+      grades[memberId] = parseFloat(inputEl.value) || 5;
     }
   }
 
@@ -547,8 +564,8 @@ async function completeShoot(shootId, crewMemberIds) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ shootId, grades })
     });
-    if (!res.ok) throw new Error('Ошибка завершения смены');
-    alert('Смена успешно завершена, оценки сохранены!');
+    if (!res.ok) throw new Error('Ошибка сохранения оценок');
+    alert('Оценки успешно сохранены и начислены участникам!');
     loadShoots();
   } catch (err) {
     alert(err.message);
@@ -569,7 +586,6 @@ async function updateAttendance(crewMemberId, attendance) {
   }
 }
 
-// Плавная анимация разворачивания карточки через max-height
 function toggleShootExpand(shootId) {
   const detailsBlock = document.getElementById('shoot_details_' + shootId);
   const btn = document.getElementById('expand_btn_' + shootId);
@@ -582,7 +598,6 @@ function toggleShootExpand(shootId) {
       detailsBlock.style.maxHeight = detailsBlock.scrollHeight + 'px';
       if (btn) btn.innerText = 'Свернуть ▴';
 
-      // Инициализация мини-карты съёмки при разворачивании
       const mapContainer = document.getElementById('mini_map_' + shootId);
       const lat = parseFloat(mapContainer.getAttribute('data-lat'));
       const lon = parseFloat(mapContainer.getAttribute('data-lon'));
@@ -730,45 +745,59 @@ async function loadShoots() {
           let cIcon = c.status === 'ACCEPTED' ? '✓' : (c.status === 'DECLINED' ? '✕' : '···');
 
           let manualAcceptBtn = '';
-          if (canManage && c.status === 'PENDING' && !s.isCompleted) {
+          if (canManage && c.status === 'PENDING') {
             manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="ml-2 bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase unified-parallelogram">Подтвердить</button>';
           }
 
           let attendanceSelect = '';
-          let gradeInput = '';
+          let starsBlock = '';
           if (canManage) {
-            if (!s.isCompleted) {
-              let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
-              let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
-              attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333] ml-2">' +
-                '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
-                '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3⭐)</option>' +
-              '</select>';
-            } else if (c.status === 'ACCEPTED') {
-              gradeInput = '<span class="ml-2 text-amber-300 font-bold">Оценка: <input type="number" min="1" max="5" step="0.5" id="grade_input_' + c.id + '" value="5" class="w-14 bg-black text-white px-1 text-center border border-neutral-600"></span>';
+            let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
+            let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
+            attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="bg-[var(--brand-black)] text-[var(--brand-beige)] text-xs font-bold px-1 py-0.5 unified-parallelogram border border-[#333333] ml-2">' +
+              '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
+              '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3⭐)</option>' +
+            '</select>';
+
+            if (c.status === 'ACCEPTED') {
+              let defaultVal = 5;
+              let starsHTML = '';
+              for (let i = 1; i <= 5; i++) {
+                let colorClass = i <= defaultVal ? 'text-amber-400' : 'text-neutral-600';
+                starsHTML += '<span onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="cursor-pointer text-sm ' + colorClass + ' hover:scale-125 transition">★</span>';
+              }
+              starsBlock = '<div class="ml-auto flex items-center space-x-1" id="stars_container_' + c.id + '">' +
+                '<span class="text-[10px] uppercase font-bold text-neutral-400 mr-1">Оценка:</span>' +
+                starsHTML +
+                '<input type="hidden" id="grade_input_' + c.id + '" value="' + defaultVal + '">' +
+              '</div>';
             }
           }
 
-          return '<div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + ' flex-wrap gap-y-1 mb-1">' +
+          return '<div class="px-3 py-2 flex items-center space-x-2 text-xs font-bold unified-parallelogram ' + cBg + ' flex-wrap gap-y-1 mb-1">' +
             '<span class="uppercase">' + cUserName + ' [' + cGroupName + '] (' + c.roleInShoot + ') ⭐' + cRating + '</span>' +
             '<span class="font-extrabold">' + cIcon + '</span>' +
             manualAcceptBtn +
             attendanceSelect +
-            gradeInput +
+            starsBlock +
           '</div>';
         }).join('');
       }
 
       let globalGradeControl = '';
-      let completeBtn = '';
-      if (canManage && !s.isCompleted) {
+      let saveGradesBtn = '';
+      if (canManage) {
+        let globalStarsHTML = '';
+        for (let i = 1; i <= 5; i++) {
+          globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="cursor-pointer text-base text-amber-400 hover:scale-125 transition">★</span>';
+        }
+
         globalGradeControl = '<div class="flex items-center space-x-2 bg-neutral-900 p-2 unified-parallelogram border border-neutral-700 mt-2">' +
           '<span class="text-xs uppercase font-extrabold text-[var(--brand-beige)]">Общая оценка для всех:</span>' +
-          '<input type="number" min="1" max="5" step="0.5" id="global_grade_' + s.id + '" value="5" class="w-16 bg-black text-white px-2 py-1 text-xs border border-neutral-600 text-center">' +
-          '<button onclick="applyGlobalGrade(\'' + s.id + '\')" class="bg-amber-600 text-black px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram">Применить ко всем</button>' +
+          '<div class="flex space-x-1">' + globalStarsHTML + '</div>' +
         '</div>';
         
-        completeBtn = '<button onclick="completeShoot(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-4 py-2.5 text-xs font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark w-full mt-4">Завершить смену и сохранить оценки</button>';
+        saveGradesBtn = '<button onclick="saveShootGrades(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="bg-[var(--brand-beige)] text-[var(--brand-black)] px-4 py-2.5 text-xs font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition paper-cut-text-dark w-full mt-4">Сохранить оценки / Завершить смену</button>';
       }
 
       return '<div class="p-6 shoot-card-pure unified-parallelogram space-y-4">' +
@@ -792,13 +821,12 @@ async function loadShoots() {
           '<span class="shoot-card-text" data-text="' + masterText + '">' + masterText + '</span>' +
         '</div>' +
         
-        // Разворачиваемый блок с плавной анимацией через max-height
         '<div id="shoot_details_' + s.id + '" style="max-height: 0px; overflow: hidden; transition: max-height 0.4s ease-out;" class="pt-2 border-t border-neutral-700 space-y-4">' +
           '<div class="space-y-2 pt-2">' +
             '<span class="uppercase tracking-wider text-xs font-extrabold text-[var(--brand-beige)]">Съёмочная группа и выставление оценок:</span>' +
             globalGradeControl +
             '<div class="space-y-1 mt-2">' + crewHtml + '</div>' +
-            completeBtn +
+            saveGradesBtn +
           '</div>' +
           '<div class="space-y-2 pt-2">' +
             '<span class="uppercase tracking-wider text-xs font-extrabold text-[var(--brand-beige)]">Расположение объекта на карте:</span>' +
