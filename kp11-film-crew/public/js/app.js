@@ -7,6 +7,59 @@ let fullMap = null;
 let pickerMap = null;
 let pickerPlacemark = null;
 
+// ================= PUSH NOTIFICATIONS REGISTRATION =================
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function registerPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !token) return;
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    const res = await fetch('/api/notifications/vapid-public-key');
+    const { publicKey } = await res.json();
+    if (!publicKey) return;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+    }
+
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ subscription })
+    });
+  } catch (err) {
+    console.warn('Push registration notification skipped:', err.message);
+  }
+}
+
+// Запуск подписки при загрузке, если пользователь уже авторизован
+if (currentUser && token) {
+  registerPushNotifications();
+}
+
+// ================= MODAL & MAPS =================
 function openModal(type) {
   isRegister = type === 'register';
   const modalTitle = document.getElementById('modalTitle');
@@ -37,9 +90,9 @@ function initMaps() {
 
 function getRatingBadgeColor(rating) {
   if (rating === null || rating === undefined) return 'text-neutral-400';
-  if (rating <= 2.0) return 'text-red-500 font-extrabold'; // Красный
-  if (rating <= 4.0) return 'text-blue-400 font-extrabold';  // Синий
-  return 'text-emerald-400 font-extrabold';                   // Зеленый (5)
+  if (rating <= 2.0) return 'text-red-500 font-extrabold';
+  if (rating <= 4.0) return 'text-blue-400 font-extrabold';
+  return 'text-emerald-400 font-extrabold';
 }
 
 function updateNav() {
@@ -72,7 +125,6 @@ function updateNav() {
       actionContainer.innerHTML = '';
     }
 
-    // СТРОГАЯ ПРОВЕРКА РОЛИ ДЛЯ АДМИНИСТРИРОВАНИЯ
     if (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель') {
       if (tabAdminBtn) tabAdminBtn.classList.remove('hidden');
       loadAdminPanel();
@@ -83,11 +135,12 @@ function updateNav() {
     loadNotifications();
     loadShoots();
     loadCinemaBoard();
+    registerPushNotifications();
   } else {
     if (authBanner) authBanner.classList.remove('hidden');
     if (authContent) authContent.classList.add('hidden');
     if (actionContainer) actionContainer.innerHTML = '';
-    if (tabAdminBtn) tabAdminBtn.classList.add('hidden'); // Скрываем для неавторизованных
+    if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
     if (nav) {
       nav.innerHTML = 
         '<button onclick="openModal(\'login\')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>' +
@@ -102,7 +155,6 @@ function switchTab(tab) {
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
 
-  // ЗАЩИТА: если студент пытается открыть админку, прерываем действие и возвращаем на смены
   if (isAdmin && (!currentUser || (currentUser.role !== 'Администратор' && currentUser.role !== 'Мастер / Преподаватель'))) {
     alert('Доступ запрещён!');
     switchTab('shoots');
