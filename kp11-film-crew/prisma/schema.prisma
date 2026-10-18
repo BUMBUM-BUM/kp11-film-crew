@@ -33,20 +33,31 @@ model RolePermission {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  passwordHash  String
-  fullName      String
-  groupName     String       @default("КИТ-11")
-  roleId        String?
-  role          Role?        @relation(fields: [roleId], references: [id])
-  course        Int?
-  rating        Float?       // У новых пользователей изначально нет рейтинга
-  isSuspended   Boolean      @default(false)
-  skills        String[]
-  shoots        Shoot[]      @relation("CreatedShoots")
-  crewMembers   CrewMember[]
-  createdAt     DateTime     @default(now())
+  id                String             @id @default(uuid())
+  email             String             @unique
+  passwordHash      String
+  fullName          String
+  groupName         String             @default("КИТ-11")
+  roleId            String?
+  role              Role?              @relation(fields: [roleId], references: [id])
+  course            Int?
+  rating            Float?
+  isSuspended       Boolean            @default(false)
+  skills            String[]
+  shoots            Shoot[]            @relation("CreatedShoots")
+  crewMembers       CrewMember[]
+  pushSubscriptions PushSubscription[]
+  createdAt         DateTime           @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 }
 
 model Shoot {
