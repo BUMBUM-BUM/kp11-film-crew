@@ -109,7 +109,7 @@ app.post('/api/auth/register', async (req, res) => {
         groupName: groupName || 'КИТ-11',
         roleId: studentRole ? studentRole.id : null,
         course: course ? parseInt(course) : 1,
-        rating: 5.0,
+        rating: null, // У новых пользователей нет рейтинга
         skills: ['Универсал']
       },
       include: { role: true }
@@ -192,7 +192,6 @@ app.patch('/api/admin/users/:id/role', authenticateToken, requireAdmin, async (r
   }
 });
 
-// Удаление пользователя администратором
 app.delete('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -203,12 +202,71 @@ app.delete('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, 
   }
 });
 
-// Удаление смены (события) или метки администратором
 app.delete('/api/admin/shoots/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.shoot.delete({ where: { id } });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Эндпоинт для статистики и лидеров
+app.get('/api/statistics', authenticateToken, async (req, res) => {
+  try {
+    const leaders = await prisma.user.findMany({
+      where: { isSuspended: false, rating: { not: null } },
+      select: { id: true, fullName: true, groupName: true, rating: true },
+      orderBy: { rating: 'desc' },
+      take: 10
+    });
+
+    const allShoots = await prisma.shoot.findMany({
+      include: { crew: { include: { user: true } } }
+    });
+
+    const completedShoots = allShoots.filter(s => s.isCompleted);
+    
+    const groupStatsMap = {};
+    allShoots.forEach(shoot => {
+      shoot.crew.forEach(member => {
+        const group = member.user?.groupName || 'Без группы';
+        if (!groupStatsMap[group]) {
+          groupStatsMap[group] = { totalParticipations: 0, sumRating: 0, count: 0 };
+        }
+        groupStatsMap[group].totalParticipations++;
+        if (member.user?.rating !== null && member.user?.rating !== undefined) {
+          groupStatsMap[group].sumRating += member.user.rating;
+          groupStatsMap[group].count++;
+        }
+      });
+    });
+
+    const groupsRating = Object.keys(groupStatsMap).map(group => ({
+      groupName: group,
+      avgRating: groupStatsMap[group].count > 0 ? parseFloat((groupStatsMap[group].sumRating / groupStatsMap[group].count).toFixed(1)) : 0.0,
+      participations: groupStatsMap[group].totalParticipations
+    })).sort((a, b) => b.avgRating - a.avgRating);
+
+    const titleCounts = {};
+    allShoots.forEach(shoot => {
+      const title = shoot.title.trim();
+      titleCounts[title] = (titleCounts[title] || 0) + 1;
+    });
+
+    const frequentShoots = Object.keys(titleCounts).map(title => ({
+      title,
+      count: titleCounts[title]
+    })).sort((a, b) => b.count - a.count).slice(0, 6);
+
+    res.json({
+      leaders,
+      totalCompleted: completedShoots.length,
+      totalShoots: allShoots.length,
+      groupsRating,
+      frequentShoots
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -298,7 +356,7 @@ app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
 
     if (!crewMember) return res.status(404).json({ error: 'Участник не найден' });
 
-    if (attendance === 'ABSENT' && crewMember.attendance === 'PRESENT') {
+    if (attendance === 'ABSENT' && crewMember.attendance === 'PRESENT' && crewMember.user.rating !== null) {
       const newRating = Math.max(1.0, parseFloat((crewMember.user.rating - 0.3).toFixed(1)));
       await prisma.user.update({
         where: { id: crewMember.userId },
@@ -317,9 +375,10 @@ app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
   }
 });
 
+// Завершение смены с выставлением оценки (среднее арифметическое)
 app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
   try {
-    const { shootId } = req.body;
+    const { shootId, grade } = req.body;
     const shoot = await prisma.shoot.update({
       where: { id: shootId },
       data: { isCompleted: true },
@@ -330,7 +389,12 @@ app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
       if (member.status === 'ACCEPTED' && member.attendance === 'PRESENT') {
         const user = await prisma.user.findUnique({ where: { id: member.userId } });
         if (user) {
-          const newRating = Math.min(5.0, parseFloat((user.rating + 0.1).toFixed(1)));
+          let newRating;
+          if (user.rating === null || user.rating === undefined) {
+            newRating = grade; // Первая оценка
+          } else {
+            newRating = parseFloat(((user.rating + grade) / 2).toFixed(1)); // Среднее арифметическое
+          }
           await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
         }
       }
