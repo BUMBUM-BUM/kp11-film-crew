@@ -137,24 +137,9 @@ async function loadCinemaBoard() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    const widget = document.getElementById('cinemaBoardWidget');
     const textEl = document.getElementById('cinemaBoardText');
-    const badgeEl = document.getElementById('cinemaBoardBadge');
-
-    if (widget && textEl) {
-      widget.classList.remove('hidden');
+    if (textEl) {
       textEl.innerText = data.message;
-
-      if (data.statusType === 'support') {
-        badgeEl.className = 'text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-amber-600 text-black';
-        badgeEl.innerText = 'Поддержка дубля';
-      } else if (data.statusType === 'praise') {
-        badgeEl.className = 'text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-emerald-600 text-white';
-        badgeEl.innerText = 'Прайм-тайм';
-      } else {
-        badgeEl.className = 'text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-[var(--brand-red)] text-white';
-        badgeEl.innerText = 'В эфире';
-      }
     }
   } catch (err) {
     console.error('Ошибка загрузки кино-информера:', err);
@@ -175,15 +160,12 @@ async function loadStatisticsData() {
         let frameStyle = 'bg-[#1A1A1A] border border-[#333333]';
         let badgeIcon = '';
         if (index === 0) {
-          // 1 место: Алмазное обрамление
           frameStyle = 'bg-gradient-to-r from-cyan-950 via-[#1A1A1A] to-cyan-950 border-2 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.5)]';
           badgeIcon = '💎 ';
         } else if (index === 1) {
-          // 2 место: Золотое обрамление
           frameStyle = 'bg-gradient-to-r from-amber-950 via-[#1A1A1A] to-amber-950 border-2 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)]';
           badgeIcon = '👑 ';
         } else if (index === 2) {
-          // 3 место: Бронзово-бежевое обрамление
           frameStyle = 'bg-[#221E15] border-2 border-[var(--brand-beige)]';
           badgeIcon = '🥉 ';
         }
