@@ -11,7 +11,6 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block">
 
-  <!-- Шапка -->
   <header class="bg-[var(--brand-black)] border-b border-[#2A2A2A] sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
@@ -30,7 +29,6 @@
     </div>
   </header>
 
-  <!-- Основное содержимое -->
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
     
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -43,11 +41,11 @@
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Плашка блокировки для неавторизованных пользователей -->
+    <!-- Плашка блокировки для неавторизованных -->
     <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
       <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
       <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
-        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться или зарегистрировать учётную запись.
+        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться.
       </p>
       <div class="pt-2 flex justify-center space-x-4">
         <button onclick="openModal('login')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Войти в аккаунт</button>
@@ -57,11 +55,8 @@
 
     <!-- Контент после входа -->
     <div id="authenticatedContent" class="hidden space-y-8">
-      
-      <!-- Уведомления приглашений -->
       <div id="notificationsContainer"></div>
 
-      <!-- Навигационные вкладки -->
       <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
         <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
         <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
@@ -69,7 +64,7 @@
         <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
 
-      <!-- Вкладка: Смены -->
+      <!-- Смены -->
       <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div class="lg:col-span-8 space-y-6">
           <div class="flex items-center justify-between">
@@ -81,7 +76,6 @@
           </div>
         </div>
         
-        <!-- Боковая панель профиля -->
         <div class="lg:col-span-4 space-y-6">
           <div class="p-6 account-card">
             <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
@@ -92,19 +86,18 @@
         </div>
       </div>
 
-      <!-- Вкладка: Карта -->
+      <!-- Карта -->
       <div id="viewMap" class="hidden space-y-4">
         <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333]">
           <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг и управление метками</h3>
-          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
+          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов и съёмочных площадок. Администратор может удалять метки смен напрямую.</p>
           <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
         </div>
       </div>
 
-      <!-- Вкладка: Статистика -->
+      <!-- Статистика -->
       <div id="viewStats" class="hidden space-y-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <!-- Левая колонка: Лидеры -->
           <div class="lg:col-span-6 p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333] space-y-4">
             <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#333333] pb-2">Рейтинг проф. пригодности (Лидеры)</h3>
             <div id="statsLeadersList" class="space-y-2">
@@ -112,7 +105,6 @@
             </div>
           </div>
 
-          <!-- Правая колонка: Смёны и группы -->
           <div class="lg:col-span-6 space-y-6">
             <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333] space-y-3">
               <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#333333] pb-2">Общие показатели</h3>
@@ -131,14 +123,13 @@
           </div>
         </div>
 
-        <!-- Нижний блок: Часто повторяющиеся проекты -->
         <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333] space-y-4">
           <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#333333] pb-2">Часто повторяющиеся проекты и шоу</h3>
           <div id="statsFrequentShoots" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
         </div>
       </div>
 
-      <!-- Вкладка: Админ-панель -->
+      <!-- Админ-панель -->
       <div id="viewAdmin" class="hidden space-y-6">
         <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram space-y-4 border border-[#333333]">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -153,9 +144,7 @@
           </div>
         </div>
       </div>
-
     </div>
-
   </main>
 
   <!-- Модальное окно создания смены -->
@@ -243,7 +232,6 @@
     Колледж Предпринимательства №11 • Реестр производственных смен
   </footer>
 
-  <!-- Подключение скрипта приложения -->
   <script src="/js/app.js"></script>
 </body>
 </html>
