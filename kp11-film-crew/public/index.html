@@ -3,107 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>КП11 • Производственная система</title>
+  <title>КП11 • Реестр производственных смен</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_апи_ключ&lang=ru_RU" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body { 
       font-family: 'Manrope', sans-serif; 
-      background-color: #E9EAEB; 
-      color: #1E1E1E; 
+      background-color: #F4F4F4; 
+      color: #111111; 
     }
-    /* Строгие прямые углы и асимметрия по брендбуку КП11 */
     * { border-radius: 0 !important; }
+
+    /* Редакционный стиль брендбука КП11 */
+    .brand-red { background-color: #E63B2E; color: #FFFFFF; }
+    .brand-red-text { color: #E63B2E; }
+    .brand-dark { background-color: #1A1A1A; color: #FFFFFF; }
     
-    .brand-red { background-color: #FC2C2C; }
-    .brand-red-text { color: #FC2C2C; }
-    .brand-beige { background-color: #EECEA8; }
-    .brand-dark { background-color: #1E1E1E; }
-    .brand-dark-text { color: #1E1E1E; }
-    .brand-gray-bg { background-color: #E9EAEB; }
-    
-    .brand-card { 
-      background-color: #FFFFFF; 
-      border: 2px solid #1E1E1E; 
-      box-shadow: 4px 4px 0px #1E1E1E;
+    .editorial-card {
+      background-color: #FFFFFF;
+      border: 2px solid #111111;
+      box-shadow: 6px 6px 0px #111111;
+      transition: transform 0.1s ease;
     }
-    .brand-card-alt { 
-      background-color: #EECEA8; 
-      border: 2px solid #1E1E1E; 
-      box-shadow: 4px 4px 0px #1E1E1E;
+    .editorial-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 8px 8px 0px #111111;
+    }
+
+    .editorial-card-dark {
+      background-color: #1A1A1A;
+      color: #FFFFFF;
+      border: 2px solid #111111;
+      box-shadow: 6px 6px 0px #E63B2E;
+    }
+
+    /* Сетка в стиле разворотов буклета */
+    .editorial-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 24px;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-[#FC2C2C] selection:text-white">
+<body class="min-h-screen flex flex-col selection:bg-[#E63B2E] selection:text-white">
 
-  <!-- Многослойный асимметричный хедер с элементами логотипа -->
-  <header class="border-b-2 border-[#1E1E1E] bg-[#EECEA8] relative overflow-hidden sticky top-0 z-50">
-    <!-- Геометрический многослойный фон в стиле знака камеры К -->
-    <div class="absolute inset-0 pointer-events-none overflow-hidden opacity-15">
-      <div class="absolute -top-10 -left-10 w-48 h-48 bg-[#FC2C2C] transform rotate-12"></div>
-      <div class="absolute top-2 right-1/3 w-64 h-64 bg-[#1E1E1E] transform -rotate-6"></div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between relative z-10">
+  <!-- Редакционный хедер (асимметрия, крупные блоки) -->
+  <header class="border-b-4 border-[#111111] bg-white sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
-        <!-- Знак КП11 со срезанными углами -->
-        <div class="brand-red text-white text-lg font-extrabold px-4 py-2 tracking-widest uppercase shadow-md transform -skew-x-6">
+        <!-- Логотип в точности как на референсе с буквой К / камерой -->
+        <div class="brand-red border-2 border-[#111111] px-4 py-2 font-extrabold text-lg tracking-widest shadow-[3px_3px_0px_#111111]">
           КП11
         </div>
-        <div class="border-l-2 border-[#1E1E1E] pl-4">
-          <h1 class="text-xs font-extrabold tracking-widest uppercase text-[#1E1E1E]">Колледж Предпринимательства №11</h1>
-          <p class="text-[10px] text-[#555555] font-bold uppercase tracking-wider">Производственный контур • Ракурс как принцип</p>
+        <div class="border-l-2 border-[#111111] pl-4">
+          <h1 class="text-xs font-extrabold tracking-widest uppercase">Колледж Предпринимательства №11</h1>
+          <p class="text-[10px] text-neutral-500 font-bold uppercase">Производственная система • Ресурсный центр</p>
         </div>
       </div>
       <div id="userNav" class="flex items-center space-x-4">
-        <button onclick="openModal('login')" class="text-xs font-bold uppercase tracking-wider text-[#1E1E1E] hover:text-[#FC2C2C] transition bg-white border-2 border-[#1E1E1E] px-3 py-1.5 shadow-[2px_2px_0px_#1E1E1E]">Вход</button>
-        <button onclick="openModal('register')" class="text-xs brand-red text-white px-4 py-1.5 font-extrabold uppercase tracking-wider hover:bg-[#1E1E1E] transition border-2 border-[#1E1E1E] shadow-[2px_2px_0px_#1E1E1E]">Регистрация</button>
+        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-white border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:bg-[#111111] hover:text-white transition">Вход</button>
+        <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 brand-red border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:opacity-90 transition">Регистрация</button>
       </div>
     </div>
   </header>
 
-  <!-- Контент -->
-  <main class="flex-grow max-w-7xl mx-auto px-6 py-8 w-full">
+  <!-- Основное содержимое -->
+  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
     
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b-2 border-[#1E1E1E]">
+    <!-- Заголовок страницы в стиле плакатов из буклета -->
+    <div class="border-b-4 border-[#111111] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <div class="flex items-center space-x-2 mb-1.5">
-          <span class="w-2.5 h-2.5 brand-red"></span>
-          <span class="text-[11px] font-bold text-[#555555] uppercase tracking-widest">Практический контур обучения • Студии и выезды</span>
+        <div class="flex items-center space-x-2 mb-2">
+          <span class="px-2 py-0.5 bg-[#111111] text-white text-[10px] font-extrabold uppercase">РЕО 54.01.20</span>
+          <span class="px-2 py-0.5 brand-red text-[10px] font-extrabold uppercase border border-[#111111]">ПРАКТИЧЕСКИЙ КОНТУР</span>
         </div>
-        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-[#1E1E1E]">Реестр производств</h2>
+        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight uppercase">Реестр производств</h2>
       </div>
       <div id="actionButtonContainer"></div>
     </div>
 
     <!-- Уведомления приглашений -->
-    <div id="notificationsContainer" class="mb-8"></div>
+    <div id="notificationsContainer"></div>
 
-    <!-- Асимметричные вкладки -->
-    <div id="tabNav" class="hidden flex space-x-3 mb-8 border-b-2 border-[#1E1E1E] pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-5 py-2.5 font-extrabold text-xs brand-red text-white uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] transition">Смены</button>
-      <button onclick="switchTab('map')" id="tabMapBtn" class="px-5 py-2.5 font-extrabold text-xs bg-white text-[#1E1E1E] uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] hover:bg-[#EECEA8] transition">Карта объектов</button>
-      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-5 py-2.5 font-extrabold text-xs bg-[#EECEA8] text-[#1E1E1E] uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] hover:bg-[#FC2C2C] hover:text-white transition">Администрирование</button>
+    <!-- Навигационные вкладки -->
+    <div id="tabNav" class="hidden flex space-x-4 border-b-2 border-[#111111] pb-4">
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase brand-red border-2 border-[#111111] shadow-[3px_3px_0px_#111111] transition">Смены</button>
+      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-white text-[#111111] border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:bg-neutral-100 transition">Карта объектов</button>
+      <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-neutral-200 text-[#111111] border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:bg-[#111111] hover:text-white transition">Администрирование</button>
     </div>
 
-    <!-- Смены -->
-    <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div class="lg:col-span-2 space-y-4">
-        <div class="flex items-center justify-between mb-2">
-          <span id="globalStatsText" class="text-xs font-bold text-[#555555] uppercase tracking-wider">Загрузка статистики...</span>
-          <span id="shootCount" class="text-xs brand-card-alt px-3 py-1 text-[#1E1E1E] font-extrabold">0 смен</span>
+    <!-- Смены (Асимметричная сетка) -->
+    <div id="viewShoots" class="editorial-grid">
+      <div class="col-span-12 lg:col-span-8 space-y-6">
+        <div class="flex items-center justify-between">
+          <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-600">Загрузка статистики...</span>
+          <span id="shootCount" class="text-xs px-3 py-1 bg-white border-2 border-[#111111] font-extrabold shadow-[2px_2px_0px_#111111]">0 смен</span>
         </div>
-        <div id="shootsList" class="space-y-4">
-          <div class="p-8 brand-card text-center text-[#555555] text-xs font-bold">Загрузка данных...</div>
+        <div id="shootsList" class="space-y-6">
+          <div class="p-8 editorial-card text-center font-bold text-xs uppercase">Загрузка данных...</div>
         </div>
       </div>
       
-      <div class="space-y-6">
-        <div class="p-5 brand-card-alt">
-          <h3 class="text-xs font-extrabold uppercase text-[#1E1E1E] mb-3 tracking-wider border-b border-[#1E1E1E] pb-1">Учётная запись</h3>
-          <div id="sidebarProfile" class="text-xs text-[#1E1E1E] space-y-2 font-medium">
-            <p>Авторизуйтесь для доступа к функционалу смен.</p>
+      <!-- Боковая панель профиля -->
+      <div class="col-span-12 lg:col-span-4 space-y-6">
+        <div class="p-6 editorial-card-dark">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-neutral-700 pb-2 text-[#E63B2E]">Учётная запись</h3>
+          <div id="sidebarProfile" class="text-xs space-y-3 font-medium">
+            <p class="text-neutral-300">Авторизуйтесь для доступа к управлению сменами.</p>
           </div>
         </div>
       </div>
@@ -111,25 +118,25 @@
 
     <!-- Карта -->
     <div id="viewMap" class="hidden space-y-4">
-      <div class="p-6 brand-card">
-        <h3 class="text-sm font-extrabold mb-1 text-[#1E1E1E] uppercase tracking-wider">Геолокационный мониторинг</h3>
-        <p class="text-xs text-[#555555] mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских колледжа.</p>
-        <div id="fullMapContainer" class="w-full h-[520px] border-2 border-[#1E1E1E] overflow-hidden bg-[#1E1E1E]"></div>
+      <div class="p-6 editorial-card">
+        <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1">Геолокационный мониторинг</h3>
+        <p class="text-xs text-neutral-600 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
+        <div id="fullMapContainer" class="w-full h-[520px] border-2 border-[#111111] bg-neutral-900"></div>
       </div>
     </div>
 
     <!-- Админ-панель -->
     <div id="viewAdmin" class="hidden space-y-6">
-      <div class="p-6 brand-card space-y-4">
+      <div class="p-6 editorial-card space-y-4">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h3 class="text-sm font-extrabold text-[#1E1E1E] uppercase tracking-wider">Управление ролями и учетными записями</h3>
-            <p class="text-xs text-[#555555] font-bold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
+            <h3 class="text-sm font-extrabold uppercase tracking-wider">Управление ролями и учетными записями</h3>
+            <p class="text-xs text-neutral-600 font-bold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
           </div>
-          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-white border-2 border-[#1E1E1E] px-3.5 py-2 text-xs text-[#1E1E1E] font-medium focus:outline-none focus:border-[#FC2C2C] w-full md:w-72 shadow-[2px_2px_0px_#1E1E1E]">
+          <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-white border-2 border-[#111111] px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] w-full md:w-72 shadow-[2px_2px_0px_#111111]">
         </div>
         <div id="adminUsersList" class="space-y-3">
-          <div class="text-[#555555] text-xs font-bold">Загрузка базы...</div>
+          <div class="text-neutral-600 text-xs font-bold">Загрузка базы...</div>
         </div>
       </div>
     </div>
@@ -137,90 +144,90 @@
   </main>
 
   <!-- Модальное окно создания смены -->
-  <div id="shootModal" class="hidden fixed inset-0 bg-[#1E1E1E]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="brand-card bg-[#EECEA8] p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
-      <button onclick="closeShootModal()" class="absolute top-4 right-4 text-[#1E1E1E] font-extrabold hover:text-[#FC2C2C]">✕</button>
-      <h3 class="text-sm font-extrabold uppercase tracking-wider text-[#1E1E1E] mb-4 border-b-2 border-[#1E1E1E] pb-2">Создание производственной смены</h3>
+  <div id="shootModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="editorial-card bg-white p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
+      <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base hover:text-[#E63B2E]">✕</button>
+      <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b-2 border-[#111111] pb-2">Создание производственной смены</h3>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
-          <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Название проекта / смены</label>
-          <input type="text" id="shootTitle" required class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]">
+          <label class="block text-[11px] font-extrabold uppercase mb-1">Название проекта / смены</label>
+          <input type="text" id="shootTitle" required class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]">
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Описание задач</label>
-          <textarea id="shootDesc" rows="2" required class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]"></textarea>
+          <label class="block text-[11px] font-extrabold uppercase mb-1">Описание задач</label>
+          <textarea id="shootDesc" rows="2" required class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Тип производства</label>
-            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]">
+            <label class="block text-[11px] font-extrabold uppercase mb-1">Тип производства</label>
+            <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]">
               <option value="СТУДИЯ">Студия</option>
               <option value="ВЫЕЗД">Выезд</option>
             </select>
           </div>
           <div>
-            <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Дата и время</label>
-            <input type="datetime-local" id="shootDate" required class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]">
+            <label class="block text-[11px] font-extrabold uppercase mb-1">Дата и время</label>
+            <input type="datetime-local" id="shootDate" required class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]">
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Локация</label>
-          <input type="text" id="shootLocation" required class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]" placeholder="Павильон №1">
+          <label class="block text-[11px] font-extrabold uppercase mb-1">Локация</label>
+          <input type="text" id="shootLocation" required class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]" placeholder="Павильон №1">
         </div>
 
         <div id="pickerMapContainerWrapper" class="hidden space-y-2">
-          <label class="block text-[11px] font-extrabold text-[#FC2C2C] uppercase">Укажите точку выезда на карте:</label>
-          <div id="pickerMap" class="w-full h-44 border-2 border-[#1E1E1E] overflow-hidden bg-[#1E1E1E]"></div>
+          <label class="block text-[11px] font-extrabold brand-red-text uppercase">Укажите точку выезда на карте:</label>
+          <div id="pickerMap" class="w-full h-44 border-2 border-[#111111] overflow-hidden bg-neutral-900"></div>
           <input type="hidden" id="selectedLat" value="55.751244">
           <input type="hidden" id="selectedLon" value="37.618423">
         </div>
         
         <div>
-          <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-2">Назначение цеховых ролей участникам:</label>
-          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-1.5 text-xs text-[#1E1E1E] font-bold mb-2 focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]">
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-white/70 p-3 border-2 border-[#1E1E1E]">
+          <label class="block text-[11px] font-extrabold uppercase mb-2">Назначение цеховых ролей участникам:</label>
+          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-1.5 text-xs font-bold mb-2 focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]">
+          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-neutral-100 p-3 border-2 border-[#111111]">
             <!-- Заполняется через JS -->
           </div>
         </div>
 
-        <button type="submit" class="w-full brand-red text-white py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#1E1E1E] transition border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E]">Опубликовать</button>
+        <button type="submit" class="w-full brand-red border-2 border-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-[3px_3px_0px_#111111] hover:opacity-90 transition">Опубликовать смену</button>
       </form>
     </div>
   </div>
 
   <!-- Модальное окно Вход / Регистрация -->
-  <div id="modal" class="hidden fixed inset-0 bg-[#1E1E1E]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="brand-card-alt p-6 w-full max-w-sm relative shadow-2xl">
-      <button onclick="closeModal()" class="absolute top-4 right-4 text-[#1E1E1E] font-extrabold hover:text-[#FC2C2C]">✕</button>
-      <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider text-[#1E1E1E] mb-4 border-b-2 border-[#1E1E1E] pb-2">Авторизация</h3>
+  <div id="modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="editorial-card bg-white p-6 w-full max-w-sm relative shadow-2xl">
+      <button onclick="closeModal()" class="absolute top-4 right-4 font-extrabold text-base hover:text-[#E63B2E]">✕</button>
+      <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b-2 border-[#111111] pb-2">Авторизация</h3>
       
       <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3">
         <div id="registerFields" class="hidden space-y-3">
           <div>
-            <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">ФИО</label>
-            <input type="text" id="fullName" class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]">
+            <label class="block text-[11px] font-extrabold uppercase mb-1">ФИО</label>
+            <input type="text" id="fullName" class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]">
           </div>
           <div>
-            <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Учебная группа</label>
-            <input type="text" id="groupName" class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]" placeholder="Напр. КИТ-21">
+            <label class="block text-[11px] font-extrabold uppercase mb-1">Учебная группа</label>
+            <input type="text" id="groupName" class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]" placeholder="Напр. КИТ-21">
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Email</label>
-          <input type="email" id="email" required class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]" placeholder="user@ckt.ru">
+          <label class="block text-[11px] font-extrabold uppercase mb-1">Email</label>
+          <input type="email" id="email" required class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]" placeholder="user@ckt.ru">
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold text-[#1E1E1E] uppercase mb-1">Пароль</label>
-          <input type="password" id="password" required class="w-full bg-white border-2 border-[#1E1E1E] px-3 py-2 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C] shadow-[2px_2px_0px_#1E1E1E]">
+          <label class="block text-[11px] font-extrabold uppercase mb-1">Пароль</label>
+          <input type="password" id="password" required class="w-full bg-neutral-50 border-2 border-[#111111] px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#E63B2E] shadow-[2px_2px_0px_#111111]">
         </div>
-        <button type="submit" class="w-full brand-red text-white py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#1E1E1E] transition border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E]">Подтвердить</button>
+        <button type="submit" class="w-full brand-red border-2 border-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-[3px_3px_0px_#111111] hover:opacity-90 transition">Подтвердить</button>
       </form>
     </div>
   </div>
 
-  <footer class="border-t-2 border-[#1E1E1E] bg-[#EECEA8] py-6 text-center text-xs text-[#1E1E1E] font-extrabold tracking-wider uppercase">
-    Колледж Предпринимательства №11 • Производственная экосистема
+  <footer class="border-t-4 border-[#111111] bg-white py-6 text-center text-xs font-extrabold uppercase tracking-widest">
+    Колледж Предпринимательства №11 • Реестр производственных смен
   </footer>
 
   <script>
@@ -255,15 +262,15 @@
         tabNav.classList.remove('hidden');
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
-            <span class="text-xs bg-white border-2 border-[#1E1E1E] px-3.5 py-1.5 text-[#FC2C2C] font-extrabold shadow-[2px_2px_0px_#1E1E1E]">${currentUser.fullName} [${currentUser.groupName || 'Группа'}]</span>
-            <button onclick="logout()" class="text-xs font-bold text-[#1E1E1E] hover:text-[#FC2C2C] transition">Выход</button>
+            <span class="text-xs bg-white border-2 border-[#111111] px-3.5 py-1.5 font-extrabold shadow-[2px_2px_0px_#111111]">${currentUser.fullName} <span class="text-neutral-500">[${currentUser.groupName || 'Группа'}]</span></span>
+            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-neutral-200 border-2 border-[#111111] shadow-[2px_2px_0px_#111111] hover:bg-[#111111] hover:text-white transition">Выход</button>
           </div>
         `;
 
         if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
           actionContainer.innerHTML = `
-            <button onclick="openShootModal()" class="brand-red text-white px-4 py-2 font-extrabold text-xs uppercase tracking-wider hover:bg-[#1E1E1E] transition border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] flex items-center space-x-2">
-              <span>+ Смена</span>
+            <button onclick="openShootModal()" class="brand-red border-2 border-[#111111] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider shadow-[3px_3px_0px_#111111] hover:opacity-90 transition flex items-center space-x-2">
+              <span>+ Новая смена</span>
             </button>
           `;
         }
@@ -286,9 +293,9 @@
       document.getElementById('viewMap').classList.toggle('hidden', !isMap);
       document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
 
-      document.getElementById('tabShootsBtn').className = isShoots ? 'px-5 py-2.5 font-extrabold text-xs brand-red text-white uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] transition' : 'px-5 py-2.5 font-extrabold text-xs bg-white text-[#1E1E1E] uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] hover:bg-[#EECEA8] transition';
-      document.getElementById('tabMapBtn').className = isMap ? 'px-5 py-2.5 font-extrabold text-xs brand-red text-white uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] transition' : 'px-5 py-2.5 font-extrabold text-xs bg-white text-[#1E1E1E] uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] hover:bg-[#EECEA8] transition';
-      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-5 py-2.5 font-extrabold text-xs brand-red text-white uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] transition' : 'px-5 py-2.5 font-extrabold text-xs bg-[#EECEA8] text-[#1E1E1E] uppercase tracking-wider border-2 border-[#1E1E1E] shadow-[3px_3px_0px_#1E1E1E] hover:bg-[#FC2C2C] hover:text-white transition';
+      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase brand-red border-2 border-[#111111] shadow-[3px_3px_0px_#111111] transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-white text-[#111111] border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:bg-neutral-100 transition';
+      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase brand-red border-2 border-[#111111] shadow-[3px_3px_0px_#111111] transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-white text-[#111111] border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:bg-neutral-100 transition';
+      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase brand-red border-2 border-[#111111] shadow-[3px_3px_0px_#111111] transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-neutral-200 text-[#111111] border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:bg-[#111111] hover:text-white transition';
 
       if (isMap && fullMap) {
         setTimeout(() => fullMap.container.fitToViewport(), 150);
@@ -313,17 +320,17 @@
     function renderAdminUsers(users) {
       const container = document.getElementById('adminUsersList');
       container.innerHTML = users.map(u => `
-        <div class="flex items-center justify-between p-3 brand-card ${u.isSuspended ? 'border-red-600 bg-red-100' : 'border-[#1E1E1E]'}">
+        <div class="flex items-center justify-between p-3 editorial-card ${u.isSuspended ? 'bg-red-50 border-red-600' : ''}">
           <div>
-            <h4 class="font-extrabold text-xs text-[#1E1E1E]">${u.fullName} <span class="text-[11px] text-[#555555]">[${u.groupName || 'Группа не указана'}]</span> <span class="text-[11px] text-amber-700 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-600 text-[11px] font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
-            <p class="text-[11px] text-[#555555] font-bold">${u.email}</p>
+            <h4 class="font-extrabold text-xs uppercase">${u.fullName} <span class="text-neutral-500">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-600 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-600 font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
+            <p class="text-[11px] text-neutral-600 font-bold">${u.email}</p>
           </div>
           <div class="flex items-center space-x-2">
-            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-white border-2 border-[#1E1E1E] px-2.5 py-1 text-xs text-[#1E1E1E] font-bold focus:outline-none focus:border-[#FC2C2C]">
+            <select onchange="changeUserRole('${u.id}', this.value)" class="bg-white border-2 border-[#111111] px-2.5 py-1 text-xs font-bold focus:outline-none focus:border-[#E63B2E]">
               <option value="">Роль: ${u.role?.name || 'Студент'}</option>
               <option value="STUDENT">Студент</option>
             </select>
-            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase border-2 border-[#1E1E1E] shadow-[2px_2px_0px_#1E1E1E] ${u.isSuspended ? 'bg-emerald-600 text-white' : 'brand-red text-white'}">
+            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase border-2 border-[#111111] shadow-[2px_2px_0px_#111111] ${u.isSuspended ? 'bg-emerald-600 text-white' : 'brand-red'}">
               ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
             </button>
           </div>
@@ -369,17 +376,17 @@
         }
 
         container.innerHTML = `
-          <div class="p-4 brand-card-alt space-y-2">
-            <h4 class="text-xs font-extrabold text-[#FC2C2C] uppercase tracking-wider">Приглашения в состав смены:</h4>
+          <div class="p-4 editorial-card-dark mb-6 space-y-2">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-[#E63B2E]">Приглашения в состав смены:</h4>
             ${invites.map(inv => `
-              <div class="flex items-center justify-between bg-white p-3 border-2 border-[#1E1E1E] text-xs shadow-[2px_2px_0px_#1E1E1E]">
+              <div class="flex items-center justify-between bg-white text-[#111111] p-3 border-2 border-[#111111] text-xs shadow-[2px_2px_0px_#111111]">
                 <div>
-                  <strong class="text-[#1E1E1E] text-xs font-extrabold">${inv.shoot.title}</strong>
-                  <p class="text-[#555555] text-[11px] font-bold">Локация: ${inv.shoot.location}</p>
+                  <strong class="text-xs font-extrabold uppercase">${inv.shoot.title}</strong>
+                  <p class="text-neutral-600 text-[11px] font-bold">Локация: ${inv.shoot.location}</p>
                 </div>
                 <div class="space-x-2">
-                  <button onclick="respondCrew('${inv.id}', 'ACCEPTED')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase border-2 border-[#1E1E1E] shadow-[2px_2px_0px_#1E1E1E]">Принять</button>
-                  <button onclick="respondCrew('${inv.id}', 'DECLINED')" class="bg-neutral-200 text-[#1E1E1E] px-3 py-1 text-xs font-extrabold uppercase border-2 border-[#1E1E1E] shadow-[2px_2px_0px_#1E1E1E]">Отклонить</button>
+                  <button onclick="respondCrew('${inv.id}', 'ACCEPTED')" class="bg-emerald-600 text-white px-3 py-1 text-xs font-extrabold uppercase border-2 border-[#111111] shadow-[2px_2px_0px_#111111]">Принять</button>
+                  <button onclick="respondCrew('${inv.id}', 'DECLINED')" class="bg-neutral-300 text-[#111111] px-3 py-1 text-xs font-extrabold uppercase border-2 border-[#111111] shadow-[2px_2px_0px_#111111]">Отклонить</button>
                 </div>
               </div>
             `).join('')}
@@ -440,12 +447,12 @@
     function renderModalStudents(students) {
       const box = document.getElementById('studentsCheckboxes');
       box.innerHTML = students.map(s => `
-        <div class="flex items-center justify-between p-2 bg-white border-2 border-[#1E1E1E] text-xs">
+        <div class="flex items-center justify-between p-2 bg-white border-2 border-[#111111] text-xs">
           <label class="flex items-center space-x-2.5 cursor-pointer flex-grow">
-            <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-white border-2 border-[#1E1E1E] text-[#FC2C2C]">
-            <span class="text-[#1E1E1E] font-extrabold text-xs">${s.fullName} <span class="text-[#555555]">[${s.groupName}]</span> <span class="text-amber-700 font-extrabold">⭐${s.rating}</span></span>
+            <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-white border-2 border-[#111111] text-[#E63B2E]">
+            <span class="font-extrabold text-xs uppercase">${s.fullName} <span class="text-neutral-500">[${s.groupName}]</span> <span class="text-amber-600 font-extrabold">⭐${s.rating}</span></span>
           </label>
-          <select name="craftRole_${s.id}" class="bg-white border-2 border-[#1E1E1E] px-2.5 py-1 text-xs text-[#1E1E1E] font-bold">
+          <select name="craftRole_${s.id}" class="bg-white border-2 border-[#111111] px-2 py-1 text-xs font-bold">
             <option value="Оператор">Оператор</option>
             <option value="Звукорежиссер">Звукорежиссер</option>
             <option value="Осветитель">Осветитель</option>
@@ -588,14 +595,14 @@
         const sidebar = document.getElementById('sidebarProfile');
         if (currentUser) {
           sidebar.innerHTML = `
-            <div class="space-y-2.5 text-xs font-bold">
-              <div class="flex justify-between"><span class="text-[#555555]">ФИО:</span><span class="text-[#1E1E1E] font-extrabold">${currentUser.fullName}</span></div>
-              <div class="flex justify-between"><span class="text-[#555555]">Группа:</span><span class="text-[#FC2C2C] font-extrabold">${currentUser.groupName || '—'}</span></div>
-              <div class="flex justify-between"><span class="text-[#555555]">Роль:</span><span class="text-[#1E1E1E] font-extrabold">${currentUser.role}</span></div>
+            <div class="space-y-2 text-xs font-bold uppercase">
+              <div class="flex justify-between border-b border-neutral-700 pb-1.5"><span class="text-neutral-400">ФИО:</span><span class="text-white">${currentUser.fullName}</span></div>
+              <div class="flex justify-between border-b border-neutral-700 pb-1.5"><span class="text-neutral-400">Группа:</span><span class="text-[#E63B2E]">${currentUser.groupName || '—'}</span></div>
+              <div class="flex justify-between border-b border-neutral-700 pb-1.5"><span class="text-neutral-400">Роль:</span><span class="text-white">${currentUser.role}</span></div>
               ${userStats ? `
-                <div class="border-t-2 border-[#1E1E1E] pt-2.5 mt-2.5 space-y-1.5">
-                  <div class="flex justify-between"><span class="text-[#555555]">Рейтинг:</span><span class="text-amber-700 font-extrabold">⭐ ${userStats.rating}</span></div>
-                  <div class="flex justify-between"><span class="text-[#555555]">Смен в активе:</span><span class="text-[#1E1E1E] font-extrabold">${userStats.completedParticipated} /${userStats.totalParticipated}</span></div>
+                <div class="pt-2 space-y-1.5">
+                  <div class="flex justify-between"><span class="text-neutral-400">Рейтинг:</span><span class="text-amber-400">⭐ ${userStats.rating}</span></div>
+                  <div class="flex justify-between"><span class="text-neutral-400">Активных смен:</span><span class="text-white">${userStats.completedParticipated} /${userStats.totalParticipated}</span></div>
                 </div>
               ` : ''}
             </div>
@@ -605,7 +612,7 @@
         const container = document.getElementById('shootsList');
 
         if (shoots.length === 0) {
-          container.innerHTML = `<div class="p-8 brand-card text-center text-[#555555] text-xs font-extrabold">Нет активных смен.</div>`;
+          container.innerHTML = `<div class="p-8 editorial-card text-center font-bold text-xs uppercase">Нет активных смен.</div>`;
           return;
         }
 
@@ -624,38 +631,38 @@
         const canManage = currentUser && (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор');
 
         container.innerHTML = shoots.map(s => `
-          <div class="p-6 brand-card space-y-4">
+          <div class="p-6 editorial-card space-y-4">
             <div class="flex justify-between items-center">
-              <div class="flex items-center space-x-2.5">
-                <span class="text-[11px] brand-red text-white border-2 border-[#1E1E1E] px-2.5 py-1 uppercase font-extrabold tracking-wider shadow-[2px_2px_0px_#1E1E1E]">${s.type}</span>
-                ${s.isCompleted ? '<span class="text-[11px] bg-emerald-600 text-white border-2 border-[#1E1E1E] px-2.5 py-1 uppercase font-extrabold tracking-wider shadow-[2px_2px_0px_#1E1E1E]">Завершено</span>' : '<span class="text-[11px] bg-amber-500 text-[#1E1E1E] border-2 border-[#1E1E1E] px-2.5 py-1 uppercase font-extrabold tracking-wider shadow-[2px_2px_0px_#1E1E1E]">В процессе</span>'}
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] brand-red px-2.5 py-1 uppercase font-extrabold border border-[#111111] shadow-[2px_2px_0px_#111111]">${s.type}</span>
+                ${s.isCompleted ? '<span class="text-[10px] bg-emerald-600 text-white px-2.5 py-1 uppercase font-extrabold border border-[#111111] shadow-[2px_2px_0px_#111111]">Завершено</span>' : '<span class="text-[10px] bg-amber-400 text-[#111111] px-2.5 py-1 uppercase font-extrabold border border-[#111111] shadow-[2px_2px_0px_#111111]">В процессе</span>'}
               </div>
-              <span class="text-xs text-[#555555] font-bold">${new Date(s.date).toLocaleString()}</span>
+              <span class="text-xs text-neutral-500 font-bold">${new Date(s.date).toLocaleString()}</span>
             </div>
             <div>
-              <h4 class="text-base font-extrabold text-[#1E1E1E] mb-1.5">${s.title}</h4>
-              <p class="text-xs text-[#333333] font-medium leading-relaxed">${s.description}</p>
+              <h4 class="text-base font-extrabold uppercase text-[#111111] mb-1">${s.title}</h4>
+              <p class="text-xs text-neutral-700 font-medium leading-relaxed">${s.description}</p>
             </div>
-            <div class="text-xs text-[#555555] font-bold border-t-2 border-[#1E1E1E] pt-3 flex justify-between">
-              <span>Локация: <strong class="text-[#1E1E1E]">${s.location}</strong></span>
-              <span>Мастер: <strong class="text-[#1E1E1E]">${s.creator.fullName}</strong></span>
+            <div class="text-xs text-neutral-600 font-bold border-t-2 border-[#111111] pt-3 flex justify-between uppercase">
+              <span>Локация: <strong class="text-[#111111]">${s.location}</strong></span>
+              <span>Мастер: <strong class="text-[#111111]">${s.creator.fullName}</strong></span>
             </div>
-            <div class="bg-white p-3 border-2 border-[#1E1E1E] text-xs space-y-2 shadow-[2px_2px_0px_#1E1E1E]">
+            <div class="bg-neutral-50 p-3 border-2 border-[#111111] text-xs space-y-2 shadow-[2px_2px_0px_#111111]">
               <div class="flex justify-between items-center mb-1">
-                <span class="text-[#555555] uppercase tracking-wider text-[11px] font-extrabold">Съёмочная группа и посещаемость:</span>
-                ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="brand-red text-white border-2 border-[#1E1E1E] px-3 py-1 text-xs font-extrabold uppercase hover:bg-[#1E1E1E] transition shadow-[2px_2px_0px_#1E1E1E]">Завершить смену</button>` : ''}
+                <span class="text-neutral-500 uppercase tracking-wider text-[10px] font-extrabold">Съёмочная группа:</span>
+                ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="brand-red border border-[#111111] px-3 py-1 text-[10px] font-extrabold uppercase shadow-[2px_2px_0px_#111111] hover:opacity-90 transition">Завершить смену</button>` : ''}
               </div>
               <div class="flex flex-wrap gap-2">
-                ${s.crew.length === 0 ? '<span class="text-[#555555] text-xs font-bold">Команда не назначена</span>' : s.crew.map(c => `
-                  <div class="px-3 py-1.5 border-2 border-[#1E1E1E] flex items-center space-x-2.5 text-xs font-bold shadow-[2px_2px_0px_#1E1E1E] ${
+                ${s.crew.length === 0 ? '<span class="text-neutral-500 text-xs font-bold uppercase">Команда не назначена</span>' : s.crew.map(c => `
+                  <div class="px-3 py-1.5 border-2 border-[#111111] flex items-center space-x-2 text-xs font-bold shadow-[2px_2px_0px_#111111] ${
                     c.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-900' :
                     c.status === 'DECLINED' ? 'bg-red-100 text-red-900' :
-                    'bg-[#EECEA8] text-[#1E1E1E]'
+                    'bg-white text-[#111111]'
                   }">
-                    <span>${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
+                    <span class="uppercase">${c.user.fullName} [${c.user.groupName || 'Группа'}] (${c.roleInShoot}) ⭐${c.user.rating}</span>
                     <span class="font-extrabold">${c.status === 'ACCEPTED' ? '✓' : c.status === 'DECLINED' ? '✕' : '···'}</span>
                     ${canManage && c.status === 'ACCEPTED' && !s.isCompleted ? `
-                      <select onchange="updateAttendance('${c.id}', this.value)" class="bg-white border-2 border-[#1E1E1E] text-xs text-[#1E1E1E] font-bold px-1.5 py-0.5">
+                      <select onchange="updateAttendance('${c.id}', this.value)" class="bg-white border-2 border-[#111111] text-xs font-bold px-1 py-0.5">
                         <option value="PRESENT" ${c.attendance === 'PRESENT' ? 'selected' : ''}>Присутствовал</option>
                         <option value="ABSENT" ${c.attendance === 'ABSENT' ? 'selected' : ''}>Прогул (-0.3⭐)</option>
                       </select>
