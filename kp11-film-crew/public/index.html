@@ -31,13 +31,10 @@
       clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
     }
 
-    /* Текст меняет свой цвет попиксельно в точности под цвет фона сайта */
-    .pixel-text-bg {
-      background-image: linear-gradient(135deg, #0A0A0A 36.5%, #E63B2E 36.5%, #E63B2E 63.5%, #0A0A0A 63.5%);
-      background-size: 100% 100%;
-      background-attachment: fixed;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    /* Четкий инвертированный текст с гарантированной видимостью */
+    .pixel-text-invert {
+      color: #FFFFFF;
+      mix-blend-mode: exclusion;
     }
 
     .paper-cut-text-dark {
@@ -83,16 +80,16 @@
   <header class="bg-[#0A0A0A] border-b border-[#222222] sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
-        <div class="bg-[#E63B2E] text-[#F5F2EB] px-4 py-2 font-extrabold text-lg tracking-widest unified-parallelogram pixel-text-bg">
+        <div class="bg-[#E63B2E] text-[#F5F2EB] px-4 py-2 font-extrabold text-lg tracking-widest unified-parallelogram pixel-text-invert">
           КП11
         </div>
         <div class="border-l border-[#333333] pl-4">
-          <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-bg">Колледж Предпринимательства №11</h1>
+          <h1 class="text-xs font-extrabold tracking-widest uppercase pixel-text-invert">Колледж Предпринимательства №11</h1>
           <p class="text-[10px] text-neutral-400 font-bold uppercase">Производственная система</p>
         </div>
       </div>
       <div id="userNav" class="flex items-center space-x-4">
-        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition hover:opacity-95">Вход</button>
+        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
         <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[#F5F2EB] text-[#111111] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
       </div>
     </div>
@@ -104,9 +101,9 @@
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
         <div class="flex items-center space-x-2 mb-2">
-          <span class="px-2 py-0.5 bg-[#E63B2E] text-[#F5F2EB] text-[10px] font-extrabold uppercase unified-parallelogram pixel-text-bg">ПРАКТИЧЕСКИЙ КОНТУР</span>
+          <span class="px-2 py-0.5 bg-[#E63B2E] text-[#F5F2EB] text-[10px] font-extrabold uppercase unified-parallelogram pixel-text-invert">ПРАКТИЧЕСКИЙ КОНТУР</span>
         </div>
-        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight uppercase pixel-text-bg">Реестр производств</h2>
+        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight uppercase pixel-text-invert">Реестр производств</h2>
       </div>
       <div id="actionButtonContainer"></div>
     </div>
@@ -116,8 +113,8 @@
 
     <!-- Навигационные вкладки -->
     <div id="tabNav" class="hidden flex space-x-4 border-b border-[#333333] pb-4">
-      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition">Смены</button>
-      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition">Карта объектов</button>
+      <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition">Смены</button>
+      <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
       <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
     </div>
 
@@ -129,7 +126,7 @@
           <span id="shootCount" class="text-xs px-3 py-1 bg-[#1A1A1A] text-[#F5F2EB] font-extrabold unified-parallelogram">0 смен</span>
         </div>
         <div id="shootsList" class="space-y-6">
-          <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase pixel-text-bg">Загрузка данных...</div>
+          <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase pixel-text-invert">Загрузка данных...</div>
         </div>
       </div>
       
@@ -147,7 +144,7 @@
     <!-- Карта -->
     <div id="viewMap" class="hidden space-y-4">
       <div class="p-6 bg-[#1A1A1A] text-white unified-parallelogram border border-[#333333]">
-        <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-bg">Геолокационный мониторинг</h3>
+        <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг</h3>
         <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
         <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
       </div>
@@ -158,7 +155,7 @@
       <div class="p-6 bg-[#1A1A1A] text-white unified-parallelogram space-y-4 border border-[#333333]">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-bg">Управление ролями и учетными записями</h3>
+            <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учетными записями</h3>
             <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО и группе, назначение статусов и дисциплинарное отстранение.</p>
           </div>
           <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#0A0A0A] text-[#F5F2EB] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
@@ -174,45 +171,45 @@
   <!-- Модальное окно создания смены -->
   <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
-      <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base pixel-text-bg hover:opacity-80">✕</button>
-      <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[#EEDDBF]/30 pb-2 pixel-text-bg">Создание производственной смены</h3>
+      <button onclick="closeShootModal()" class="absolute top-4 right-4 font-extrabold text-base pixel-text-invert hover:opacity-80">✕</button>
+      <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[#EEDDBF]/30 pb-2 pixel-text-invert">Создание производственной смены</h3>
       
       <form onsubmit="handleCreateShoot(event)" class="space-y-4">
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Название проекта / смены</label>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Название проекта / смены</label>
           <input type="text" id="shootTitle" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Описание задач</label>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Описание задач</label>
           <textarea id="shootDesc" rows="2" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Тип производства</label>
+            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Тип производства</label>
             <select id="shootType" onchange="toggleMapPicker(this.value)" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
               <option value="СТУДИЯ">Студия</option>
               <option value="ВЫЕЗД">Выезд</option>
             </select>
           </div>
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Дата и время</label>
+            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Дата и время</label>
             <input type="datetime-local" id="shootDate" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Локация</label>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Локация</label>
           <input type="text" id="shootLocation" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Павильон №1">
         </div>
 
         <div id="pickerMapContainerWrapper" class="hidden space-y-2">
-          <label class="block text-[11px] font-extrabold pixel-text-bg uppercase">Укажите точку выезда на карте:</label>
+          <label class="block text-[11px] font-extrabold pixel-text-invert uppercase">Укажите точку выезда на карте:</label>
           <div id="pickerMap" class="w-full h-44 bg-[#0A0A0A] unified-parallelogram overflow-hidden border border-[#333333]"></div>
           <input type="hidden" id="selectedLat" value="55.751244">
           <input type="hidden" id="selectedLon" value="37.618423">
         </div>
         
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-2 pixel-text-bg">Назначение цеховых ролей участникам:</label>
+          <label class="block text-[11px] font-extrabold uppercase mb-2 pixel-text-invert">Назначение цеховых ролей участникам:</label>
           <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-1.5 text-xs font-bold unified-parallelogram mb-2 focus:outline-none border border-[#333333]">
           <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[#0A0A0A] p-3 unified-parallelogram border border-[#333333]">
             <!-- Заполняется через JS -->
@@ -227,26 +224,26 @@
   <!-- Модальное окно Вход / Регистрация -->
   <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-sm relative shadow-2xl">
-      <button onclick="closeModal()" class="absolute top-4 right-4 font-extrabold text-base pixel-text-bg hover:opacity-80">✕</button>
-      <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[#EEDDBF]/30 pb-2 pixel-text-bg">Авторизация</h3>
+      <button onclick="closeModal()" class="absolute top-4 right-4 font-extrabold text-base pixel-text-invert hover:opacity-80">✕</button>
+      <h3 id="modalTitle" class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[#EEDDBF]/30 pb-2 pixel-text-invert">Авторизация</h3>
       
       <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3">
         <div id="registerFields" class="hidden space-y-3">
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">ФИО</label>
+            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">ФИО</label>
             <input type="text" id="fullName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
           </div>
           <div>
-            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Учебная группа</label>
+            <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Учебная группа</label>
             <input type="text" id="groupName" class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Напр. КИТ-21">
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Email</label>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Email</label>
           <input type="email" id="email" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="user@ckt.ru">
         </div>
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-bg">Пароль</label>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 pixel-text-invert">Пароль</label>
           <input type="password" id="password" required class="w-full bg-[#0A0A0A] text-[#F5F2EB] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
         </div>
         <button type="submit" class="w-full bg-[#F5F2EB] text-[#111111] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Подтвердить</button>
@@ -254,7 +251,7 @@
     </div>
   </div>
 
-  <footer class="border-t border-[#222222] bg-[#0A0A0A] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-bg">
+  <footer class="border-t border-[#222222] bg-[#0A0A0A] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
     Колледж Предпринимательства №11 • Реестр производственных смен
   </footer>
 
@@ -291,13 +288,13 @@
         nav.innerHTML = `
           <div class="flex items-center space-x-3">
             <span class="text-xs bg-[#EEDDBF] text-[#111111] px-3.5 py-1.5 font-extrabold unified-parallelogram paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
-            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-bg hover:bg-black transition">Выход</button>
+            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert hover:bg-black transition">Выход</button>
           </div>
         `;
 
         if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
           actionContainer.innerHTML = `
-            <button onclick="openShootModal()" class="bg-[#E63B2E] text-[#F5F2EB] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider unified-parallelogram pixel-text-bg hover:opacity-95 transition flex items-center space-x-2">
+            <button onclick="openShootModal()" class="bg-[#E63B2E] text-[#F5F2EB] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider unified-parallelogram pixel-text-invert hover:opacity-95 transition flex items-center space-x-2">
               <span>+ Новая смена</span>
             </button>
           `;
@@ -321,9 +318,9 @@
       document.getElementById('viewMap').classList.toggle('hidden', !isMap);
       document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
 
-      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition';
-      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition';
-      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-bg transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] unified-parallelogram paper-cut-text-dark transition';
+      document.getElementById('tabShootsBtn').className = isShoots ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition';
+      document.getElementById('tabMapBtn').className = isMap ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#1A1A1A] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition';
+      document.getElementById('tabAdminBtn').className = isAdmin ? 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram pixel-text-invert transition' : 'px-6 py-2.5 font-extrabold text-xs uppercase bg-[#EEDDBF] text-[#111111] unified-parallelogram paper-cut-text-dark transition';
 
       if (isMap && fullMap) {
         setTimeout(() => fullMap.container.fitToViewport(), 150);
@@ -350,7 +347,7 @@
       container.innerHTML = users.map(u => `
         <div class="flex items-center justify-between p-3 bg-[#0A0A0A] unified-parallelogram ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
           <div>
-            <h4 class="font-extrabold text-xs uppercase pixel-text-bg">${u.fullName} <span class="text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
+            <h4 class="font-extrabold text-xs uppercase pixel-text-invert">${u.fullName} <span class="text-neutral-400">[${u.groupName || 'Группа не указана'}]</span> <span class="text-amber-400 font-extrabold">⭐${u.rating}</span> ${u.isSuspended ? '<span class="text-red-500 font-extrabold">[ОТСТРАНЕН]</span>' : ''}</h4>
             <p class="text-[11px] text-neutral-400 font-bold">${u.email}</p>
           </div>
           <div class="flex items-center space-x-2">
@@ -358,7 +355,7 @@
               <option value="">Роль: ${u.role?.name || 'Студент'}</option>
               <option value="STUDENT">Студент</option>
             </select>
-            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white pixel-text-bg'}">
+            <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[#E63B2E] text-white pixel-text-invert'}">
               ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
             </button>
           </div>
@@ -405,11 +402,11 @@
 
         container.innerHTML = `
           <div class="p-4 bg-[#E63B2E] text-[#F5F2EB] unified-parallelogram mb-6 space-y-2 border border-[#EEDDBF]">
-            <h4 class="text-xs font-extrabold uppercase tracking-wider pixel-text-bg">Приглашения в состав смены:</h4>
+            <h4 class="text-xs font-extrabold uppercase tracking-wider pixel-text-invert">Приглашения в состав смены:</h4>
             ${invites.map(inv => `
               <div class="flex items-center justify-between bg-[#0A0A0A] text-[#F5F2EB] p-3 text-xs unified-parallelogram">
                 <div>
-                  <strong class="text-xs font-extrabold uppercase pixel-text-bg">${inv.shoot.title}</strong>
+                  <strong class="text-xs font-extrabold uppercase pixel-text-invert">${inv.shoot.title}</strong>
                   <p class="text-neutral-400 text-[11px] font-bold">Локация: ${inv.shoot.location}</p>
                 </div>
                 <div class="space-x-2">
@@ -478,7 +475,7 @@
         <div class="flex items-center justify-between p-2 bg-[#0A0A0A] text-xs unified-parallelogram">
           <label class="flex items-center space-x-2.5 cursor-pointer flex-grow">
             <input type="checkbox" name="studentSelect" value="${s.id}" class="bg-[#0A0A0A] text-[#E63B2E]">
-            <span class="font-extrabold text-xs uppercase pixel-text-bg">${s.fullName} <span class="text-neutral-400">[${s.groupName}]</span> <span class="text-amber-400 font-extrabold">⭐${s.rating}</span></span>
+            <span class="font-extrabold text-xs uppercase pixel-text-invert">${s.fullName} <span class="text-neutral-400">[${s.groupName}]</span> <span class="text-amber-400 font-extrabold">⭐${s.rating}</span></span>
           </label>
           <select name="craftRole_${s.id}" class="bg-[#1A1A1A] text-[#F5F2EB] px-2.5 py-1 text-xs font-bold unified-parallelogram border border-[#333333]">
             <option value="Оператор">Оператор</option>
@@ -640,7 +637,7 @@
         const container = document.getElementById('shootsList');
 
         if (shoots.length === 0) {
-          container.innerHTML = `<div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase pixel-text-bg">Нет активных смен.</div>`;
+          container.innerHTML = `<div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase pixel-text-invert">Нет активных смен.</div>`;
           return;
         }
 
@@ -670,20 +667,20 @@
                 <span class="text-xs text-neutral-200 font-bold">${new Date(s.date).toLocaleString()}</span>
               </div>
               <div>
-                <h4 class="text-base font-extrabold uppercase pixel-text-bg mb-1">${s.title}</h4>
-                <p class="text-xs font-medium leading-relaxed pixel-text-bg">${s.description}</p>
+                <h4 class="text-base font-extrabold uppercase pixel-text-invert mb-1">${s.title}</h4>
+                <p class="text-xs font-medium leading-relaxed pixel-text-invert">${s.description}</p>
               </div>
-              <div class="text-xs font-bold border-t border-[#EEDDBF]/30 pt-3 flex justify-between uppercase pixel-text-bg">
-                <span>Локация: <strong class="pixel-text-bg">${s.location}</strong></span>
-                <span>Мастер: <strong class="pixel-text-bg">${s.creator.fullName}</strong></span>
+              <div class="text-xs font-bold border-t border-[#EEDDBF]/30 pt-3 flex justify-between uppercase pixel-text-invert">
+                <span>Локация: <strong class="pixel-text-invert">${s.location}</strong></span>
+                <span>Мастер: <strong class="pixel-text-invert">${s.creator.fullName}</strong></span>
               </div>
               <div class="pt-2 text-xs space-y-2">
                 <div class="flex justify-between items-center mb-1">
-                  <span class="uppercase tracking-wider text-[10px] font-extrabold pixel-text-bg">Съёмочная группа:</span>
+                  <span class="uppercase tracking-wider text-[10px] font-extrabold pixel-text-invert">Съёмочная группа:</span>
                   ${canManage && !s.isCompleted ? `<button onclick="completeShoot('${s.id}')" class="bg-white text-black px-3 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-200 transition">Завершить смену</button>` : ''}
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  ${s.crew.length === 0 ? '<span class="text-xs font-bold uppercase pixel-text-bg">Команда не назначена</span>' : s.crew.map(c => `
+                  ${s.crew.length === 0 ? '<span class="text-xs font-bold uppercase pixel-text-invert">Команда не назначена</span>' : s.crew.map(c => `
                     <div class="px-3 py-1.5 flex items-center space-x-2 text-xs font-bold unified-parallelogram ${
                       c.status === 'ACCEPTED' ? 'bg-emerald-900 text-emerald-100' :
                       c.status === 'DECLINED' ? 'bg-red-900 text-red-100' :
