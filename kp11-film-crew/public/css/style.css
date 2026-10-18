@@ -1,0 +1,88 @@
+:root {
+  --brand-red: #FC2C2C;
+  --brand-beige: #EEE4B5;
+  --brand-black: #1E1E1E;
+  --brand-gray: #555555;
+}
+
+body { 
+  font-family: 'Manrope', sans-serif; 
+  background-color: var(--brand-black);
+  background-image: 
+    linear-gradient(135deg, transparent 63.5%, var(--brand-red) 63.5%, var(--brand-red) 80%, transparent 80%),
+    linear-gradient(135deg, var(--brand-black) 36.5%, var(--brand-red) 36.5%, var(--brand-red) 63.5%, var(--brand-black) 63.5%);
+  background-size: 100% 100%;
+  background-attachment: fixed;
+  color: #FFFFFF; 
+}
+
+.paper-block {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.unified-parallelogram {
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+.shoot-card-pure {
+  position: relative;
+  background-color: var(--brand-red);
+  border: 2px solid var(--brand-beige);
+  overflow: hidden;
+}
+
+.shoot-card-pure::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(135deg, transparent 63.5%, var(--brand-black) 63.5%, var(--brand-black) 80%, transparent 80%),
+    linear-gradient(135deg, transparent 36.5%, var(--brand-black) 36.5%, var(--brand-black) 63.5%, transparent 63.5%);
+  background-attachment: fixed;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.shoot-card-pure::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle at bottom right, rgba(252, 44, 44, 0.45), transparent 70%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.shoot-card-pure > * {
+  position: relative;
+  z-index: 3;
+}
+
+.shoot-card-text {
+  position: relative;
+  color: var(--brand-black);
+  background-color: transparent;
+}
+
+.shoot-card-text::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: var(--brand-beige);
+  background-image: 
+    linear-gradient(135deg, transparent 63.5%, var(--brand-beige) 63.5%, var(--brand-beige) 80%, transparent 80%),
+    linear-gradient(135deg, transparent 36.5%, var(--brand-beige) 36.5%, var(--brand-beige) 63.5%, transparent 63.5%);
+  background-attachment: fixed;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  pointer-events: none;
+}
+
+.pixel-text-invert { color: var(--brand-beige); }
+.paper-cut-text-dark { color: var(--brand-black); text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.4); }
+.account-card { background-color: var(--brand-beige); color: var(--brand-black); border: 2px solid #D5C895; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
