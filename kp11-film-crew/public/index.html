@@ -22,11 +22,37 @@
       animation: recPulse 1.5s infinite ease-in-out;
       display: inline-block;
     }
+    @keyframes verticalMarquee {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
+    .vertical-ticker-track {
+      animation: verticalMarquee 15s linear infinite;
+    }
+    .vertical-ticker-track:hover {
+      animation-play-state: paused;
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block">
+<body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block relative overflow-x-hidden">
 
-  <!-- Глубокий чёрный цвет шапки -->
+  <!-- Вертикальная бегущая строка с logo3.png у правого края экрана -->
+  <div class="fixed right-0 top-24 bottom-0 w-8 pointer-events-none z-40 overflow-hidden hidden xl:block opacity-75">
+    <div class="vertical-ticker-track flex flex-col items-center space-y-6">
+      <!-- Повторяющиеся картинки для непрерывной анимации -->
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+      <img src="/img/logo3.png" alt="ticker" class="w-6 h-6 object-contain">
+    </div>
+  </div>
+
   <header class="bg-[#030303] border-b border-[#1A1A1A] sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
@@ -70,9 +96,7 @@
     </div>
 
     <div id="authenticatedContent" class="hidden space-y-8">
-      <div id="notificationsContainer"></div>
 
-      <!-- Глубокий чёрный цвет для неактивных кнопок навигации -->
       <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
         <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
         <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[#030303] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
@@ -80,7 +104,31 @@
         <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
 
+      <!-- Главная вкладка "Смены" с панелью уведомлений слева -->
       <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Левая колонка: Панель уведомлений в том же сером стиле, что и фон/карточки -->
+        <div class="lg:col-span-4 space-y-6">
+          <div class="p-6 shoot-card-pure unified-parallelogram space-y-4 shadow-xl">
+            <div class="flex items-center justify-between border-b border-[var(--brand-beige)]/30 pb-2">
+              <h3 class="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-beige)]">Центр уведомлений</h3>
+              <span class="text-[10px] px-2 py-0.5 bg-[var(--brand-red)] text-white unified-parallelogram font-extrabold">Live</span>
+            </div>
+            <!-- Контейнер уведомлений (назначения, оценки, напоминания, личные сообщения) -->
+            <div id="notificationsContainer" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              <p class="text-xs text-[var(--brand-beige)] uppercase font-bold">Нет новых уведомлений.</p>
+            </div>
+          </div>
+
+          <div class="p-6 account-card">
+            <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
+            <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
+              <p>Загрузка данных профиля...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Правая часть: Реестр смен -->
         <div class="lg:col-span-8 space-y-6">
           <div class="flex items-center justify-between">
             <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
@@ -88,15 +136,6 @@
           </div>
           <div id="shootsList" class="space-y-6">
             <div class="p-8 shoot-card-pure unified-parallelogram text-center font-bold text-xs uppercase text-[var(--brand-beige)]">Загрузка данных...</div>
-          </div>
-        </div>
-        
-        <div class="lg:col-span-4 space-y-6">
-          <div class="p-6 account-card">
-            <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
-            <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
-              <p>Загрузка данных профиля...</p>
-            </div>
           </div>
         </div>
       </div>
@@ -111,7 +150,6 @@
 
       <div id="viewStats" class="hidden space-y-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <!-- Лидеры с прокруткой для 150+ пользователей -->
           <div class="lg:col-span-6 p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-4">
             <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг проф. пригодности (Лидеры)</h3>
             <div id="statsLeadersList" class="space-y-2 max-h-[420px] overflow-y-auto pr-2">
@@ -128,7 +166,6 @@
               </div>
             </div>
 
-            <!-- Группы с прокруткой -->
             <div class="p-6 bg-[#030303] text-white unified-parallelogram border border-[#1A1A1A] space-y-3">
               <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert border-b border-[#1A1A1A] pb-2">Рейтинг по учебным группам</h3>
               <div id="statsGroupsList" class="space-y-2 max-h-56 overflow-y-auto pr-2">
@@ -151,9 +188,12 @@
               <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учётными записями</h3>
               <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
             </div>
-            <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#222222]">
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+              <!-- Кнопка отправки персонального сообщения для мастеров и админов -->
+              <button onclick="openMessageModal()" class="px-4 py-2 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Отправить сообщение</button>
+              <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-64 border border-[#222222]">
+            </div>
           </div>
-          <!-- Административный список с прокруткой -->
           <div id="adminUsersList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
             <div class="text-neutral-400 text-xs font-bold">Загрузка базы...</div>
           </div>
@@ -161,6 +201,29 @@
       </div>
     </div>
   </main>
+
+  <!-- Модальное окно отправки личного сообщения мастером/админом -->
+  <div id="messageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-lg relative shadow-2xl">
+      <button onclick="closeMessageModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
+      <h3 class="text-sm font-extrabold uppercase tracking-wider mb-4 border-b border-[var(--brand-beige)]/30 pb-2 text-[var(--brand-beige)]">Отправка личного сообщения</h3>
+      
+      <form onsubmit="handleSendMessage(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Поиск получателя (ФИО или группа)</label>
+          <input type="text" id="msgRecipientSearch" oninput="filterMsgRecipients()" placeholder="Введите имя..." class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222] mb-2">
+          <select id="msgRecipientId" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]">
+            <option value="">Выберите получателя из списка...</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Текст сообщения</label>
+          <textarea id="msgBodyText" rows="4" required class="w-full bg-[#030303] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#222222]" placeholder="Ваше сообщение участнику..."></textarea>
+        </div>
+        <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Отправить уведомление</button>
+      </form>
+    </div>
+  </div>
 
   <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-2xl relative shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -241,9 +304,13 @@
     </div>
   </div>
 
-  <!-- Глубокий чёрный цвет футера -->
-  <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
-    Колледж Предпринимательства №11 • Реестр производственных смен
+  <!-- Футер с глубоким чёрным цветом и размещением logo2.png на красной линии фона снизу справа -->
+  <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert relative">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+      <span>Колледж Предпринимательства №11 • Реестр производственных смен</span>
+      <!-- Дополнительный логотип logo2.png на нижней линии фона -->
+      <img src="/img/logo2.png" alt="Дополнительный логотип" class="h-8 w-auto object-contain opacity-90">
+    </div>
   </footer>
 
   <script src="/js/app.js"></script>
