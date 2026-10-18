@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>КП11 • Производственная система</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Замените 'ваш_апи_ключ' на реальный ключ Яндекс.Карт при необходимости, либо оставьте заглушку -->
   <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_апи_ключ&lang=ru_RU" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -263,16 +264,16 @@
           </div>
           <div>
             <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Учебная группа</label>
-            <input type="text" id="groupName" class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Напр. КИТ-21">
+            <input type="text" id="groupName" autocomplete="off" class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="Напр. КИТ-21">
           </div>
         </div>
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Email</label>
-          <input type="email" id="email" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="user@ckt.ru">
+          <input type="email" id="email" autocomplete="email" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]" placeholder="user@ckt.ru">
         </div>
         <div>
           <label class="block text-[11px] font-extrabold uppercase mb-1 text-[var(--brand-beige)]">Пароль</label>
-          <input type="password" id="password" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
+          <input type="password" id="password" autocomplete="current-password" required class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-2 text-xs font-bold unified-parallelogram focus:outline-none border border-[#333333]">
         </div>
         <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Подтвердить</button>
       </form>
@@ -293,7 +294,7 @@
     let pickerMap = null;
     let pickerPlacemark = null;
 
-    // ГЛОБАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН (Решают ошибку openModal is not defined)
+    // ГЛОБАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН (Исправлена ошибка openModal is not defined)
     function openModal(type) {
       isRegister = type === 'register';
       const modalTitle = document.getElementById('modalTitle');
