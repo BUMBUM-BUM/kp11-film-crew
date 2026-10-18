@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>КП11 • Производственная система</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Замените 'ваш_апи_ключ' на реальный ключ Яндекс.Карт при необходимости, либо оставьте заглушку -->
-  <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_апи_ключ&lang=ru_RU" type="text/javascript"></script>
+  <!-- Яндекс Карты подключены в режиме без требования apiKey для корректной работы -->
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -294,7 +294,6 @@
     let pickerMap = null;
     let pickerPlacemark = null;
 
-    // ГЛОБАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН (Исправлена ошибка openModal is not defined)
     function openModal(type) {
       isRegister = type === 'register';
       const modalTitle = document.getElementById('modalTitle');
