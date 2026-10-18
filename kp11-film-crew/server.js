@@ -62,6 +62,14 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function requireMasterOrAdmin(req, res, next) {
+  const roleName = req.user?.role?.name;
+  if (!req.user || (roleName !== 'Администратор' && roleName !== 'Мастер / Преподаватель')) {
+    return res.status(403).json({ error: 'Доступ запрещён. Требуются права Мастера или Администратора.' });
+  }
+  next();
+}
+
 async function initDatabase() {
   try {
     let studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
@@ -83,7 +91,7 @@ async function initDatabase() {
     if (!adminExists) {
       const passwordHash = await bcrypt.hash('admin123', 10);
       await prisma.user.create({
-        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', groupName: 'Админ', roleId: adminRole.id }
+        data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', groupName: 'Админ', roleId: adminRole.id, rating: null }
       });
     }
   } catch (err) {
@@ -109,7 +117,7 @@ app.post('/api/auth/register', async (req, res) => {
         groupName: groupName || 'КИТ-11',
         roleId: studentRole ? studentRole.id : null,
         course: course ? parseInt(course) : 1,
-        rating: null, // У новых пользователей нет рейтинга
+        rating: null, // У новых пользователей изначально нет рейтинга
         skills: ['Универсал']
       },
       include: { role: true }
@@ -146,6 +154,39 @@ app.post('/api/auth/login', async (req, res) => {
         role: user.role?.name || 'Без роли'
       } 
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Эндпоинт для администратора: сбросить рейтинг ВСЕХ пользователей в null
+app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    await prisma.user.updateMany({
+      data: { rating: null }
+    });
+    res.json({ success: true, message: 'Рейтинг всех пользователей успешно сброшен' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Эндпоинт для администратора: редактирование профиля пользователя (ФИО, группа, рейтинг)
+app.patch('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fullName, groupName, rating } = req.body;
+    
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        fullName,
+        groupName,
+        rating: rating !== '' && rating !== null ? parseFloat(rating) : null
+      },
+      include: { role: true }
+    });
+    res.json({ success: true, user: updatedUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -207,6 +248,29 @@ app.delete('/api/admin/shoots/:id', authenticateToken, requireAdmin, async (req,
     const { id } = req.params;
     await prisma.shoot.delete({ where: { id } });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Редактирование смены (мастер или админ)
+app.put('/api/shoots/:id', authenticateToken, requireMasterOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, type, date, location, latitude, longitude } = req.body;
+    const updated = await prisma.shoot.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        type,
+        date: new Date(date),
+        location,
+        latitude: latitude ? parseFloat(latitude) : undefined,
+        longitude: longitude ? parseFloat(longitude) : undefined
+      }
+    });
+    res.json({ success: true, updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -316,7 +380,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   }
 });
 
-app.post('/api/shoots', authenticateToken, async (req, res) => {
+app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { title, description, type, date, location, crewAssignments, latitude, longitude } = req.body;
     const shoot = await prisma.shoot.create({
@@ -346,7 +410,7 @@ app.post('/api/shoots', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
+app.post('/api/crew/attendance', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { crewMemberId, attendance } = req.body;
     const crewMember = await prisma.crewMember.findUnique({
@@ -375,8 +439,7 @@ app.post('/api/crew/attendance', authenticateToken, async (req, res) => {
   }
 });
 
-// Завершение смены с выставлением оценки (среднее арифметическое)
-app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
+app.post('/api/shoots/complete', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { shootId, grade } = req.body;
     const shoot = await prisma.shoot.update({
@@ -391,9 +454,9 @@ app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
         if (user) {
           let newRating;
           if (user.rating === null || user.rating === undefined) {
-            newRating = grade; // Первая оценка
+            newRating = grade;
           } else {
-            newRating = parseFloat(((user.rating + grade) / 2).toFixed(1)); // Среднее арифметическое
+            newRating = parseFloat(((user.rating + grade) / 2).toFixed(1));
           }
           await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
         }
@@ -406,9 +469,25 @@ app.post('/api/shoots/complete', authenticateToken, async (req, res) => {
   }
 });
 
+// Мастера и администраторы могут менять статус участника вручную (например, принять за студента)
 app.post('/api/crew/response', authenticateToken, async (req, res) => {
   try {
     const { crewMemberId, status } = req.body;
+    const crewMember = await prisma.crewMember.findUnique({
+      where: { id: crewMemberId },
+      include: { shoot: true }
+    });
+
+    if (!crewMember) return res.status(404).json({ error: 'Запись не найдена' });
+
+    const isOwner = crewMember.userId === req.user.id;
+    const roleName = req.user.role?.name;
+    const isMasterOrAdmin = roleName === 'Администратор' || roleName === 'Мастер / Преподаватель';
+
+    if (!isOwner && !isMasterOrAdmin) {
+      return res.status(403).json({ error: 'Недостаточно прав для изменения этого статуса' });
+    }
+
     const updated = await prisma.crewMember.update({
       where: { id: crewMemberId },
       data: { status }
