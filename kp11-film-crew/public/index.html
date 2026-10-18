@@ -22,70 +22,16 @@
       animation: recPulse 1.5s infinite ease-in-out;
       display: inline-block;
     }
-    /* Непрозрачная бесшовная вертикальная бегущая строка на всю высоту экрана */
-    @keyframes verticalInfiniteScroll {
-      0% { transform: translateY(0); }
-      100% { transform: translateY(-50%); }
-    }
-    .vertical-ticker-container {
-      position: fixed;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 48px;
-      overflow: hidden;
-      pointer-events: none;
-      z-index: 40;
-      opacity: 1; /* Полная непрозрачность */
-    }
-    .vertical-ticker-track {
-      display: flex;
-      flex-direction: column;
-      height: 200%;
-      animation: verticalInfiniteScroll 10s linear infinite;
-    }
-    .vertical-ticker-track:hover {
-      animation-play-state: paused;
-    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block relative overflow-x-hidden">
 
-  <!-- Бесконечная непрозрачная бегущая строка на всю высоту экрана справа -->
-  <div class="vertical-ticker-container hidden xl:block">
-    <div class="vertical-ticker-track">
-      <!-- Набор картинок с запасом для покрытия всей высоты экрана в цикле -->
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <!-- Точная копия для бесшовного цикла -->
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-      <img src="/img/logo3.png" alt="ticker" class="w-12 h-12 object-contain block m-0 p-0 flex-shrink-0">
-    </div>
-  </div>
-
-  <!-- Статичный Логотип 2 (увеличен в 2 раза, ближе к центру, справа от контента смен и ниже профиля) -->
-  <div class="fixed bottom-32 right-96 z-30 hidden 2xl:block opacity-100 pointer-events-none">
+  <!-- Фон по слоям (z-10): Логотипы на уровне фона, смещены влево на 60px, не перекрывают панели -->
+  <div class="fixed bottom-32 right-[calc(24rem-60px)] z-10 hidden 2xl:block opacity-90 pointer-events-none">
     <img src="/img/logo2.png" alt="Логотип 2" class="h-20 w-auto object-contain">
+  </div>
+  <div class="fixed top-1/3 right-[calc(16rem-60px)] z-10 hidden xl:block opacity-60 pointer-events-none">
+    <img src="/img/logo3.png" alt="Логотип 3" class="h-24 w-auto object-contain">
   </div>
 
   <header class="bg-[#030303] border-b border-[#1A1A1A] sticky top-0 z-50">
@@ -97,36 +43,14 @@
           <p class="text-[10px] text-neutral-500 font-bold uppercase">Производственная система</p>
         </div>
       </div>
-      
-      <div class="flex items-center space-x-4">
-        <!-- Интерактивная кнопка-колокольчик с выпадающим блоком уведомлений в хэдере -->
-        <div class="relative hidden" id="headerNotificationWrapper">
-          <button onclick="toggleNotificationDropdown()" class="relative p-2.5 bg-[#141414] text-[var(--brand-beige)] unified-parallelogram border border-[#333333] hover:bg-neutral-900 transition flex items-center justify-center">
-            <span class="text-base">🔔</span>
-            <span id="notificationBadgeCount" class="absolute -top-1 -right-1 bg-[var(--brand-red)] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full hidden">0</span>
-          </button>
-          
-          <!-- Выпадающий блок уведомлений -->
-          <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-[#141414] border border-[#333333] unified-parallelogram shadow-2xl p-4 z-50 space-y-3">
-            <div class="flex items-center justify-between border-b border-[#333333] pb-2">
-              <h4 class="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-beige)]">Уведомления</h4>
-              <span class="text-[9px] px-2 py-0.5 bg-[var(--brand-red)] text-white unified-parallelogram font-extrabold">Live</span>
-            </div>
-            <div id="notificationsContainer" class="space-y-2 max-h-72 overflow-y-auto pr-1">
-              <p class="text-xs text-neutral-400 font-bold">Нет новых уведомлений.</p>
-            </div>
-          </div>
-        </div>
-
-        <div id="userNav" class="flex items-center space-x-4">
-          <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
-          <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
-        </div>
+      <div id="userNav" class="flex items-center space-x-4">
+        <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
+        <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
       </div>
     </div>
   </header>
 
-  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
+  <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8 z-20 relative">
     
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div class="space-y-1 max-w-3xl">
@@ -161,9 +85,24 @@
         <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
 
+      <!-- Главная вкладка "Смены": слева постоянная панель уведомлений, посередине смены, справа учетная запись -->
       <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <div class="lg:col-span-8 space-y-6">
+        <!-- Левая колонка: Центр уведомлений -->
+        <div class="lg:col-span-3 space-y-6">
+          <div class="p-6 shoot-card-pure unified-parallelogram space-y-4 shadow-xl">
+            <div class="flex items-center justify-between border-b border-[var(--brand-beige)]/30 pb-2">
+              <h3 class="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-beige)]">Уведомления</h3>
+              <span class="text-[9px] px-2 py-0.5 bg-[var(--brand-red)] text-white unified-parallelogram font-extrabold">Live</span>
+            </div>
+            <div id="notificationsContainer" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              <p class="text-xs text-[var(--brand-beige)] uppercase font-bold">Нет новых уведомлений.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Центральная колонка: Смены -->
+        <div class="lg:col-span-6 space-y-6">
           <div class="flex items-center justify-between">
             <span id="globalStatsText" class="text-xs font-extrabold uppercase text-neutral-400">Загрузка статистики...</span>
             <span id="shootCount" class="text-xs px-3 py-1 bg-[#030303] text-[var(--brand-beige)] font-extrabold unified-parallelogram">0 смен</span>
@@ -173,7 +112,8 @@
           </div>
         </div>
         
-        <div class="lg:col-span-4 space-y-6">
+        <!-- Правая колонка: Учётная запись -->
+        <div class="lg:col-span-3 space-y-6">
           <div class="p-6 account-card">
             <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
             <div id="sidebarProfile" class="text-xs space-y-3 font-medium text-[var(--brand-black)]">
@@ -233,6 +173,7 @@
               <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
             </div>
             <div class="flex items-center space-x-3 w-full md:w-auto">
+              <!-- Полностью рабочая кнопка отправки персонального сообщения -->
               <button onclick="openMessageModal()" class="px-4 py-2 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Отправить сообщение</button>
               <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[#030303] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-64 border border-[#222222]">
             </div>
@@ -246,11 +187,11 @@
     </div>
   </main>
 
-  <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert">
+  <footer class="border-t border-[#1A1A1A] bg-[#030303] py-6 text-center text-xs font-extrabold uppercase tracking-widest pixel-text-invert z-20 relative">
     Колледж Предпринимательства №11 • Реестр производственных смен
   </footer>
 
-  <!-- Модальное окно отправки личного сообщения мастером/админом -->
+  <!-- Модальное окно отправки личного сообщения -->
   <div id="messageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="shoot-card-pure unified-parallelogram p-6 w-full max-w-lg relative shadow-2xl">
       <button onclick="closeMessageModal()" class="absolute top-4 right-4 font-extrabold text-base text-[var(--brand-beige)] hover:opacity-80">✕</button>
