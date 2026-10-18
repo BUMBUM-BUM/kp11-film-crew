@@ -18,7 +18,6 @@
     body { 
       font-family: 'Manrope', sans-serif; 
       background-color: var(--brand-black);
-      /* Фирменный многослойный фон с двумя диагональными линиями согласно брендбуку */
       background-image: 
         linear-gradient(135deg, transparent 63.5%, var(--brand-red) 63.5%, var(--brand-red) 80%, transparent 80%),
         linear-gradient(135deg, var(--brand-black) 36.5%, var(--brand-red) 36.5%, var(--brand-red) 63.5%, var(--brand-black) 63.5%);
@@ -94,26 +93,13 @@
       pointer-events: none;
     }
 
-    .pixel-text-invert {
-      color: var(--brand-beige);
-    }
-
-    .paper-cut-text-dark {
-      color: var(--brand-black);
-      text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.4);
-    }
-
-    .account-card {
-      background-color: var(--brand-beige);
-      color: var(--brand-black);
-      border: 2px solid #D5C895;
-      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
-    }
+    .pixel-text-invert { color: var(--brand-beige); }
+    .paper-cut-text-dark { color: var(--brand-black); text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.4); }
+    .account-card { background-color: var(--brand-beige); color: var(--brand-black); border: 2px solid #D5C895; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
   </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white paper-block">
 
-  <!-- Шапка -->
   <header class="bg-[var(--brand-black)] border-b border-[#2A2A2A] sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
       <div class="flex items-center space-x-6">
@@ -132,7 +118,6 @@
     </div>
   </header>
 
-  <!-- Основное содержимое -->
   <main class="flex-grow max-w-7xl mx-auto px-6 py-10 w-full space-y-8">
     
     <div class="border-b border-[#333333] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -145,11 +130,11 @@
       <div id="actionButtonContainer"></div>
     </div>
 
-    <!-- Плашка блокировки для неавторизованных пользователей -->
+    <!-- Плашка блокировки для неавторизованных -->
     <div id="authRequiredBanner" class="p-8 shoot-card-pure unified-parallelogram text-center space-y-4 shadow-xl">
       <h3 class="text-lg font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Доступ ограничен</h3>
       <p class="text-xs font-extrabold uppercase max-w-lg mx-auto leading-relaxed text-[var(--brand-beige)]">
-        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться или зарегистрировать учётную запись.
+        Для просмотра реестра съёмочных смен, карты объектов и работы с производственной системой необходимо авторизоваться.
       </p>
       <div class="pt-2 flex justify-center space-x-4">
         <button onclick="openModal('login')" class="px-6 py-2.5 text-xs font-extrabold uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Войти в аккаунт</button>
@@ -157,20 +142,16 @@
       </div>
     </div>
 
-    <!-- Контент доступный после входа -->
+    <!-- Контент после входа -->
     <div id="authenticatedContent" class="hidden space-y-8">
-
-      <!-- Уведомления приглашений -->
       <div id="notificationsContainer"></div>
 
-      <!-- Навигационные вкладки -->
       <div id="tabNav" class="flex space-x-4 border-b border-[#333333] pb-4">
         <button onclick="switchTab('shoots')" id="tabShootsBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Смены</button>
         <button onclick="switchTab('map')" id="tabMapBtn" class="px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition">Карта объектов</button>
         <button onclick="switchTab('admin')" id="tabAdminBtn" class="hidden px-6 py-2.5 font-extrabold text-xs uppercase bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition">Администрирование</button>
       </div>
 
-      <!-- Смены -->
       <div id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div class="lg:col-span-8 space-y-6">
           <div class="flex items-center justify-between">
@@ -182,7 +163,6 @@
           </div>
         </div>
         
-        <!-- Боковая панель профиля -->
         <div class="lg:col-span-4 space-y-6">
           <div class="p-6 account-card">
             <h3 class="text-xs font-extrabold uppercase tracking-widest mb-4 border-b border-[#D5C895] pb-2 text-[var(--brand-black)]">Учётная запись</h3>
@@ -193,22 +173,20 @@
         </div>
       </div>
 
-      <!-- Карта -->
       <div id="viewMap" class="hidden space-y-4">
         <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram border border-[#333333]">
-          <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг</h3>
-          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов, съёмочных площадок и мастерских.</p>
+          <h3 class="text-sm font-extrabold uppercase tracking-wider mb-1 pixel-text-invert">Геолокационный мониторинг и управление метками</h3>
+          <p class="text-xs text-neutral-400 mb-4 font-bold">Координаты павильонов и съёмочных площадок. Администратор может удалять метки смен напрямую.</p>
           <div id="fullMapContainer" class="w-full h-[520px] bg-neutral-900 unified-parallelogram"></div>
         </div>
       </div>
 
-      <!-- Админ-панель -->
       <div id="viewAdmin" class="hidden space-y-6">
         <div class="p-6 bg-[var(--brand-black)] text-white unified-parallelogram space-y-4 border border-[#333333]">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h3 class="text-sm font-extrabold uppercase tracking-wider pixel-text-invert">Управление ролями и учётными записями</h3>
-              <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО и группе, назначение ролей (Студент, Мастер, Админ) и дисциплинарное отстранение.</p>
+              <p class="text-xs text-neutral-400 font-bold">Поиск по ФИО, выдача ролей и полное удаление пользователей из системы.</p>
             </div>
             <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="bg-[var(--brand-black)] text-[var(--brand-beige)] px-3.5 py-2 text-xs font-bold unified-parallelogram focus:outline-none w-full md:w-72 border border-[#333333]">
           </div>
@@ -217,9 +195,7 @@
           </div>
         </div>
       </div>
-
     </div>
-
   </main>
 
   <!-- Модальное окно создания смены -->
@@ -263,11 +239,9 @@
         </div>
         
         <div>
-          <label class="block text-[11px] font-extrabold uppercase mb-2 text-[var(--brand-beige)]">Назначение цеховых ролей участникам:</label>
-          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов по ФИО или группе..." class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-1.5 text-xs font-bold unified-parallelogram mb-2 focus:outline-none border border-[#333333]">
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[var(--brand-black)] p-3 unified-parallelogram border border-[#333333]">
-            <!-- Заполняется через JS -->
-          </div>
+          <label class="block text-[11px] font-extrabold uppercase mb-2 text-[var(--brand-beige)]">Назначение ролей участникам:</label>
+          <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр студентов..." class="w-full bg-[var(--brand-black)] text-[var(--brand-beige)] px-3 py-1.5 text-xs font-bold unified-parallelogram mb-2 focus:outline-none border border-[#333333]">
+          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 bg-[var(--brand-black)] p-3 unified-parallelogram border border-[#333333]"></div>
         </div>
 
         <button type="submit" class="w-full bg-[var(--brand-beige)] text-[var(--brand-black)] py-2.5 text-xs font-extrabold uppercase tracking-wider unified-parallelogram paper-cut-text-dark hover:opacity-95 transition">Опубликовать смену</button>
@@ -319,6 +293,23 @@
     let pickerMap = null;
     let pickerPlacemark = null;
 
+    // ГЛОБАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН (Решают ошибку openModal is not defined)
+    function openModal(type) {
+      isRegister = type === 'register';
+      const modalTitle = document.getElementById('modalTitle');
+      const registerFields = document.getElementById('registerFields');
+      const modal = document.getElementById('modal');
+
+      if (modalTitle) modalTitle.innerText = isRegister ? 'Регистрация' : 'Авторизация';
+      if (registerFields) registerFields.classList.toggle('hidden', !isRegister);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
     if (typeof ymaps !== 'undefined') {
       ymaps.ready(initMaps);
     }
@@ -342,20 +333,24 @@
         if (authBanner) authBanner.classList.add('hidden');
         if (authContent) authContent.classList.remove('hidden');
 
-        nav.innerHTML = `
-          <div class="flex items-center space-x-3">
-            <span class="text-xs bg-[var(--brand-beige)] text-[var(--brand-black)] px-3.5 py-1.5 font-extrabold unified-parallelogram paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
-            <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-black transition">Выход</button>
-          </div>
-        `;
+        if (nav) {
+          nav.innerHTML = `
+            <div class="flex items-center space-x-3">
+              <span class="text-xs bg-[var(--brand-beige)] text-[var(--brand-black)] px-3.5 py-1.5 font-extrabold unified-parallelogram paper-cut-text-dark">${currentUser.fullName} <span class="text-neutral-700">[${currentUser.groupName || 'Группа'}]</span></span>
+              <button onclick="logout()" class="text-xs font-extrabold uppercase px-3 py-1.5 bg-[var(--brand-black)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert hover:bg-black transition">Выход</button>
+            </div>
+          `;
+        }
 
         if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
-          actionContainer.innerHTML = `
-            <button onclick="openShootModal()" class="bg-[var(--brand-red)] text-[var(--brand-beige)] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider unified-parallelogram pixel-text-invert hover:opacity-95 transition flex items-center space-x-2">
-              <span>+ Новая смена</span>
-            </button>
-          `;
-        } else {
+          if (actionContainer) {
+            actionContainer.innerHTML = `
+              <button onclick="openShootModal()" class="bg-[var(--brand-red)] text-[var(--brand-beige)] px-5 py-2.5 font-extrabold text-xs uppercase tracking-wider unified-parallelogram pixel-text-invert hover:opacity-95 transition flex items-center space-x-2">
+                <span>+ Новая смена</span>
+              </button>
+            `;
+          }
+        } else if (actionContainer) {
           actionContainer.innerHTML = '';
         }
 
@@ -371,11 +366,13 @@
       } else {
         if (authBanner) authBanner.classList.remove('hidden');
         if (authContent) authContent.classList.add('hidden');
-        actionContainer.innerHTML = '';
-        nav.innerHTML = `
-          <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
-          <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
-        `;
+        if (actionContainer) actionContainer.innerHTML = '';
+        if (nav) {
+          nav.innerHTML = `
+            <button onclick="openModal('login')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-red)] text-[var(--brand-beige)] unified-parallelogram pixel-text-invert transition hover:opacity-95">Вход</button>
+            <button onclick="openModal('register')" class="text-xs font-extrabold uppercase px-4 py-2 bg-[var(--brand-beige)] text-[var(--brand-black)] unified-parallelogram paper-cut-text-dark transition hover:opacity-95">Регистрация</button>
+          `;
+        }
       }
     }
 
@@ -416,6 +413,7 @@
       const container = document.getElementById('adminUsersList');
       container.innerHTML = users.map(u => {
         const currentRole = u.role?.name || 'Студент';
+        const isAdminUser = currentUser && currentUser.id === u.id;
         return `
           <div class="flex flex-col md:flex-row md:items-center justify-between p-3 bg-[var(--brand-black)] unified-parallelogram gap-3 border border-[#333333] ${u.isSuspended ? 'border-red-600 bg-red-950/40' : ''}">
             <div>
@@ -435,10 +433,39 @@
               <button onclick="toggleSuspend('${u.id}', ${!u.isSuspended})" class="px-3 py-1 text-xs font-extrabold uppercase unified-parallelogram ${u.isSuspended ? 'bg-emerald-600 text-white' : 'bg-[var(--brand-red)] text-white pixel-text-invert'}">
                 ${u.isSuspended ? 'Восстановить' : 'Отстранить'}
               </button>
+              ${!isAdminUser ? `<button onclick="deleteUser('${u.id}')" class="px-3 py-1 text-xs font-extrabold uppercase bg-red-700 text-white unified-parallelogram">Удалить</button>` : ''}
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm('Вы уверены, что хотите полностью удалить этого пользователя из системы?')) return;
+      try {
+        const res = await fetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Не удалось удалить пользователя');
+        loadAdminPanel();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteShoot(shootId) {
+      if (!confirm('Удалить эту смену (событие) и связанные с ней метки с карты?')) return;
+      try {
+        const res = await fetch(`/api/admin/shoots/${shootId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Не удалось удалить событие');
+        loadShoots();
+      } catch (err) {
+        alert(err.message);
+      }
     }
 
     function filterAdminUsers() {
@@ -471,7 +498,6 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Ошибка при изменении роли');
 
-        // Если администратор изменил роль самому себе, обновим локальное состояние
         if (currentUser && currentUser.id === userId) {
           currentUser.role = roleName;
           localStorage.setItem('user', JSON.stringify(currentUser));
@@ -665,14 +691,6 @@
       }
     }
 
-    function openModal(type) {
-      isRegister = type === 'register';
-      document.getElementById('modalTitle').innerText = isRegister ? 'Регистрация' : 'Авторизация';
-      document.getElementById('registerFields').classList.toggle('hidden', !isRegister);
-      document.getElementById('modal').classList.remove('hidden');
-    }
-
-    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
     function logout() { localStorage.clear(); location.reload(); }
 
     async function handleAuth(e) {
@@ -741,11 +759,17 @@
           return;
         }
 
+        const isAdmin = currentUser && currentUser.role === 'Администратор';
+
         if (fullMap) {
           fullMap.geoObjects.removeAll();
           shoots.forEach(s => {
+            let balloonHTML = `<strong>${s.title}</strong><br>Локация: ${s.location}`;
+            if (isAdmin) {
+              balloonHTML += `<br><br><button onclick="deleteShoot('${s.id}')" style="background:#FC2C2C;color:#EEE4B5;padding:4px 8px;font-weight:bold;border:none;cursor:pointer;">Удалить смену / метку</button>`;
+            }
             const placemark = new ymaps.Placemark([s.latitude || 55.751244, s.longitude || 37.618423], {
-              balloonContent: `<strong>${s.title}</strong><br>Локация: ${s.location}`
+              balloonContent: balloonHTML
             }, {
               preset: 'islands#redFilmIcon'
             });
@@ -767,7 +791,10 @@
                   <span class="text-[10px] bg-[var(--brand-black)] text-[var(--brand-beige)] px-2.5 py-1 uppercase font-extrabold unified-parallelogram">СМЕНА</span>
                   ${s.isCompleted ? '<span class="text-[10px] bg-emerald-600 text-white px-2.5 py-1 uppercase font-extrabold unified-parallelogram">Завершено</span>' : '<span class="text-[10px] bg-amber-400 text-black px-2.5 py-1 uppercase font-extrabold unified-parallelogram">В процессе</span>'}
                 </div>
-                <span class="text-xs font-bold shoot-card-text" data-text="${formattedDate}">${formattedDate}</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-bold shoot-card-text" data-text="${formattedDate}">${formattedDate}</span>
+                  ${isAdmin ? `<button onclick="deleteShoot('${s.id}')" class="bg-[var(--brand-black)] text-red-400 px-2.5 py-1 text-[10px] font-extrabold uppercase unified-parallelogram hover:bg-neutral-900 transition">Удалить</button>` : ''}
+                </div>
               </div>
               <div>
                 <h4 class="text-base font-extrabold uppercase mb-1 shoot-card-text" data-text="${s.title}">${s.title}</h4>
@@ -809,7 +836,6 @@
       }
     }
 
-    // Инициализация при загрузке страницы
     updateNav();
   </script>
 </body>
