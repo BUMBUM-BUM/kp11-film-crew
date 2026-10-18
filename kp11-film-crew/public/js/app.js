@@ -81,6 +81,7 @@ function updateNav() {
 
     loadNotifications();
     loadShoots();
+    loadCinemaBoard();
   } else {
     if (authBanner) authBanner.classList.remove('hidden');
     if (authContent) authContent.classList.add('hidden');
@@ -127,6 +128,39 @@ function switchTab(tab) {
   }
 }
 
+async function loadCinemaBoard() {
+  if (!token) return;
+  try {
+    const res = await fetch('/api/cinemaboard', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const widget = document.getElementById('cinemaBoardWidget');
+    const textEl = document.getElementById('cinemaBoardText');
+    const badgeEl = document.getElementById('cinemaBoardBadge');
+
+    if (widget && textEl) {
+      widget.classList.remove('hidden');
+      textEl.innerText = data.message;
+
+      if (data.statusType === 'support') {
+        badgeEl.className = 'text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-amber-600 text-black';
+        badgeEl.innerText = 'Поддержка дубля';
+      } else if (data.statusType === 'praise') {
+        badgeEl.className = 'text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-emerald-600 text-white';
+        badgeEl.innerText = 'Прайм-тайм';
+      } else {
+        badgeEl.className = 'text-[10px] px-2.5 py-1 uppercase font-extrabold unified-parallelogram bg-[var(--brand-red)] text-white';
+        badgeEl.innerText = 'В эфире';
+      }
+    }
+  } catch (err) {
+    console.error('Ошибка загрузки кино-информера:', err);
+  }
+}
+
 async function loadStatisticsData() {
   try {
     const res = await fetch('/api/statistics', {
@@ -141,7 +175,7 @@ async function loadStatisticsData() {
         let frameStyle = 'bg-[#1A1A1A] border border-[#333333]';
         let badgeIcon = '';
         if (index === 0) {
-          // 1 место: Алмазное обрамление (блестящая светлая рамка с голубым свечением)
+          // 1 место: Алмазное обрамление
           frameStyle = 'bg-gradient-to-r from-cyan-950 via-[#1A1A1A] to-cyan-950 border-2 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.5)]';
           badgeIcon = '💎 ';
         } else if (index === 1) {
@@ -557,7 +591,6 @@ async function handleCreateShoot(e) {
   }
 }
 
-// Исправленная логика клика по звездочкам (сколько жёлтых нужно — столько и загорается)
 function setStarRating(memberId, starValue) {
   const container = document.getElementById('stars_container_' + memberId);
   const hiddenInput = document.getElementById('grade_input_' + memberId);
@@ -625,7 +658,6 @@ async function updateAttendance(crewMemberId, attendance) {
   }
 }
 
-// Окно не сворачивается автоматически при подтверждении участия, сворачивается только по кнопке
 function toggleShootExpand(shootId) {
   const detailsBlock = document.getElementById('shoot_details_' + shootId);
   const btn = document.getElementById('expand_btn_' + shootId);
