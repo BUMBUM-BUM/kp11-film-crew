@@ -621,6 +621,17 @@ async function handleTelegramCallbackQuery(query) {
     }
   }
 
+  // 4. ОТКРЫТИЕ ВЫЗЫВНОГО ПО ID: callsheet:<shootId>
+  if (data.startsWith('callsheet:')) {
+    const shootId = data.replace('callsheet:', '');
+    const shoot = await store.getShootById(shootId);
+    await answerCallbackQuery(queryId);
+
+    if (shoot) {
+      const users = await store.getUsers();
+      const currentUser = await store.getUserByTelegram(chatId) || (fromUser.username ? await store.getUserByTelegram('@' + fromUser.username) : null);
+      const messageText = formatCallsheetMessage(shoot, currentUser?.id, users);
+
       return sendMessage(chatId, messageText, {
         reply_markup: {
           inline_keyboard: [
