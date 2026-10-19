@@ -414,11 +414,14 @@ app.delete('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, 
   }
 });
 
-app.delete('/api/admin/shoots/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete(['/api/admin/shoots/:id', '/api/shoots/:id'], authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.shoot.delete({ where: { id } });
-    res.json({ success: true });
+    if (prisma) {
+      await prisma.shoot.delete({ where: { id } }).catch(() => {});
+    }
+    await store.deleteShoot(id);
+    res.json({ success: true, message: 'Смена удалена' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -576,33 +579,62 @@ app.patch('/api/users/:id/competency', authenticateToken, requireMasterOrAdmin, 
 app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { title, description, type, date, location, crewAssignments, latitude, longitude, videoUrl, previewUrl } = req.body;
-    const shoot = await prisma.shoot.create({
-      data: {
-        title,
-        description,
-        type: type || 'СТУДИЯ',
-        date: new Date(date),
-        location,
-        latitude: latitude ? parseFloat(latitude) : 55.751244,
-        longitude: longitude ? parseFloat(longitude) : 37.618423,
-        videoUrl: videoUrl || null,
-        previewUrl: previewUrl || null,
-        creatorId: req.user.id,
-        crew: {
-          create: (crewAssignments || []).map(item => ({
-            userId: item.userId,
-            roleInShoot: item.craftRole || 'Участник',
-            status: 'PENDING',
-            attendance: 'PRESENT'
-          }))
+    let shoot = null;
+    try {
+      shoot = await prisma.shoot.create({
+        data: {
+          title,
+          description,
+          type: type || 'СТУДИЯ',
+          date: new Date(date),
+          location,
+          latitude: latitude ? parseFloat(latitude) : 55.751244,
+          longitude: longitude ? parseFloat(longitude) : 37.618423,
+          videoUrl: videoUrl || null,
+          previewUrl: previewUrl || null,
+          creatorId: req.user.id,
+          crew: {
+            create: (crewAssignments || []).map(item => ({
+              userId: item.userId,
+              roleInShoot: item.craftRole || 'Участник',
+              status: 'PENDING',
+              attendance: 'PRESENT'
+            }))
+          }
+        },
+        include: { 
+          crew: {
+            include: { user: true }
+          }
         }
-      },
-      include: { 
-        crew: {
-          include: { user: true }
-        }
-      }
-    });
+      });
+    } catch (dbErr) {
+      console.warn('[Prisma DB] shoot.create fallback to store:', dbErr.message);
+    }
+
+    const storeShootObj = {
+      id: shoot ? shoot.id : ('shoot-' + Date.now()),
+      title,
+      description,
+      type: type || 'СТУДИЯ',
+      date: new Date(date).toISOString(),
+      location,
+      latitude: latitude ? parseFloat(latitude) : 55.751244,
+      longitude: longitude ? parseFloat(longitude) : 37.618423,
+      videoUrl: videoUrl || null,
+      previewUrl: previewUrl || null,
+      isCompleted: false,
+      creator: { fullName: req.user?.fullName || 'Бадиков Семён Станиславович' },
+      crew: (crewAssignments || []).map((item, idx) => ({
+        id: 'c-' + Date.now() + '-' + idx,
+        roleInShoot: item.craftRole || 'Оператор',
+        status: 'PENDING',
+        attendance: 'PRESENT',
+        userId: item.userId
+      }))
+    };
+    await store.saveShoot(storeShootObj);
+    if (!shoot) shoot = storeShootObj;
 
     // Отправляем уведомления каждому назначенному участнику
     const formattedDate = new Date(shoot.date).toLocaleString('ru-RU', {

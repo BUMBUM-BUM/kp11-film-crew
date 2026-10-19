@@ -156,7 +156,7 @@ function formatCallsheetMessage(shoot, targetUserId = null, allUsers = []) {
     `<b>ОПЕРАТИВНЫЙ ВЫЗЫВНОЙ ЛИСТ // КИНОПРОИЗВОДСТВО</b>\n` +
     `════════════════════════════════════\n` +
     `<b>ПРОЕКТ:</b> ${escapeHtml(shoot.title)}\n` +
-    `<b>ФОРМАТ:</b> ${escapeHtml(shoot.type || 'СТУДИЯ')} // ARRI RAW • LOG-C\n` +
+    `<b>ФОРМАТ:</b> ${escapeHtml(shoot.type || 'СТУДИЯ')}\n` +
     `<b>ДАТА:</b> ${formattedDate}\n` +
     `<b>ВРЕМЯ СБОРА (CALL TIME):</b> ${formattedTime}\n` +
     `<b>ОБЪЕКТ / АДРЕС:</b> ${escapeHtml(shoot.location)}\n` +
@@ -221,8 +221,7 @@ async function handleTelegramMessage(message) {
                 { text: 'Отклонить вызов', callback_data: `decline:${shoot.id}` }
               ],
               [
-                { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` },
-                { text: 'Чек-лист техники', callback_data: `gear:${shoot.id}` }
+                { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` }
               ]
             ]
           }
@@ -272,7 +271,6 @@ async function handleTelegramMessage(message) {
       `• <b>/my_shoots</b> — Ваши назначенные смены с сайта\n` +
       `• <b>/callsheet</b> — Текущий вызывной лист с таймингом и локацией\n` +
       `• <b>/profile</b> — Цифровой паспорт компетенций студента\n` +
-      `• <b>/gear</b> — Чек-лист съёмочной аппаратуры\n` +
       `• <b>/shifts</b> — Все активные проекты на сайте\n` +
       `• <b>/link &lt;email&gt;</b> — Привязать Telegram к почте на сайте\n` +
       `• <b>/help</b> — Инструкции и регламент съёмочной площадки\n` +
@@ -281,7 +279,7 @@ async function handleTelegramMessage(message) {
         reply_markup: {
           inline_keyboard: [
             [{ text: 'Мои смены', callback_data: 'cmd:my_shoots' }, { text: 'Вызывной лист', callback_data: 'cmd:callsheet' }],
-            [{ text: 'Паспорт компетенций', callback_data: 'cmd:profile' }, { text: 'Чек-лист техники', callback_data: 'cmd:gear' }]
+            [{ text: 'Паспорт компетенций', callback_data: 'cmd:profile' }, { text: 'Все смены медиацентра', callback_data: 'cmd:shifts' }]
           ]
         }
       }
@@ -418,8 +416,7 @@ async function handleTelegramMessage(message) {
             { text: 'Отклонить вызов', callback_data: `decline:${shoot.id}` }
           ],
           [
-            { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` },
-            { text: 'Чек-лист техники', callback_data: `gear:${shoot.id}` }
+            { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` }
           ]
         ]
       }
@@ -503,29 +500,7 @@ async function handleTelegramMessage(message) {
     });
   }
 
-  // 7. КОМАНДА /gear
-  if (text.startsWith('/gear')) {
-    return sendMessage(chatId,
-      `<b>ЧЕК-ЛИСТ ОБОРУДОВАНИЯ МЕДИАЦЕНТРА КП11</b>\n` +
-      `════════════════════════════════════\n` +
-      `<b>ОПЕРАТОРСКИЙ КОМПЛЕКТ:</b>\n` +
-      `• Камера: RED Komodo 6K / ARRI Alexa Mini LF (Log-C)\n` +
-      `• Оптика: ARRI Master Prime 25mm, 50mm, 85mm T1.3\n` +
-      `• Фильтры: ND 0.6, 0.9, 1.2, True-Pola\n` +
-      `• Фокус: Tilta Nucleus-M + монитор SmallHD\n\n` +
-      `<b>ОСВЕТИТЕЛЬНЫЙ КОМПЛЕКТ:</b>\n` +
-      `• Приборы: Aputure LS 300D II + Aputure LS 60X\n` +
-      `• Насадки: Light Dome II, соты 40°\n` +
-      `• Стойки: C-Stand Avenger со стрелой Grip Arm\n\n` +
-      `<b>ЗВУКОВОЙ ТРАКТ:</b>\n` +
-      `• Рекордер: Zoom F6 (32-bit float)\n` +
-      `• Микрофон-пушка: Sennheiser MKH 416 (ветрозащита Rycote)\n` +
-      `• Радиосистемы: Sennheiser EW 100 G4 (2 петлички)\n` +
-      `════════════════════════════════════`
-    );
-  }
-
-  // 8. КОМАНДА /help
+  // 7. КОМАНДА /help
   return sendMessage(chatId,
     `<b>СПРАВОЧНАЯ СЛУЖБА КИНОЦЕХА КП11</b>\n` +
     `════════════════════════════════════\n` +
@@ -534,7 +509,6 @@ async function handleTelegramMessage(message) {
     `• <b>/callsheet</b> — Полный вызывной лист с таймингом\n` +
     `• <b>/profile</b> — Профиль студента, рейтинг и цеховой ранг\n` +
     `• <b>/shifts</b> — График всех проектов медиацентра с сайта\n` +
-    `• <b>/gear</b> — Чек-лист съёмочной аппаратуры\n` +
     `• <b>/link &lt;email&gt;</b> — Привязать Telegram к почте на сайте`
   );
 }
@@ -561,9 +535,9 @@ async function handleTelegramCallbackQuery(query) {
     await answerCallbackQuery(queryId);
     return handleTelegramMessage({ chat: { id: chatId }, text: '/profile', from: fromUser });
   }
-  if (data === 'cmd:gear') {
+  if (data === 'cmd:shifts') {
     await answerCallbackQuery(queryId);
-    return handleTelegramMessage({ chat: { id: chatId }, text: '/gear', from: fromUser });
+    return handleTelegramMessage({ chat: { id: chatId }, text: '/shifts', from: fromUser });
   }
 
   // 1. ПОДТВЕРЖДЕНИЕ УЧАСТИЯ В СМЕНЕ: accept:<shootId>
@@ -588,8 +562,7 @@ async function handleTelegramCallbackQuery(query) {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: 'Геоточка на карте', callback_data: `location:${shootId}` },
-                { text: 'Чек-лист техники', callback_data: `gear:${shootId}` }
+                { text: 'Геоточка на карте', callback_data: `location:${shootId}` }
               ],
               [
                 { text: 'Отклонить вызов (отмена)', callback_data: `decline:${shootId}` }
@@ -648,35 +621,6 @@ async function handleTelegramCallbackQuery(query) {
     }
   }
 
-  // 4. ДЕТАЛЬНЫЙ ЧЕК-ЛИСТ ТЕХНИКИ: gear:<shootId>
-  if (data.startsWith('gear:')) {
-    const shootId = data.replace('gear:', '');
-    const shoot = await store.getShootById(shootId);
-    await answerCallbackQuery(queryId);
-
-    const isExterior = (shoot?.type || '').includes('НАТУРА') || (shoot?.type || '').includes('ВЫЕЗД');
-    const gearNotes = isExterior
-      ? `• Ветрозащита Rycote «Цеппелин» + дождевой чехол на камеру.\n• Автономные аккумуляторы EcoFlow + удлинители.`
-      : `• Павильонная коммутация, силовой щит 380V, кабели DMX.\n• Контрольный калиброванный OLED-монитор.`;
-
-    return sendMessage(chatId,
-      `<b>ТЕХНИЧЕСКИЙ РАЙДЕР СМЕНЫ «${escapeHtml(shoot?.title || 'СМЕНА')}»:</b>\n` +
-      `════════════════════════════════════\n` +
-      `${gearNotes}`
-    );
-  }
-
-  // 5. ОТКРЫТИЕ ВЫЗЫВНОГО ПО ID: callsheet:<shootId>
-  if (data.startsWith('callsheet:')) {
-    const shootId = data.replace('callsheet:', '');
-    const shoot = await store.getShootById(shootId);
-    await answerCallbackQuery(queryId);
-
-    if (shoot) {
-      const users = await store.getUsers();
-      const currentUser = await store.getUserByTelegram(chatId) || (fromUser.username ? await store.getUserByTelegram('@' + fromUser.username) : null);
-      const messageText = formatCallsheetMessage(shoot, currentUser?.id, users);
-
       return sendMessage(chatId, messageText, {
         reply_markup: {
           inline_keyboard: [
@@ -685,8 +629,7 @@ async function handleTelegramCallbackQuery(query) {
               { text: 'Отклонить вызов', callback_data: `decline:${shoot.id}` }
             ],
             [
-              { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` },
-              { text: 'Чек-лист техники', callback_data: `gear:${shoot.id}` }
+              { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` }
             ]
           ]
         }
@@ -757,8 +700,7 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
           { text: 'Отклонить вызов', callback_data: `decline:${shoot.id}` }
         ],
         [
-          { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` },
-          { text: 'Чек-лист техники', callback_data: `gear:${shoot.id}` }
+          { text: 'Геоточка на карте', callback_data: `location:${shoot.id}` }
         ]
       ]
     };

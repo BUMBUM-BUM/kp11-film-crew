@@ -1165,15 +1165,23 @@ async function deleteUser(userId) {
 
 async function deleteShoot(shootId) {
   if (!confirm('Удалить эту смену (событие) и связанные с ней метки с карты?')) return;
+  globalShoots = (globalShoots || []).filter(s => s.id !== shootId);
+  localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+  renderShootsList(globalShoots);
+
   try {
-    await fetch('/api/admin/shoots/' + shootId, {
+    const res = await fetch('/api/admin/shoots/' + shootId, {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + token }
     });
+    if (!res.ok) {
+      await fetch('/api/shoots/' + shootId, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+    }
   } catch (err) {}
 
-  globalShoots = (globalShoots || []).filter(s => s.id !== shootId);
-  localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   showToast('Смена удалена из производства');
   loadShoots();
 }
@@ -1283,20 +1291,36 @@ async function respondCrew(crewMemberId, status) {
   loadShoots();
 }
 
+function getSelectedCrewMap() {
+  const map = {};
+  const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
+  checkboxes.forEach(cb => {
+    const select = document.querySelector('select[name="craftRole_' + cb.value + '"]');
+    map[cb.value] = select ? select.value : 'Оператор';
+  });
+  return map;
+}
+
 async function openShootModal() {
-  document.getElementById('shootModal').classList.remove('hidden');
+  const modal = document.getElementById('shootModal');
+  if (modal) modal.classList.remove('hidden');
+
+  const searchInput = document.getElementById('studentSearchModal');
+  if (searchInput) searchInput.value = '';
+
   try {
     const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + token } });
     if (res.ok) {
       const data = await res.json();
-      globalStudents = data.students || [];
+      const rawStudents = data.students;
+      globalStudents = Array.isArray(rawStudents) ? rawStudents : (rawStudents && Array.isArray(rawStudents.value) ? rawStudents.value : []);
     }
   } catch (err) {}
 
-  if (!globalStudents || globalStudents.length === 0) {
+  if (!globalStudents || !Array.isArray(globalStudents) || globalStudents.length === 0) {
     globalStudents = getStudentDirectory();
   }
-  renderModalStudents(globalStudents);
+  renderModalStudents(globalStudents, false);
 
   setTimeout(() => {
     if (!pickerMap && typeof ymaps !== 'undefined') {
@@ -1318,32 +1342,62 @@ async function openShootModal() {
   }, 150);
 }
 
-function renderModalStudents(students) {
+function renderModalStudents(students, preserveSelections = true) {
   const box = document.getElementById('studentsCheckboxes');
   if (!box) return;
-  box.innerHTML = students.map(s => {
+
+  const currentSelections = preserveSelections ? getSelectedCrewMap() : {};
+  const list = Array.isArray(students) ? students : (students && Array.isArray(students.value) ? students.value : []);
+
+  if (list.length === 0) {
+    box.innerHTML = '<div class="p-4 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Студенты не найдены по запросу</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(s => {
     const ratingText = s.rating !== null && s.rating !== undefined ? s.rating : 'Нет';
     const colorClass = getRatingBadgeColor(s.rating);
-    return '<div class="flex items-center justify-between p-2.5 border text-xs transition" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
-      '<label class="flex items-center space-x-2.5 cursor-pointer flex-grow">' +
-        '<input type="checkbox" name="studentSelect" value="' + s.id + '" class="accent-[var(--brand-red)] w-4 h-4">' +
-        '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + s.fullName + ' <span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (s.groupName || 'Группа') + ']</span> <span class="' + colorClass + ' font-mono inline-flex items-center gap-1">' + SVG_ICONS.star + ratingText + '</span></span>' +
+    const isSuspended = !!s.isSuspended;
+    const isChecked = currentSelections[s.id] !== undefined;
+    const currentRole = currentSelections[s.id] || 'Оператор';
+
+    return '<div class="flex items-center justify-between p-2.5 border text-xs transition ' + (isSuspended ? 'opacity-50' : '') + '" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+      '<label class="flex items-center space-x-2.5 cursor-pointer flex-grow select-none">' +
+        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' ' + (isSuspended ? 'disabled' : '') + ' class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
+        '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + 
+          (s.fullName || 'Без имени') + 
+          ' <span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (s.groupName || 'Группа') + ']</span> ' + 
+          '<span class="' + colorClass + ' font-mono inline-flex items-center gap-1">' + (SVG_ICONS?.star || '★') + ' ' + ratingText + '</span>' +
+          (isSuspended ? ' <span class="text-red-500 font-mono text-[10px]">[ОТСТРАНЁН]</span>' : '') +
+        '</span>' +
       '</label>' +
       '<select name="craftRole_' + s.id + '" class="studio-input text-xs font-bold px-2 py-1 ml-2">' +
-        '<option value="Оператор">Оператор</option>' +
-        '<option value="Звукорежиссёр">Звукорежиссёр</option>' +
-        '<option value="Осветитель">Осветитель</option>' +
-        '<option value="Монтажёр">Монтажёр</option>' +
-        '<option value="Гаффер">Гаффер</option>' +
+        '<option value="Оператор"' + (currentRole === 'Оператор' ? ' selected' : '') + '>Оператор</option>' +
+        '<option value="Звукорежиссёр"' + (currentRole === 'Звукорежиссёр' ? ' selected' : '') + '>Звукорежиссёр</option>' +
+        '<option value="Осветитель"' + (currentRole === 'Осветитель' ? ' selected' : '') + '>Осветитель</option>' +
+        '<option value="Монтажёр"' + (currentRole === 'Монтажёр' ? ' selected' : '') + '>Монтажёр</option>' +
+        '<option value="Гаффер"' + (currentRole === 'Гаффер' ? ' selected' : '') + '>Гаффер</option>' +
+        '<option value="Режиссёр"' + (currentRole === 'Режиссёр' ? ' selected' : '') + '>Режиссёр</option>' +
+        '<option value="Продюсер"' + (currentRole === 'Продюсер' ? ' selected' : '') + '>Продюсер</option>' +
       '</select>' +
     '</div>';
   }).join('');
 }
 
 function filterModalStudents() {
-  const query = document.getElementById('studentSearchModal').value.toLowerCase();
-  const filtered = globalStudents.filter(s => s.fullName.toLowerCase().includes(query) || (s.groupName && s.groupName.toLowerCase().includes(query)));
-  renderModalStudents(filtered);
+  const searchInput = document.getElementById('studentSearchModal');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const list = Array.isArray(globalStudents) ? globalStudents : [];
+  if (!query) {
+    renderModalStudents(list, true);
+    return;
+  }
+  const filtered = list.filter(s => 
+    (s.fullName && s.fullName.toLowerCase().includes(query)) || 
+    (s.groupName && s.groupName.toLowerCase().includes(query)) ||
+    (s.telegram && s.telegram.toLowerCase().includes(query))
+  );
+  renderModalStudents(filtered, true);
 }
 
 function toggleMapPicker(type) {
@@ -1365,27 +1419,50 @@ async function handleCreateShoot(e) {
   const crewAssignments = Array.from(checkboxes).map(cb => {
     const userId = cb.value;
     const select = document.querySelector('select[name="craftRole_' + userId + '"]');
-    return { userId, craftRole: select ? select.value : 'Участник' };
+    return { userId, craftRole: select ? select.value : 'Оператор' };
   });
 
-  const title = document.getElementById('shootTitle').value;
-  const description = document.getElementById('shootDesc').value;
-  const type = document.getElementById('shootType').value;
-  const date = document.getElementById('shootDate').value;
-  const location = document.getElementById('shootLocation').value;
-  const latitude = parseFloat(document.getElementById('selectedLat').value) || 55.751244;
-  const longitude = parseFloat(document.getElementById('selectedLon').value) || 37.618423;
+  const titleEl = document.getElementById('shootTitle');
+  const descEl = document.getElementById('shootDesc');
+  const typeEl = document.getElementById('shootType');
+  const dateEl = document.getElementById('shootDate');
+  const locEl = document.getElementById('shootLocation');
+  const latEl = document.getElementById('selectedLat');
+  const lonEl = document.getElementById('selectedLon');
+
+  const title = titleEl ? titleEl.value.trim() : '';
+  const description = descEl ? descEl.value.trim() : '';
+  const type = typeEl ? typeEl.value : 'СТУДИЯ';
+  const date = dateEl ? dateEl.value : '';
+  const location = locEl ? locEl.value.trim() : '';
+  const latitude = parseFloat(latEl ? latEl.value : '55.751244') || 55.751244;
+  const longitude = parseFloat(lonEl ? lonEl.value : '37.618423') || 37.618423;
+
+  if (!title) {
+    showToast('Укажите название проекта');
+    return;
+  }
+  if (!date) {
+    showToast('Укажите дату и время начала смены');
+    return;
+  }
+  if (!location) {
+    showToast('Укажите адрес или локацию объекта');
+    return;
+  }
 
   const body = {
     title,
     description,
     type,
-    date,
+    date: new Date(date).toISOString(),
     location,
     latitude,
     longitude,
     crewAssignments
   };
+
+  let createdSuccessfully = false;
 
   try {
     const res = await fetch('/api/shoots', {
@@ -1394,43 +1471,46 @@ async function handleCreateShoot(e) {
       body: JSON.stringify(body)
     });
     if (res.ok) {
-      showToast('Смена «' + title + '» создана в производстве!');
-      closeShootModal();
-      loadShoots();
-      return;
+      createdSuccessfully = true;
     }
   } catch (err) {}
 
-  // Fallback for preview server:
-  const newShoot = {
-    id: 'shoot-' + Date.now(),
-    title,
-    description,
-    type,
-    date: date ? new Date(date).toISOString() : new Date().toISOString(),
-    location,
-    latitude,
-    longitude,
-    isCompleted: false,
-    creator: { fullName: currentUser ? currentUser.fullName : 'Бадиков Семён Станиславович' },
-    crew: crewAssignments.map((ca, idx) => {
-      const st = (globalStudents || []).find(s => s.id === ca.userId) || { fullName: 'Студент ' + (idx + 1), groupName: 'КТ-26', rating: 4.5, telegram: '@student' };
-      return {
-        id: 'c-' + Date.now() + '-' + idx,
-        roleInShoot: ca.craftRole,
-        status: 'ACCEPTED',
-        attendance: 'PRESENT',
-        user: { id: ca.userId, fullName: st.fullName, groupName: st.groupName, rating: st.rating, telegram: st.telegram, participations: 3 }
-      };
-    })
-  };
+  if (!createdSuccessfully) {
+    // Fallback локального сохранения:
+    const newShoot = {
+      id: 'shoot-' + Date.now(),
+      title,
+      description,
+      type,
+      date: new Date(date).toISOString(),
+      location,
+      latitude,
+      longitude,
+      isCompleted: false,
+      creator: { fullName: currentUser ? currentUser.fullName : 'Бадиков Семён Станиславович' },
+      crew: crewAssignments.map((ca, idx) => {
+        const st = (globalStudents || []).find(s => s.id === ca.userId) || { fullName: 'Студент', groupName: 'КТ-26', rating: 4.5, telegram: '@student' };
+        return {
+          id: 'c-' + Date.now() + '-' + idx,
+          roleInShoot: ca.craftRole,
+          status: 'PENDING',
+          attendance: 'PRESENT',
+          userId: ca.userId,
+          user: { id: ca.userId, fullName: st.fullName, groupName: st.groupName, rating: st.rating, telegram: st.telegram, participations: 3 }
+        };
+      })
+    };
+    globalShoots = [newShoot, ...(globalShoots || [])];
+    localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+  }
 
-  globalShoots.unshift(newShoot);
-  localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
-
-  showToast('Смена «' + title + '» добавлена в производство и на карту!');
+  showToast('Смена «' + title + '» создана в производстве!');
   closeShootModal();
-  loadShoots();
+  if (titleEl) titleEl.value = '';
+  if (descEl) descEl.value = '';
+  if (locEl) locEl.value = '';
+  if (dateEl) dateEl.value = '';
+  await loadShoots();
 }
 
 function setStarRating(memberId, starValue) {
@@ -1579,8 +1659,13 @@ async function loadShoots() {
     const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + token } });
     if (res.ok) {
       const data = await res.json();
-      shoots = data.shoots || [];
-      stats = data.stats || stats;
+      const rawShoots = data.shoots;
+      shoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
+      if (data.students) {
+        const rawStudents = data.students;
+        globalStudents = Array.isArray(rawStudents) ? rawStudents : (rawStudents && Array.isArray(rawStudents.value) ? rawStudents.value : []);
+      }
+      stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
       userStats = data.userStats || null;
     } else {
       throw new Error('API fetch failed');
@@ -1716,7 +1801,7 @@ async function loadShoots() {
       return;
     }
 
-    const isAdmin = currentUser && currentUser.role === 'Администратор';
+    const canDeleteShoot = currentUser && (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель');
 
     try {
       if (fullMap && fullMap.geoObjects) {
@@ -1728,8 +1813,8 @@ async function loadShoots() {
             '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
             '<div style="margin-top:8px; display:flex; gap:4px;">' +
               '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
-          if (isAdmin) {
-            balloonHTML += '<button onclick="deleteShoot(\'' + s.id + '\')" style="background:#333;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
+          if (canDeleteShoot) {
+            balloonHTML += '<button onclick="deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
           }
           balloonHTML += '</div></div>';
 
@@ -1763,7 +1848,7 @@ async function loadShoots() {
 
       let typeBadge = '<span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">' + (s.type || 'СМЕНА') + '</span>';
 
-      let deleteBtn = isAdmin ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="text-neutral-400 hover:text-red-400 px-2 py-1 text-[10px] font-bold uppercase transition">Удалить</button>' : '';
+      let deleteBtn = canDeleteShoot ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="text-neutral-400 hover:text-red-400 px-2 py-1 text-[10px] font-bold uppercase transition" title="Удалить смену">Удалить</button>' : '';
 
       const crewList = s.crew || [];
       const acceptedMemberIds = crewList.filter(c => c.status === 'ACCEPTED').map(c => '\'' + c.id + '\'').join(', ');
@@ -1773,12 +1858,15 @@ async function loadShoots() {
         crewHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Команда пока не назначена на смену</div>';
       } else {
         crewHtml = crewList.map(c => {
-          let cUserName = c.user && c.user.fullName ? c.user.fullName : 'Участник';
-          let cGroupName = c.user && c.user.groupName ? c.user.groupName : 'Группа';
-          let cRating = c.user && c.user.rating !== null && c.user.rating !== undefined ? c.user.rating : 'Нет';
-          let cRatingColor = getRatingBadgeColor(c.user ? c.user.rating : null);
-          let cUserId = c.user ? (c.user.id || 'demo-user-1') : 'demo-user-1';
-          let cRank = getCraftRankBadge(c.user && c.user.participations ? c.user.participations : 3, c.user ? c.user.rating : 4.5);
+          const matchedUser = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id));
+          const actualUser = matchedUser || { fullName: 'Участник', groupName: 'КТ-26', rating: null, id: c.userId || c.id };
+          c.user = actualUser;
+          let cUserName = actualUser.fullName || 'Участник';
+          let cGroupName = actualUser.groupName || 'Группа';
+          let cRating = actualUser.rating !== null && actualUser.rating !== undefined ? actualUser.rating : 'Нет';
+          let cRatingColor = getRatingBadgeColor(actualUser.rating);
+          let cUserId = actualUser.id || 'demo-user-1';
+          let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : 3, actualUser.rating || 4.5);
           
           let statusBadgeCrew = '';
           if (c.status === 'ACCEPTED') {

@@ -26,6 +26,8 @@ $mimeTypes = @{
     ".json" = "application/json; charset=utf-8"
 }
 
+$utf8Encoding = New-Object System.Text.UTF8Encoding($false)
+
 while ($listener.IsListening) {
     try {
         $context = $listener.GetContext()
@@ -41,41 +43,128 @@ while ($listener.IsListening) {
 
             $reqBody = ""
             if ($request.HasEntityBody) {
-                $reader = New-Object System.IO.StreamReader($request.InputStream, $request.ContentEncoding)
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
                 $reqBody = $reader.ReadToEnd()
-                $reader.Close()
             }
 
-            $resultObj = @{ success = $true }
+            $rawJsonToSend = ""
 
             if ($urlPath -eq "/api/shoots" -and $method -eq "GET") {
                 $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
                 $usersFile = Join-Path $PSScriptRoot "data\users.json"
-                $shoots = if (Test-Path $shootsFile) { Get-Content $shootsFile -Raw -Encoding UTF8 | ConvertFrom-Json } else { @() }
-                $users = if (Test-Path $usersFile) { Get-Content $usersFile -Raw -Encoding UTF8 | ConvertFrom-Json } else { @() }
-                $resultObj = @{
-                    shoots = $shoots
-                    students = $users
-                    stats = @{ totalShoots = $shoots.Count; completedShoots = 1 }
-                    userStats = @{ rating = 4.8; completedParticipated = 4; totalParticipated = 5 }
+                $shootsRaw = if (Test-Path $shootsFile) { [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) } else { "[]" }
+                $usersRaw = if (Test-Path $usersFile) { [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) } else { "[]" }
+
+                $totalCount = 0
+                $completedCount = 0
+                try {
+                    $sList = $shootsRaw | ConvertFrom-Json
+                    if ($sList) {
+                        $totalCount = [int](@($sList).Count)
+                        $completedCount = [int](@($sList | Where-Object { $_.isCompleted -eq $true }).Count)
+                    }
+                } catch {}
+
+                $rawJsonToSend = "{`"success`":true,`"shoots`":$shootsRaw,`"students`":$usersRaw,`"stats`":{`"totalShoots`":$totalCount,`"completedShoots`":$completedCount},`"userStats`":{`"rating`":4.8,`"completedParticipated`":4,`"totalParticipated`":5}}"
+            }
+            elseif ($urlPath -eq "/api/shoots" -and $method -eq "POST") {
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                $shoots = if (Test-Path $shootsFile) { [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
+                $users = if (Test-Path $usersFile) { [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
+
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $newId = "shoot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+
+                $creatorName = "Creator"
+                if ($users.Count -gt 0 -and $users[0].fullName) {
+                    $creatorName = $users[0].fullName
                 }
+
+                $newCrew = @()
+                if ($parsed.crewAssignments) {
+                    $cIdx = 1
+                    foreach ($ca in $parsed.crewAssignments) {
+                        $uId = $ca.userId
+                        $st = $users | Where-Object { $_.id -eq $uId } | Select-Object -First 1
+                        $cRole = if ($ca.craftRole) { $ca.craftRole } else { "Crew" }
+                        $memberObj = [PSCustomObject]@{
+                            id = "c-$newId-$cIdx"
+                            roleInShoot = $cRole
+                            status = "PENDING"
+                            attendance = "PRESENT"
+                            userId = $uId
+                            user = if ($st) {
+                                [PSCustomObject]@{
+                                    id = $st.id
+                                    fullName = $st.fullName
+                                    groupName = $st.groupName
+                                    rating = $st.rating
+                                    telegram = $st.telegram
+                                }
+                            } else {
+                                $null
+                            }
+                        }
+                        $newCrew += $memberObj
+                        $cIdx++
+                    }
+                }
+
+                $sTitle = if ($parsed.title) { $parsed.title } else { "New Shoot" }
+                $sDesc = if ($parsed.description) { $parsed.description } else { "" }
+                $sType = if ($parsed.type) { $parsed.type } else { "STUDIO" }
+                $sDate = if ($parsed.date) { $parsed.date } else { [DateTime]::UtcNow.ToString("o") }
+                $sLoc = if ($parsed.location) { $parsed.location } else { "KP11" }
+                $sLat = if ($parsed.latitude) { [double]$parsed.latitude } else { 55.751244 }
+                $sLon = if ($parsed.longitude) { [double]$parsed.longitude } else { 37.618423 }
+
+                $newShoot = [PSCustomObject]@{
+                    id = $newId
+                    title = $sTitle
+                    description = $sDesc
+                    type = $sType
+                    date = $sDate
+                    location = $sLoc
+                    isCompleted = $false
+                    latitude = $sLat
+                    longitude = $sLon
+                    creator = [PSCustomObject]@{
+                        fullName = $creatorName
+                    }
+                    crew = $newCrew
+                }
+
+                $updatedShoots = @($newShoot) + @($shoots)
+                $shootsJsonOut = $updatedShoots | ConvertTo-Json -Depth 6
+                [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+
+                $newShootJson = $newShoot | ConvertTo-Json -Depth 5
+                $rawJsonToSend = "{`"success`":true,`"shoot`":$newShootJson}"
+            }
+            elseif ($urlPath -match "^/api/(?:admin/)?shoots/([^/]+)" -and $method -eq "DELETE") {
+                $targetShootId = $Matches[1]
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                if (Test-Path $shootsFile) {
+                    $shoots = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    $filteredShoots = @($shoots | Where-Object { $_.id -ne $targetShootId })
+                    $shootsJsonOut = $filteredShoots | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+                }
+                $rawJsonToSend = "{`"success`":true,`"message`":`"Shoot deleted`"}"
             }
             elseif ($urlPath -eq "/api/admin/data" -and $method -eq "GET") {
                 $usersFile = Join-Path $PSScriptRoot "data\users.json"
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
-                $users = if (Test-Path $usersFile) { Get-Content $usersFile -Raw -Encoding UTF8 | ConvertFrom-Json } else { @() }
-                $settings = if (Test-Path $settingsFile) { Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json } else { @{} }
-                $resultObj = @{
-                    users = $users
-                    roles = @()
-                    settings = $settings
-                }
+                $usersRaw = if (Test-Path $usersFile) { [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) } else { "[]" }
+                $settingsRaw = if (Test-Path $settingsFile) { [System.IO.File]::ReadAllText($settingsFile, [System.Text.Encoding]::UTF8) } else { "{}" }
+                $rawJsonToSend = "{`"success`":true,`"users`":$usersRaw,`"roles`":[],`"settings`":$settingsRaw}"
             }
             elseif ($urlPath -match "^/api/admin/users/([^/]+)" -and $method -eq "PATCH") {
                 $targetUserId = $Matches[1]
                 $usersFile = Join-Path $PSScriptRoot "data\users.json"
                 if (Test-Path $usersFile) {
-                    $users = Get-Content $usersFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                    $users = [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
                     $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
                     foreach ($u in $users) {
                         if ($u.id -eq $targetUserId) {
@@ -86,22 +175,24 @@ while ($listener.IsListening) {
                             break
                         }
                     }
-                    $users | ConvertTo-Json -Depth 5 | Set-Content $usersFile -Encoding UTF8
+                    $usersJsonOut = $users | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
                 }
-                $resultObj = @{ success = $true; message = "User updated" }
+                $rawJsonToSend = "{`"success`":true,`"message`":`"User updated`"}"
             }
             elseif ($urlPath -eq "/api/admin/settings" -and $method -eq "POST") {
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
                 $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
-                $parsed | ConvertTo-Json -Depth 5 | Set-Content $settingsFile -Encoding UTF8
-                $resultObj = @{ success = $true; settings = $parsed }
+                $settingsJsonOut = $parsed | ConvertTo-Json -Depth 5
+                [System.IO.File]::WriteAllText($settingsFile, $settingsJsonOut, $utf8Encoding)
+                $rawJsonToSend = "{`"success`":true,`"settings`":$settingsJsonOut}"
             }
             elseif ($urlPath -eq "/api/telegram/dispatch" -and $method -eq "POST") {
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
                 $token = ""
                 $defaultChat = ""
                 if (Test-Path $settingsFile) {
-                    $setObj = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                    $setObj = [System.IO.File]::ReadAllText($settingsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
                     $token = $setObj.telegramBotToken
                     $defaultChat = $setObj.defaultChatId
                 }
@@ -120,20 +211,13 @@ while ($listener.IsListening) {
                     } catch {}
                 }
 
-                $resultObj = @{
-                    success = $true
-                    report = @{
-                        deliveredCount = $delivered
-                        botTokenConfigured = [bool]$token
-                        shareUrl = "https://t.me/share/url?url=KP11_CALLSHEET"
-                    }
-                }
+                $rawJsonToSend = "{`"success`":true,`"report`":{`"deliveredCount`":$delivered,`"botTokenConfigured`":" + [string]([bool]$token).ToLower() + ",`"shareUrl`":`"https://t.me/share/url?url=KP11_CALLSHEET`"}}"
             }
             elseif ($urlPath -eq "/api/telegram/test" -and $method -eq "POST") {
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
                 $token = ""
                 if (Test-Path $settingsFile) {
-                    $setObj = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                    $setObj = [System.IO.File]::ReadAllText($settingsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
                     $token = $setObj.telegramBotToken
                 }
                 $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
@@ -144,18 +228,21 @@ while ($listener.IsListening) {
                         $tgUri = "https://api.telegram.org/bot$token/sendMessage"
                         $tgBody = @{ chat_id = $targetChat; text = "KP11 Film Crew Bot: Connection test successful!"; parse_mode = "HTML" } | ConvertTo-Json
                         Invoke-RestMethod -Uri $tgUri -Method Post -Body $tgBody -ContentType "application/json" | Out-Null
-                        $resultObj = @{ success = $true; message = "Test message delivered to Telegram" }
+                        $rawJsonToSend = "{`"success`":true,`"message`":`"Test message delivered to Telegram`"}"
                     } catch {
-                        $resultObj = @{ success = $false; error = "Telegram API Error: $($_.Exception.Message)" }
+                        $errMsg = $_.Exception.Message.Replace('"', ' ')
+                        $rawJsonToSend = "{`"success`":false,`"error`":`"Telegram API Error: $errMsg`"}"
                     }
                 } else {
-                    $resultObj = @{ success = $false; error = "Specify bot token and Chat ID" }
+                    $rawJsonToSend = "{`"success`":false,`"error`":`"Specify bot token and Chat ID`"}"
                 }
+            }
+            else {
+                $rawJsonToSend = "{`"success`":true}"
             }
 
             $response.StatusCode = 200
-            $jsonRes = $resultObj | ConvertTo-Json -Depth 5
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonRes)
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($rawJsonToSend)
             $response.ContentLength64 = $bytes.Length
             $response.OutputStream.Write($bytes, 0, $bytes.Length)
             $response.Close()
@@ -173,7 +260,7 @@ while ($listener.IsListening) {
             $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
             $mime = if ($mimeTypes.ContainsKey($ext)) { $mimeTypes[$ext] } else { "application/octet-stream" }
             $response.ContentType = $mime
-            
+
             $bytes = [System.IO.File]::ReadAllBytes($filePath)
             $response.ContentLength64 = $bytes.Length
             $response.OutputStream.Write($bytes, 0, $bytes.Length)
@@ -186,6 +273,10 @@ while ($listener.IsListening) {
         $response.Close()
     } catch {
         Write-Host "Request error: $_"
+        try {
+            $response.StatusCode = 500
+            $response.Close()
+        } catch {}
     }
 }
 $listener.Close()
