@@ -14,6 +14,9 @@ async function run() {
       if (param && fs.existsSync(param)) {
         body = fs.readFileSync(param, 'utf-8');
       }
+      if (typeof body === 'string') {
+        body = body.replace(/^\uFEFF/, '').trim();
+      }
       const data = JSON.parse(body);
       
       // If data comes from web client with raw create payload:

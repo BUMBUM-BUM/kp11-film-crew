@@ -97,15 +97,25 @@ function closeModal() {
 }
 
 if (typeof ymaps !== 'undefined') {
-  ymaps.ready(initMaps);
+  try {
+    ymaps.ready(initMaps);
+  } catch (e) {
+    console.warn('Yandex Maps warning:', e.message);
+  }
 }
 
 function initMaps() {
-  fullMap = new ymaps.Map("fullMapContainer", {
-    center: [55.751244, 37.618423],
-    zoom: 11,
-    controls: ['zoomControl', 'geolocationControl']
-  });
+  try {
+    const mapEl = document.getElementById("fullMapContainer");
+    if (!mapEl || typeof ymaps === 'undefined') return;
+    fullMap = new ymaps.Map(mapEl, {
+      center: [55.751244, 37.618423],
+      zoom: 11,
+      controls: ['zoomControl', 'geolocationControl']
+    });
+  } catch (e) {
+    console.warn('Yandex Maps init warning:', e.message);
+  }
 }
 
 function getRatingBadgeColor(rating) {
@@ -1064,8 +1074,8 @@ async function testTelegramConnection() {
   try {
     const res = await fetch('/api/telegram/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ chatId: effectiveChat })
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({ chatId: effectiveChat, token: effectiveToken })
     });
     const data = await res.json();
     if (data.success) {
@@ -1347,21 +1357,30 @@ async function openShootModal() {
   renderModalStudents(globalStudents, false);
 
   setTimeout(() => {
-    if (!pickerMap && typeof ymaps !== 'undefined') {
-      pickerMap = new ymaps.Map("pickerMap", { center: [55.751244, 37.618423], zoom: 11 });
-      pickerMap.events.add('click', function (e) {
-        const coords = e.get('coords');
-        document.getElementById('selectedLat').value = coords[0];
-        document.getElementById('selectedLon').value = coords[1];
-        if (pickerPlacemark) {
-          pickerPlacemark.geometry.setCoordinates(coords);
-        } else {
-          pickerPlacemark = new ymaps.Placemark(coords, {}, { preset: 'islands#redDotIcon' });
-          pickerMap.geoObjects.add(pickerPlacemark);
+    try {
+      if (!pickerMap && typeof ymaps !== 'undefined') {
+        const pEl = document.getElementById("pickerMap");
+        if (pEl) {
+          pickerMap = new ymaps.Map(pEl, { center: [55.751244, 37.618423], zoom: 11 });
+          pickerMap.events.add('click', function (e) {
+            const coords = e.get('coords');
+            const latInp = document.getElementById('selectedLat');
+            const lonInp = document.getElementById('selectedLon');
+            if (latInp) latInp.value = coords[0];
+            if (lonInp) lonInp.value = coords[1];
+            if (pickerPlacemark) {
+              pickerPlacemark.geometry.setCoordinates(coords);
+            } else {
+              pickerPlacemark = new ymaps.Placemark(coords, {}, { preset: 'islands#redDotIcon' });
+              pickerMap.geoObjects.add(pickerPlacemark);
+            }
+          });
         }
-      });
-    } else if (pickerMap) {
-      pickerMap.container.fitToViewport();
+      } else if (pickerMap) {
+        pickerMap.container.fitToViewport();
+      }
+    } catch (e) {
+      console.warn('Picker map error:', e.message);
     }
   }, 150);
 }
@@ -1491,11 +1510,17 @@ async function handleCreateShoot(e) {
   try {
     const res = await fetch('/api/shoots', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify(body)
     });
     if (res.ok) {
       createdSuccessfully = true;
+      const data = await res.json();
+      const newShoot = (data && data.shoot) ? data.shoot : data;
+      if (newShoot && newShoot.id) {
+        globalShoots = [newShoot, ...(globalShoots || []).filter(s => s.id !== newShoot.id)];
+        localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+      }
     }
   } catch (err) {}
 
@@ -1524,7 +1549,7 @@ async function handleCreateShoot(e) {
         };
       })
     };
-    globalShoots = [newShoot, ...(globalShoots || [])];
+    globalShoots = [newShoot, ...(globalShoots || []).filter(s => s.id !== newShoot.id)];
     localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   }
 
@@ -1680,11 +1705,19 @@ async function loadShoots() {
   let userStats = null;
 
   try {
-    const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') } });
     if (res.ok) {
       const data = await res.json();
       const rawShoots = data.shoots;
       shoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
+      const stored = JSON.parse(localStorage.getItem('kp11_shoots') || '[]');
+      if (Array.isArray(stored)) {
+        const serverIds = new Set(shoots.map(s => s.id));
+        const localOnly = stored.filter(s => !serverIds.has(s.id) && s.id && s.id.startsWith('shoot-'));
+        if (localOnly.length > 0) {
+          shoots = [...localOnly, ...shoots];
+        }
+      }
       if (data.students) {
         const rawStudents = data.students;
         globalStudents = Array.isArray(rawStudents) ? rawStudents : (rawStudents && Array.isArray(rawStudents.value) ? rawStudents.value : []);

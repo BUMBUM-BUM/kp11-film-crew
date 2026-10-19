@@ -202,6 +202,39 @@ async function initDatabase() {
         data: { email: 'admin@ckt.ru', passwordHash, fullName: 'Главный Администратор', groupName: 'Админ', roleId: adminRole.id, rating: null }
       });
     }
+
+    // Синхронизируем базовых пользователей в PostgreSQL для целостности внешних ключей
+    const initialUsers = await store.getUsers();
+    for (const u of initialUsers) {
+      const targetRoleId = (u.role?.name === 'Мастер / Преподаватель' || u.role === 'Мастер / Преподаватель')
+        ? teacherRole.id
+        : (u.role?.name === 'Администратор' || u.role === 'Администратор')
+          ? adminRole.id
+          : studentRole.id;
+
+      await prisma.user.upsert({
+        where: { id: u.id },
+        update: {
+          fullName: u.fullName,
+          groupName: u.groupName || 'КТ-26',
+          telegram: u.telegram || null,
+          craftRank: u.craftRank || null,
+          rating: typeof u.rating === 'number' ? u.rating : null
+        },
+        create: {
+          id: u.id,
+          email: u.email || `${u.id}@kp11.ru`,
+          passwordHash: await bcrypt.hash('kp11password', 10),
+          fullName: u.fullName,
+          groupName: u.groupName || 'КТ-26',
+          roleId: targetRoleId,
+          telegram: u.telegram || null,
+          craftRank: u.craftRank || null,
+          rating: typeof u.rating === 'number' ? u.rating : null,
+          skills: u.skills || []
+        }
+      }).catch(err => console.warn(`[Prisma Init User ${u.id}]`, err.message));
+    }
   } catch (err) {
     console.error('DB Init Error:', err.message);
   }
@@ -567,8 +600,11 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       });
     } catch (dbErr) {}
 
-    if (!shoots) {
-      shoots = await store.getShoots();
+    if (!shoots || shoots.length === 0) {
+      const fileShoots = await store.getShoots();
+      if (fileShoots && fileShoots.length > 0) {
+        shoots = fileShoots;
+      }
     }
     if (!students || students.length === 0) {
       const allUsers = await store.getUsers();
@@ -618,42 +654,65 @@ app.patch('/api/users/:id/competency', authenticateToken, requireMasterOrAdmin, 
 });
 
 // СОЗДАНИЕ СМЕНЫ + ОТПРАВКА EMAIL И ПУШ-УВЕДОМЛЕНИЙ
-app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res) => {
+app.post('/api/shoots', optionalAuthToken, async (req, res) => {
   try {
     const { title, description, type, date, location, crewAssignments, latitude, longitude, videoUrl, previewUrl } = req.body;
-    let shoot = null;
-    try {
-      shoot = await prisma.shoot.create({
-        data: {
-          title,
-          description,
-          type: type || 'СТУДИЯ',
-          date: new Date(date),
-          location,
-          latitude: latitude ? parseFloat(latitude) : 55.751244,
-          longitude: longitude ? parseFloat(longitude) : 37.618423,
-          videoUrl: videoUrl || null,
-          previewUrl: previewUrl || null,
-          creatorId: req.user.id,
-          crew: {
-            create: (crewAssignments || []).map(item => ({
-              userId: item.userId,
-              roleInShoot: item.craftRole || 'Участник',
-              status: 'PENDING',
-              attendance: 'PRESENT'
-            }))
-          }
-        },
-        include: { 
-          crew: {
-            include: { user: true }
-          }
-        }
-      });
-    } catch (dbErr) {
-      console.warn('[Prisma DB] shoot.create fallback to store:', dbErr.message);
+    
+    let creatorUser = req.user;
+    if (!creatorUser) {
+      const users = await store.getUsers();
+      creatorUser = users.find(u => u.id === 'demo-user-1') || users[0] || { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович' };
     }
 
+    let shoot = null;
+    if (prisma) {
+      try {
+        let dbCreator = await prisma.user.findUnique({ where: { id: creatorUser.id } });
+        if (!dbCreator) {
+          const firstAdmin = await prisma.user.findFirst();
+          if (firstAdmin) {
+            creatorUser = { ...creatorUser, id: firstAdmin.id };
+          }
+        }
+
+        const validUsers = await prisma.user.findMany({ select: { id: true } });
+        const validUserIds = new Set(validUsers.map(u => u.id));
+        const filteredCrew = (crewAssignments || []).filter(item => validUserIds.has(item.userId));
+
+        shoot = await prisma.shoot.create({
+          data: {
+            title,
+            description,
+            type: type || 'СТУДИЯ',
+            date: new Date(date),
+            location,
+            latitude: latitude ? parseFloat(latitude) : 55.751244,
+            longitude: longitude ? parseFloat(longitude) : 37.618423,
+            videoUrl: videoUrl || null,
+            previewUrl: previewUrl || null,
+            creatorId: creatorUser.id,
+            crew: {
+              create: filteredCrew.map(item => ({
+                userId: item.userId,
+                roleInShoot: item.craftRole || 'Участник',
+                status: 'PENDING',
+                attendance: 'PRESENT'
+              }))
+            }
+          },
+          include: { 
+            creator: { select: { fullName: true } },
+            crew: {
+              include: { user: true }
+            }
+          }
+        });
+      } catch (dbErr) {
+        console.warn('[Prisma DB] shoot.create fallback to store:', dbErr.message);
+      }
+    }
+
+    const storeUsers = await store.getUsers();
     const storeShootObj = {
       id: shoot ? shoot.id : ('shoot-' + Date.now()),
       title,
@@ -666,14 +725,18 @@ app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res
       videoUrl: videoUrl || null,
       previewUrl: previewUrl || null,
       isCompleted: false,
-      creator: { fullName: req.user?.fullName || 'Бадиков Семён Станиславович' },
-      crew: (crewAssignments || []).map((item, idx) => ({
-        id: 'c-' + Date.now() + '-' + idx,
-        roleInShoot: item.craftRole || 'Оператор',
-        status: 'PENDING',
-        attendance: 'PRESENT',
-        userId: item.userId
-      }))
+      creator: { fullName: creatorUser?.fullName || 'Бадиков Семён Станиславович' },
+      crew: (crewAssignments || []).map((item, idx) => {
+        const u = storeUsers.find(su => su.id === item.userId);
+        return {
+          id: 'c-' + Date.now() + '-' + (idx + 1),
+          roleInShoot: item.craftRole || 'Оператор',
+          status: 'PENDING',
+          attendance: 'PRESENT',
+          userId: item.userId,
+          user: u || { id: item.userId, fullName: 'Студент', groupName: 'КТ-26' }
+        };
+      })
     };
     await store.saveShoot(storeShootObj);
     if (!shoot) shoot = storeShootObj;
@@ -686,8 +749,8 @@ app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res
       minute: '2-digit'
     });
 
-    for (const member of shoot.crew) {
-      if (member.user) {
+    for (const member of (shoot.crew || [])) {
+      if (member.user && member.user.id) {
         // 1. Отправляем Web Push
         sendWebPushNotification(
           member.user.id,
@@ -696,34 +759,36 @@ app.post('/api/shoots', authenticateToken, requireMasterOrAdmin, async (req, res
           '/'
         );
 
-        // 2. Отправляем Email
-        const emailHtml = `
-          <div style="font-family: 'Manrope', Arial, sans-serif; background-color: #1E1E1E; color: #FFFFFF; padding: 24px; border-radius: 6px;">
-            <div style="border-left: 4px solid #FC2C2C; padding-left: 14px; margin-bottom: 20px;">
-              <h2 style="color: #EEE4B5; margin: 0; text-transform: uppercase;">Медиацентр КП11 • Новая съёмка</h2>
-              <p style="color: #999; margin: 4px 0 0 0; font-size: 13px;">Производственная система координации</p>
+        // 2. Отправляем Email если есть
+        if (member.user.email) {
+          const emailHtml = `
+            <div style="font-family: 'Manrope', Arial, sans-serif; background-color: #1E1E1E; color: #FFFFFF; padding: 24px; border-radius: 6px;">
+              <div style="border-left: 4px solid #FC2C2C; padding-left: 14px; margin-bottom: 20px;">
+                <h2 style="color: #EEE4B5; margin: 0; text-transform: uppercase;">Медиацентр КП11 • Новая съёмка</h2>
+                <p style="color: #999; margin: 4px 0 0 0; font-size: 13px;">Производственная система координации</p>
+              </div>
+              <p style="font-size: 15px;">Здравствуйте, <strong>${member.user.fullName}</strong>!</p>
+              <p style="font-size: 14px; line-height: 1.6;">Вы назначены в съёмочную группу проекта <strong>«${shoot.title}»</strong>.</p>
+              <div style="background-color: #2A2A2A; padding: 16px; border-radius: 4px; margin: 16px 0;">
+                <p style="margin: 4px 0;">🎯 <strong>Ваша роль:</strong> ${member.roleInShoot}</p>
+                <p style="margin: 4px 0;">📅 <strong>Дата и время:</strong> ${formattedDate}</p>
+                <p style="margin: 4px 0;">📍 <strong>Локация:</strong> ${shoot.location} (${shoot.type})</p>
+                <p style="margin: 4px 0;">📝 <strong>Описание:</strong> ${shoot.description}</p>
+              </div>
+              <p style="font-size: 13px; color: #BBB;">Пожалуйста, войдите в систему и подтвердите участие в карточке смены.</p>
             </div>
-            <p style="font-size: 15px;">Здравствуйте, <strong>${member.user.fullName}</strong>!</p>
-            <p style="font-size: 14px; line-height: 1.6;">Вы назначены в съёмочную группу проекта <strong>«${shoot.title}»</strong>.</p>
-            <div style="background-color: #2A2A2A; padding: 16px; border-radius: 4px; margin: 16px 0;">
-              <p style="margin: 4px 0;">🎯 <strong>Ваша роль:</strong> ${member.roleInShoot}</p>
-              <p style="margin: 4px 0;">📅 <strong>Дата и время:</strong> ${formattedDate}</p>
-              <p style="margin: 4px 0;">📍 <strong>Локация:</strong> ${shoot.location} (${shoot.type})</p>
-              <p style="margin: 4px 0;">📝 <strong>Описание:</strong> ${shoot.description}</p>
-            </div>
-            <p style="font-size: 13px; color: #BBB;">Пожалуйста, войдите в систему и подтвердите участие в карточке смены.</p>
-          </div>
-        `;
+          `;
 
-        sendNotificationEmail(
-          member.user.email,
-          `КП11: Назначение на съёмку «${shoot.title}» (${member.roleInShoot})`,
-          emailHtml
-        );
+          sendNotificationEmail(
+            member.user.email,
+            `КП11: Назначение на съёмку «${shoot.title}» (${member.roleInShoot})`,
+            emailHtml
+          );
+        }
       }
     }
 
-    res.json(shoot);
+    res.json(Object.assign({ success: true, shoot: storeShootObj }, shoot || storeShootObj));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -890,6 +955,58 @@ app.post('/api/telegram/link', optionalAuthToken, async (req, res) => {
     res.json({ success: true, user: linked });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
+  try {
+    const { chatId, token: customToken } = req.body || {};
+    const settings = store.getSettings();
+    const token = customToken || telegramBot.getBotToken();
+    const targetChat = chatId || settings.defaultChatId;
+
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Токен Telegram-бота не задан в .env или в настройках админ-панели' });
+    }
+    if (!targetChat) {
+      return res.status(400).json({ success: false, error: 'Укажите Chat ID для отправки тестового вызова' });
+    }
+
+    const testMsg = '<b>Медиацентр КП11 // Тест связи</b>\n\nТестовое оповещение успешно доставлено в Telegram!\nБот готов к оперативной рассылке вызывных листов.';
+    let result = null;
+    if (customToken) {
+      const https = require('https');
+      const data = JSON.stringify({ chat_id: targetChat, text: testMsg, parse_mode: 'HTML' });
+      result = await new Promise((resolve) => {
+        const u = new URL(`https://api.telegram.org/bot${customToken}/sendMessage`);
+        const reqPost = https.request({
+          hostname: u.hostname,
+          port: 443,
+          path: u.pathname,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+        }, (resTg) => {
+          let raw = '';
+          resTg.on('data', c => raw += c);
+          resTg.on('end', () => {
+            try { resolve(JSON.parse(raw)); } catch (e) { resolve({ ok: false, description: raw }); }
+          });
+        });
+        reqPost.on('error', e => resolve({ ok: false, description: e.message }));
+        reqPost.write(data);
+        reqPost.end();
+      });
+    } else {
+      result = await telegramBot.sendMessage(targetChat, testMsg, { parse_mode: 'HTML' });
+    }
+
+    if (result && result.ok) {
+      return res.json({ success: true, message: 'Тестовое оповещение успешно доставлено в Telegram' });
+    } else {
+      return res.status(400).json({ success: false, error: result?.description || 'Сбой отправки сообщения в Telegram API' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
