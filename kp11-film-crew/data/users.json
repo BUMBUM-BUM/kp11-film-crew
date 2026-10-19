@@ -179,5 +179,83 @@
                        "ARRI RAW",
                        "Стедикам"
                    ]
+    },
+    {
+        "id":  "u6",
+        "fullName":  "Шальнева Любовь Игоревна",
+        "email":  "lyubov.shalneva@kp11.ru",
+        "groupName":  "ФТ-21-25",
+        "rating":  4.7,
+        "telegram":  "@lyubov_photo",
+        "telegramChatId":  null,
+        "craftRank":  "Фотограф // 2nd Unit DP",
+        "isSuspended":  false,
+        "role":  {
+                     "name":  "Студент"
+                 },
+        "competencies":  {
+                             "camera":  92,
+                             "sound":  76,
+                             "light":  89,
+                             "edit":  90
+                         },
+        "skills":  [
+                       "Canon R5",
+                       "Студийный свет",
+                       "Репортаж",
+                       "Lightroom"
+                   ]
+    },
+    {
+        "id":  "u7",
+        "fullName":  "Хамуд Юлий Мохамедович",
+        "email":  "yuliy.khamud@kp11.ru",
+        "groupName":  "КТ-26",
+        "rating":  4.6,
+        "telegram":  "@yuliy_cam",
+        "telegramChatId":  null,
+        "craftRank":  "Камерный оператор // 2nd AC",
+        "isSuspended":  false,
+        "role":  {
+                     "name":  "Студент"
+                 },
+        "competencies":  {
+                             "camera":  91,
+                             "sound":  80,
+                             "light":  84,
+                             "edit":  88
+                         },
+        "skills":  [
+                       "Canon C200",
+                       "Стедикам",
+                       "Оптика Prime",
+                       "Полевая съёмка"
+                   ]
+    },
+    {
+        "id":  "u8",
+        "fullName":  "Журавлев Никита Дмитриевич",
+        "email":  "nikita.zhuravlev@kp11.ru",
+        "groupName":  "КТ-21",
+        "rating":  4.5,
+        "telegram":  "@nikita_sound",
+        "telegramChatId":  null,
+        "craftRank":  "Звукооператор // Boom Operator",
+        "isSuspended":  false,
+        "role":  {
+                     "name":  "Студент"
+                 },
+        "competencies":  {
+                             "camera":  80,
+                             "sound":  95,
+                             "light":  75,
+                             "edit":  85
+                         },
+        "skills":  [
+                       "Рекордер Zoom",
+                       "Радиопетлички",
+                       "Шумоподавление",
+                       "Чистовой звук"
+                   ]
     }
 ]

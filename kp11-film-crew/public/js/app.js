@@ -588,6 +588,388 @@ async function dispatchTelegramBot() {
   }
 }
 
+// ================= МОДУЛЬ ДОКУМЕНТООБОРОТА И РЕГЛАМЕНТА ЦКТ КП11 =================
+
+let activeDismissalShootId = null;
+let activeEquipmentShootId = null;
+let activeCktGradingShootId = null;
+let cktGradingValues = {};
+
+function openDismissalModal(shootId) {
+  activeDismissalShootId = shootId;
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+  const container = document.getElementById('dismissalOrderContent');
+  const modal = document.getElementById('dismissalOrderModal');
+  if (!modal || !container || !shoot) return;
+
+  const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+  const dDate = new Date(shoot.date);
+  const formattedDate = dDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timeStr = dDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) + ' – 18:00';
+  const masterName = (shoot.creator && shoot.creator.fullName) ? shoot.creator.fullName : 'Бадиков Семён Станиславович';
+
+  let studentRows = '';
+  if (crewList.length === 0) {
+    studentRows = '<tr><td colspan="5" class="p-3 text-center text-xs font-mono" style="color: var(--text-muted);">В смене пока нет подтверждённых участников</td></tr>';
+  } else {
+    studentRows = crewList.map((c, i) => {
+      const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
+      const fName = u.fullName || 'Студент';
+      const grp = u.groupName || 'КТ-26';
+      const role = c.roleInShoot || 'Специалист площадки';
+      const contact = u.telegram || '@student';
+      return '<tr class="border-b" style="border-color: var(--border-subtle);">' +
+        '<td class="p-2 font-mono text-[11px]">' + (i + 1) + '</td>' +
+        '<td class="p-2 font-bold text-xs" style="color: var(--text-primary);">' + fName + '</td>' +
+        '<td class="p-2 font-mono text-xs font-bold text-[var(--brand-beige-text)]">' + grp + '</td>' +
+        '<td class="p-2 text-xs" style="color: var(--text-secondary);">' + role + '</td>' +
+        '<td class="p-2 font-mono text-[11px]" style="color: var(--text-muted);">' + contact + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  container.innerHTML = 
+    '<div class="p-5 border space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+      '<div class="text-center border-b pb-3 space-y-1" style="border-color: var(--border-color);">' +
+        '<div class="text-[10px] font-mono tracking-widest uppercase font-bold" style="color: var(--brand-red);">ГАПОУ «КОЛЛЕДЖ ПРЕДПРИНИМАТЕЛЬСТВА №11»</div>' +
+        '<div class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);">ЦЕНТР КРЕАТИВНЫХ ТЕХНОЛОГИЙ // УЧЕБНАЯ ЧАСТЬ</div>' +
+        '<div class="text-sm font-extrabold uppercase font-mono mt-1 text-[var(--brand-beige-text)]">СЛУЖЕБНАЯ ЗАПИСКА / ПРИКАЗ НА ОСВОБОЖДЕНИЕ № ЦКТ-' + (shoot.id || '101') + '</div>' +
+      '</div>' +
+
+      '<div class="text-xs space-y-1.5 leading-relaxed" style="color: var(--text-primary);">' +
+        '<p>Прошу освободить от учебных занятий следующих студентов отделений творческих специальностей (Фото, видео, кино, ТВ, звукорежиссура) в связи с привлечением к плановой производственной съёмке Медиацентра ЦКТ КП11:</p>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 font-mono text-[11px] border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
+          '<div><b>Проект:</b> ' + (shoot.title || 'Смена') + ' (' + (shoot.type || 'СЪЁМКА') + ')</div>' +
+          '<div><b>Дата и время:</b> ' + formattedDate + ', ' + timeStr + '</div>' +
+          '<div class="sm:col-span-2"><b>Место проведения:</b> ' + (shoot.location || 'Площадка КП11') + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="overflow-x-auto border" style="border-color: var(--border-color);">' +
+        '<table class="w-full text-left border-collapse">' +
+          '<thead>' +
+            '<tr class="border-b text-[10px] uppercase font-mono" style="background-color: var(--bg-elevated); border-color: var(--border-color); color: var(--text-muted);">' +
+              '<th class="p-2">№</th>' +
+              '<th class="p-2">ФИО студента</th>' +
+              '<th class="p-2">Группа</th>' +
+              '<th class="p-2">Роль на смене</th>' +
+              '<th class="p-2">Контакт</th>' +
+            '</tr>' +
+          '</thead>' +
+          '<tbody>' + studentRows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+
+      '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-3 border-t text-xs font-mono" style="border-color: var(--border-color); color: var(--text-muted);">' +
+        '<div>Ответственный мастер ЦКТ КП11: <b style="color: var(--text-primary);">' + masterName + '</b></div>' +
+        '<div>Дата формирования: ' + new Date().toLocaleDateString('ru-RU') + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="flex flex-wrap items-center justify-end gap-2 pt-2">' +
+      '<button onclick="copyDismissalOrderText()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5">' +
+        (SVG_ICONS.copy || '') + '<span>Скопировать для чата кураторов</span>' +
+      '</button>' +
+      '<button onclick="window.print()" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">' +
+        '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
+        '<span>Распечатать приказ / PDF</span>' +
+      '</button>' +
+    '</div>';
+
+  modal.classList.remove('hidden');
+}
+
+function closeDismissalModal() {
+  const modal = document.getElementById('dismissalOrderModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function copyDismissalOrderText() {
+  const shoot = (globalShoots || []).find(s => s.id === activeDismissalShootId);
+  if (!shoot) return;
+  const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+  const dDate = new Date(shoot.date);
+  const formattedDate = dDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const masterName = (shoot.creator && shoot.creator.fullName) ? shoot.creator.fullName : 'Бадиков Семён Станиславович';
+
+  let listStr = crewList.map((c, i) => {
+    const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
+    return (i + 1) + '. ' + (u.fullName || 'Студент') + ' (' + (u.groupName || 'КТ-26') + ') — ' + (c.roleInShoot || 'Оператор');
+  }).join('\n');
+
+  let text = '📋 СЛУЖЕБНАЯ ЗАПИСКА // ОСВОБОЖДЕНИЕ ОТ УЧЕБНЫХ ЗАНЯТИЙ\n' +
+    'В учебную часть Центра креативных технологий КП11\n\n' +
+    'Прошу освободить от пар следующих студентов в связи с производственной съёмкой:\n' +
+    (listStr || 'Список участников формируется') + '\n\n' +
+    'Проект: ' + (shoot.title || 'Смена') + '\n' +
+    'Дата: ' + formattedDate + '\n' +
+    'Площадка: ' + (shoot.location || 'КП11') + '\n' +
+    'Ответственный мастер: ' + masterName;
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Служебная записка скопирована в буфер обмена!');
+  }).catch(() => {
+    showToast('Текст сформирован!');
+  });
+}
+
+function openEquipmentModal(shootId) {
+  activeEquipmentShootId = shootId;
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+  const container = document.getElementById('equipmentCheckoutContent');
+  const modal = document.getElementById('equipmentCheckoutModal');
+  if (!modal || !container || !shoot) return;
+
+  const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+  const masterName = (shoot.creator && shoot.creator.fullName) ? shoot.creator.fullName : 'Бадиков Семён Станиславович';
+  const dDate = new Date(shoot.date).toLocaleDateString('ru-RU');
+
+  let studentOptions = crewList.map(c => {
+    const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
+    return '<option value="' + (u.fullName || 'Студент') + '">' + (u.fullName || 'Студент') + ' [' + (u.groupName || 'Группа') + '] — ' + c.roleInShoot + '</option>';
+  }).join('');
+
+  if (!studentOptions) {
+    studentOptions = '<option value="Демидов Тимофей Дмитриевич">Демидов Тимофей Дмитриевич [ФВТ-22] — Бригадир цеха</option>';
+  }
+
+  container.innerHTML = 
+    '<div class="p-5 border space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+      '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3" style="border-color: var(--border-color);">' +
+        '<div>' +
+          '<div class="text-[10px] font-mono tracking-widest uppercase font-bold" style="color: var(--brand-red);">ТЕХПАРК ЦЕНТРА КРЕАТИВНЫХ ТЕХНОЛОГИЙ КП11</div>' +
+          '<h4 class="text-sm font-extrabold uppercase tracking-wide" style="color: var(--text-primary);">АКТ ВЫДАЧИ И ВЫВОЗА СЪЁМОЧНОГО ОБОРУДОВАНИЯ</h4>' +
+        '</div>' +
+        '<span class="text-[10px] font-mono font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--brand-beige-text); border-color: var(--border-color);">АКТ № ' + (shoot.id || 'EQ-101') + '</span>' +
+      '</div>' +
+
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
+        '<div><b>Съёмка:</b> ' + (shoot.title || 'Смена') + '</div>' +
+        '<div><b>Дата выезда:</b> ' + dDate + '</div>' +
+        '<div><b>Локация выезда:</b> ' + (shoot.location || 'Полевая площадка') + '</div>' +
+        '<div><b>Ответственный преподаватель:</b> ' + masterName + '</div>' +
+      '</div>' +
+
+      '<div class="space-y-2">' +
+        '<label class="text-xs font-bold uppercase tracking-wider block" style="color: var(--text-primary);">Материально ответственный студент (получатель комплекта):</label>' +
+        '<select id="equipResponsibleStudent" class="studio-input w-full text-xs font-bold px-3 py-2">' +
+          studentOptions +
+        '</select>' +
+      '</div>' +
+
+      '<div class="space-y-2.5">' +
+        '<div class="flex items-center justify-between border-b pb-1 text-xs font-bold uppercase" style="border-color: var(--border-subtle); color: var(--brand-beige-text);">' +
+          '<span>Спецификация техники ЦКТ КП11</span>' +
+          '<span class="text-[10px] font-mono">ОТМЕТКА ВЫДАЧИ</span>' +
+        '</div>' +
+
+        '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Кинокамера Canon EOS C200</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Cinema RAW Light, 4K 50p, видоискатель, ручка</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Камера Canon EOS R5 + RF 24-70mm f/2.8L</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">8K RAW, 4K 120p, светосильный зум IS USM</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Видеоштатив Manfrotto 504HD</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Гидроголовка, распорка, быстросъёмная площадка</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Стедикам / Электронный стабилизатор</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">3-осевой подвес с балансировкой и аккумуляторами</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Аудиорекордер Zoom H6</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Поканальная чистовая запись, 6 входов XLR/TRS</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Радиосистема Sennheiser EW-D</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">2 петлички, 2 передатчика, накамерный приёмник</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Выездной свет Dedolight (3 прибора)</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Шторки, диммеры 150W, сетевые кабели, стойки</div></div>' +
+          '</label>' +
+          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+            '<div><b style="color: var(--text-primary);">Аккумуляторы и носители данных</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">BP-A30 (x2), LP-E6NH (x4), CFast 256GB, SDXC V90</div></div>' +
+          '</label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="p-3 border text-[11px] font-mono leading-relaxed" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">' +
+        'Оборудование выдано в исправном состоянии, проверено на включение, отсутствие механических повреждений оптики и матриц. Получатель обязуется соблюдать правила бережливости ЦКТ КП11 и вернуть комплект сразу после окончания выездной смены.' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="flex items-center justify-end gap-2 pt-2">' +
+      '<button onclick="closeEquipmentModal()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отмена</button>' +
+      '<button onclick="saveEquipmentCheckout()" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">' +
+        '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
+        '<span>Распечатать и утвердить акт вывоза</span>' +
+      '</button>' +
+    '</div>';
+
+  modal.classList.remove('hidden');
+}
+
+function closeEquipmentModal() {
+  const modal = document.getElementById('equipmentCheckoutModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function saveEquipmentCheckout() {
+  showToast('Акт вывоза съёмочного оборудования утверждён и занесён в техпарк ЦКТ!');
+  window.print();
+  closeEquipmentModal();
+}
+
+function openCktGradingModal(shootId) {
+  activeCktGradingShootId = shootId;
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+  const container = document.getElementById('cktGradingContent');
+  const modal = document.getElementById('cktGradingModal');
+  if (!modal || !container || !shoot) return;
+
+  const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+  cktGradingValues = {};
+
+  let memberCards = '';
+  if (crewList.length === 0) {
+    memberCards = '<div class="p-4 text-center font-mono text-xs text-[var(--text-muted)] border border-dashed">В смене нет участников для оценивания</div>';
+  } else {
+    memberCards = crewList.map(c => {
+      const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
+      const fName = u.fullName || 'Студент';
+      const grp = u.groupName || 'КТ-26';
+      const mId = c.id;
+
+      cktGradingValues[mId] = { frames: 5, gear: 5, time: 5, ethics: 5 };
+
+      return '<div class="p-4 border space-y-3" style="background-color: var(--bg-card); border-color: var(--border-color);" id="ckt_card_' + mId + '">' +
+        '<div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2" style="border-color: var(--border-subtle);">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + fName + '</span>' +
+            '<span class="font-mono text-[11px] text-[var(--text-muted)]">[' + grp + ']</span>' +
+            '<span class="badge-neutral text-[9px] px-2 py-0.5 font-mono uppercase">' + (c.roleInShoot || 'Специалист') + '</span>' +
+          '</div>' +
+          '<div class="font-mono text-xs font-bold text-amber-400 inline-flex items-center gap-1">' +
+            'ИТОГОВЫЙ БАЛЛ: <span class="text-sm font-extrabold text-[var(--brand-red)]" id="ckt_avg_' + mId + '">★ 5.0</span>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">' +
+          '<div class="space-y-1">' +
+            '<div class="flex justify-between items-center text-[11px] font-mono text-[var(--text-muted)]">' +
+              '<span>🎞️ Количество и качество кадров:</span>' +
+              '<b class="text-amber-400" id="val_frames_' + mId + '">5</b>' +
+            '</div>' +
+            '<input type="range" min="1" max="5" step="1" value="5" oninput="updateCktCriteria(\'' + mId + '\', \'frames\', this.value)" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+          '</div>' +
+
+          '<div class="space-y-1">' +
+            '<div class="flex justify-between items-center text-[11px] font-mono text-[var(--text-muted)]">' +
+              '<span>🛡️ Бережливость к оборудованию:</span>' +
+              '<b class="text-amber-400" id="val_gear_' + mId + '">5</b>' +
+            '</div>' +
+            '<input type="range" min="1" max="5" step="1" value="5" oninput="updateCktCriteria(\'' + mId + '\', \'gear\', this.value)" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+          '</div>' +
+
+          '<div class="space-y-1">' +
+            '<div class="flex justify-between items-center text-[11px] font-mono text-[var(--text-muted)]">' +
+              '<span>⏱️ Пунктуальность и соблюдение тайминга:</span>' +
+              '<b class="text-amber-400" id="val_time_' + mId + '">5</b>' +
+            '</div>' +
+            '<input type="range" min="1" max="5" step="1" value="5" oninput="updateCktCriteria(\'' + mId + '\', \'time\', this.value)" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+          '</div>' +
+
+          '<div class="space-y-1">' +
+            '<div class="flex justify-between items-center text-[11px] font-mono text-[var(--text-muted)]">' +
+              '<span>🤝 Вежливость и командная этика:</span>' +
+              '<b class="text-amber-400" id="val_ethics_' + mId + '">5</b>' +
+            '</div>' +
+            '<input type="range" min="1" max="5" step="1" value="5" oninput="updateCktCriteria(\'' + mId + '\', \'ethics\', this.value)" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  container.innerHTML = 
+    '<div class="space-y-4">' +
+      '<div class="p-3 border text-xs font-mono" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-secondary);">' +
+        'Оценивание производится по 4 стандартам Центра креативных технологий КП11: качество/количество отснятого материала, сохранность дорогостоящей оптики и электроники (Canon C200/R5), своевременность и бесконфликтность в работе.' +
+      '</div>' +
+      '<div class="space-y-3 max-h-[480px] overflow-y-auto pr-1">' +
+        memberCards +
+      '</div>' +
+      '<div class="flex items-center justify-end gap-2 pt-2 border-t" style="border-color: var(--border-color);">' +
+        '<button onclick="closeCktGradingModal()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отмена</button>' +
+        '<button onclick="submitCktGrading()" class="btn-brand-primary px-4 py-2 text-xs font-extrabold uppercase tracking-wide shadow">' +
+          'Утвердить оценки и завершить смену' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  modal.classList.remove('hidden');
+}
+
+function updateCktCriteria(memberId, criteria, val) {
+  val = parseFloat(val) || 5;
+  if (!cktGradingValues[memberId]) {
+    cktGradingValues[memberId] = { frames: 5, gear: 5, time: 5, ethics: 5 };
+  }
+  cktGradingValues[memberId][criteria] = val;
+  const labelEl = document.getElementById('val_' + criteria + '_' + memberId);
+  if (labelEl) labelEl.innerText = val;
+
+  const o = cktGradingValues[memberId];
+  const avg = Math.round(((o.frames + o.gear + o.time + o.ethics) / 4) * 10) / 10;
+  const avgEl = document.getElementById('ckt_avg_' + memberId);
+  if (avgEl) avgEl.innerText = '★ ' + avg.toFixed(1);
+}
+
+function closeCktGradingModal() {
+  const modal = document.getElementById('cktGradingModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function submitCktGrading() {
+  const shoot = (globalShoots || []).find(s => s.id === activeCktGradingShootId);
+  if (!shoot) return;
+  const grades = {};
+  const crewList = shoot.crew || [];
+  crewList.forEach(m => {
+    if (cktGradingValues[m.id]) {
+      const o = cktGradingValues[m.id];
+      const avg = Math.round(((o.frames + o.gear + o.time + o.ethics) / 4) * 10) / 10;
+      grades[m.id] = avg;
+      m.grade = avg;
+    } else {
+      grades[m.id] = m.grade || 5;
+    }
+  });
+
+  shoot.isCompleted = true;
+
+  try {
+    await fetch('/api/shoots/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({ shootId: shoot.id, grades, shoot })
+    });
+  } catch (err) {}
+
+  recalculateAllStudentRatings();
+
+  showToast('Смена завершена! Оценки по 4 стандартам ЦКТ утверждены.');
+  closeCktGradingModal();
+  await loadShoots();
+  loadStatisticsData();
+}
+
 // ================= МОДУЛЬ 6: МАТРИЦА КОМПЕТЕНЦИЙ И ЦИФРОВОЙ ПРОФИЛЬ =================
 function getStudentDirectory() {
   return [
@@ -656,6 +1038,39 @@ function getStudentDirectory() {
       competencies: { camera: 97, sound: 85, light: 90, edit: 92 },
       skills: ['Оператор-постановщик', 'Фокус-пуллинг', 'ARRI RAW', 'Стедикам'],
       projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'СПОРТИВНЫЙ РЕПОРТАЖ', 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03']
+    },
+    {
+      id: 'u6',
+      fullName: 'Шальнева Любовь Игоревна',
+      groupName: 'ФТ-21-25',
+      rating: 4.7,
+      completedShoots: 4,
+      telegram: '@lyubov_photo',
+      competencies: { camera: 92, sound: 76, light: 89, edit: 90 },
+      skills: ['Canon R5', 'Студийный свет', 'Репортаж', 'Lightroom'],
+      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+    },
+    {
+      id: 'u7',
+      fullName: 'Хамуд Юлий Мохамедович',
+      groupName: 'КТ-26',
+      rating: 4.6,
+      completedShoots: 3,
+      telegram: '@yuliy_cam',
+      competencies: { camera: 91, sound: 80, light: 84, edit: 88 },
+      skills: ['Canon C200', 'Стедикам', 'Оптика Prime', 'Полевая съёмка'],
+      projects: ['ПОДКАСТ МЕДИАЦЕНТРА КП11 #03', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+    },
+    {
+      id: 'u8',
+      fullName: 'Журавлев Никита Дмитриевич',
+      groupName: 'КТ-21',
+      rating: 4.5,
+      completedShoots: 3,
+      telegram: '@nikita_sound',
+      competencies: { camera: 80, sound: 95, light: 75, edit: 85 },
+      skills: ['Рекордер Zoom', 'Радиопетлички', 'Шумоподавление', 'Чистовой звук'],
+      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
     }
   ];
 }
@@ -887,37 +1302,71 @@ async function loadStatisticsData() {
   let data = null;
   try {
     const res = await fetch('/api/statistics', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
     });
     if (res.ok) {
       data = await res.json();
-    } else {
-      throw new Error('API fetch failed');
     }
   } catch (err) {
+    console.warn('API /api/statistics offline or warning:', err.message);
+  }
+
+  if (typeof recalculateAllStudentRatings === 'function') {
+    recalculateAllStudentRatings();
+  }
+
+  const localShoots = Array.isArray(globalShoots) ? globalShoots : [];
+  const localCompleted = localShoots.filter(s => s.isCompleted);
+  const studentsList = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+
+  if (!data || data.totalShoots === 0 || !data.leaders || data.leaders.length === 0 || localShoots.length > (data.totalShoots || 0)) {
+    const studentLeaders = [...studentsList]
+      .filter(s => s.rating !== null && s.rating !== undefined && !s.isSuspended)
+      .sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0))
+      .slice(0, 10);
+
+    const groupMap = {};
+    studentsList.forEach(st => {
+      const g = st.groupName || 'КТ-26';
+      if (!groupMap[g]) groupMap[g] = { sum: 0, count: 0, participations: 0 };
+      if (st.rating) {
+        groupMap[g].sum += parseFloat(st.rating);
+        groupMap[g].count++;
+      }
+      groupMap[g].participations += (st.completedShoots || 1);
+    });
+
+    const groupsRating = Object.keys(groupMap).map(g => ({
+      groupName: g,
+      avgRating: groupMap[g].count > 0 ? parseFloat((groupMap[g].sum / groupMap[g].count).toFixed(1)) : 4.5,
+      participations: groupMap[g].participations
+    })).sort((a, b) => b.avgRating - a.avgRating);
+
+    const titleCounts = {};
+    localShoots.forEach(sh => {
+      const t = (sh.title || 'Смена').trim();
+      titleCounts[t] = (titleCounts[t] || 0) + 1;
+    });
+    const frequentShoots = Object.keys(titleCounts).map(t => ({
+      title: t,
+      count: titleCounts[t]
+    })).sort((a, b) => b.count - a.count).slice(0, 5);
+
     data = {
-      totalShoots: 2,
-      totalCompleted: 2,
-      leaders: [
-        { id: '1', fullName: 'Ковалев Михаил Алексеевич', groupName: 'ФВТ-22', rating: 4.7 },
-        { id: '2', fullName: 'Демидов Тимофей Дмитриевич', groupName: 'ФВТ-22', rating: 4.5 },
-        { id: '3', fullName: 'Соколова Анна Алексеевна', groupName: 'КТ-15', rating: 4.0 },
-        { id: '4', fullName: 'Гусев Андрей Алексеевич', groupName: 'КТ-25', rating: 3.5 },
-        { id: '5', fullName: 'Бадиков Семён Станиславович', groupName: 'КТ-26', rating: 4.8 },
-        { id: '6', fullName: 'Жемчужников Ярослав Станиславович', groupName: 'КТ-25', rating: 4.2 }
-      ],
-      groupsRating: [
-        { groupName: 'ФВТ-22', avgRating: 4.6, participations: 3 },
-        { groupName: 'КТ-15', avgRating: 4.0, participations: 1 },
-        { groupName: 'КТ-25', avgRating: 3.5, participations: 2 },
-        { groupName: 'КТ-26', avgRating: 4.8, participations: 2 }
-      ],
-      frequentShoots: [
-        { title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ', count: 3 },
-        { title: 'ПОДКАСТ МЕДИАЦЕНТРА', count: 1 },
-        { title: 'РЕПОРТАЖ СПОРТИВНОГО КЛУБА', count: 1 }
-      ]
+      totalShoots: Math.max(localShoots.length, (data && data.totalShoots) || 0),
+      totalCompleted: Math.max(localCompleted.length, (data && data.totalCompleted) || 0),
+      leaders: (data && data.leaders && data.leaders.length >= studentLeaders.length) ? data.leaders : studentLeaders,
+      groupsRating: (data && data.groupsRating && data.groupsRating.length >= groupsRating.length) ? data.groupsRating : groupsRating,
+      frequentShoots: (data && data.frequentShoots && data.frequentShoots.length > 0) ? data.frequentShoots : frequentShoots
     };
+
+    if (localShoots.length > 0) {
+      fetch('/api/shoots/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({ shoots: localShoots, students: studentsList })
+      }).catch(() => {});
+    }
   }
 
   try {
@@ -1893,6 +2342,62 @@ function applyGlobalGrade(shootId, starValue) {
   }
 }
 
+function recalculateAllStudentRatings() {
+  if (!globalStudents || !Array.isArray(globalStudents) || globalStudents.length === 0) {
+    globalStudents = getStudentDirectory();
+  }
+  const shoots = globalShoots || [];
+  
+  globalStudents.forEach(st => {
+    const gradesList = [];
+    shoots.forEach(sh => {
+      if (sh.isCompleted && sh.crew) {
+        sh.crew.forEach(cm => {
+          const isThisStudent = (cm.userId && cm.userId === st.id) ||
+            (cm.id && cm.id === st.id) ||
+            (cm.user && cm.user.id && cm.user.id === st.id) ||
+            (cm.user && cm.user.fullName && st.fullName && cm.user.fullName.toLowerCase() === st.fullName.toLowerCase()) ||
+            (cm.fullName && st.fullName && cm.fullName.toLowerCase() === st.fullName.toLowerCase());
+          
+          if (isThisStudent && cm.grade !== undefined && cm.grade !== null && cm.attendance !== 'ABSENT') {
+            gradesList.push(Number(cm.grade));
+          }
+        });
+      }
+    });
+
+    if (gradesList.length > 0) {
+      const sum = gradesList.reduce((acc, v) => acc + v, 0);
+      st.rating = parseFloat((sum / gradesList.length).toFixed(1));
+      st.completedShoots = gradesList.length;
+    }
+  });
+
+  // Синхронизируем рейтинг в объектах crew всех смен
+  shoots.forEach(sh => {
+    if (sh.crew) {
+      sh.crew.forEach(cm => {
+        const found = globalStudents.find(st => 
+          (st.id && (st.id === cm.userId || st.id === cm.id)) ||
+          (cm.user && cm.user.id && st.id === cm.user.id) ||
+          (cm.user && cm.user.fullName && st.fullName && cm.user.fullName.toLowerCase() === st.fullName.toLowerCase()) ||
+          (cm.fullName && st.fullName && cm.fullName.toLowerCase() === st.fullName.toLowerCase())
+        );
+        if (found) {
+          if (!cm.user) cm.user = {};
+          cm.user.id = found.id;
+          cm.user.rating = found.rating;
+          cm.user.fullName = found.fullName;
+          cm.user.groupName = found.groupName;
+        }
+      });
+    }
+  });
+
+  localStorage.setItem('kp11_students', JSON.stringify(globalStudents));
+  localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+}
+
 async function saveShootGrades(shootId, crewMemberIds) {
   const grades = {};
   for (const memberId of crewMemberIds) {
@@ -1900,17 +2405,6 @@ async function saveShootGrades(shootId, crewMemberIds) {
     if (inputEl) {
       grades[memberId] = parseFloat(inputEl.value) || 5;
     }
-  }
-
-  try {
-    const res = await fetch('/api/shoots/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-      body: JSON.stringify({ shootId, grades })
-    });
-    if (!res.ok) throw new Error('Ошибка сохранения оценок на сервере');
-  } catch (err) {
-    console.warn('API /api/shoots/complete error, using local fallback:', err.message);
   }
 
   const target = (globalShoots || []).find(s => s.id === shootId);
@@ -1927,10 +2421,23 @@ async function saveShootGrades(shootId, crewMemberIds) {
         }
       });
     }
-    localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   }
+
+  try {
+    await fetch('/api/shoots/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({ shootId, grades, shoot: target })
+    });
+  } catch (err) {
+    console.warn('API /api/shoots/complete error, using local fallback:', err.message);
+  }
+
+  recalculateAllStudentRatings();
+
   showToast('Смена завершена! Оценки выставлены в производственный журнал.');
   await loadShoots();
+  loadStatisticsData();
 }
 
 async function updateAttendance(crewMemberId, attendance) {
@@ -2158,6 +2665,9 @@ async function loadShoots() {
   }
 
   globalShoots = shoots;
+  if (typeof recalculateAllStudentRatings === 'function') {
+    recalculateAllStudentRatings();
+  }
 
   try {
     if (document.getElementById('shootCount')) {
@@ -2341,15 +2851,26 @@ function renderShootsList(shoots = globalShoots) {
         crewHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Команда пока не назначена на смену</div>';
       } else {
         crewHtml = crewList.map(c => {
-          const matchedUser = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id));
-          const actualUser = matchedUser || { fullName: 'Участник', groupName: 'КТ-26', rating: null, id: c.userId || c.id };
+          const userFromDir = (globalStudents || []).find(st => 
+            (st.id && (st.id === c.userId || st.id === c.id)) ||
+            (c.user && c.user.id && st.id === c.user.id) ||
+            (c.user && c.user.fullName && st.fullName && st.fullName.toLowerCase() === c.user.fullName.toLowerCase()) ||
+            (c.fullName && st.fullName && st.fullName.toLowerCase() === c.fullName.toLowerCase())
+          );
+          const fallbackUser = c.user || { fullName: 'Участник', groupName: 'КТ-26', rating: null, id: c.userId || c.id };
+          const actualUser = userFromDir ? { ...fallbackUser, ...userFromDir } : fallbackUser;
+
+          if ((actualUser.rating === null || actualUser.rating === undefined || actualUser.rating === 'Нет') && c.grade) {
+            actualUser.rating = c.grade;
+          }
+
           c.user = actualUser;
           let cUserName = actualUser.fullName || 'Участник';
           let cGroupName = actualUser.groupName || 'Группа';
-          let cRating = actualUser.rating !== null && actualUser.rating !== undefined ? actualUser.rating : 'Нет';
-          let cRatingColor = getRatingBadgeColor(actualUser.rating);
-          let cUserId = actualUser.id || 'demo-user-1';
-          let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : 3, actualUser.rating || 4.5);
+          let cRating = (actualUser.rating !== null && actualUser.rating !== undefined && actualUser.rating !== 'Нет') ? actualUser.rating : (c.grade ? c.grade : 'Нет');
+          let cRatingColor = getRatingBadgeColor(cRating !== 'Нет' ? cRating : null);
+          let cUserId = actualUser.id || c.userId || 'u1';
+          let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : (actualUser.completedShoots || 3), typeof cRating === 'number' ? cRating : 4.5);
           
           const isMe = currentUser && (c.userId === currentUser.id || c.id === currentUser.id);
           const rowClassExtra = isMe ? ' student-my-row' : '';
@@ -2464,12 +2985,29 @@ function renderShootsList(shoots = globalShoots) {
           '<div class="flex space-x-1">' + globalStarsHTML + '</div>' +
         '</div>';
         
-        saveGradesBtn = '<button onclick="saveShootGrades(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="btn-brand-beige w-full py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md mt-3">' +
-          'Сохранить оценки и завершить смену' +
-        '</button>';
+        saveGradesBtn = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">' +
+          '<button onclick="openCktGradingModal(\'' + s.id + '\')" class="btn-brand-primary py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5">' +
+            '<span>⭐ Оценить по 4 стандартам ЦКТ</span>' +
+          '</button>' +
+          '<button onclick="saveShootGrades(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="btn-brand-beige py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md">' +
+            'Быстро завершить смену' +
+          '</button>' +
+        '</div>';
       }
 
-      const techSpecBadge = '';
+      const isOutdoor = (s.type || '').toUpperCase() === 'ВЫЕЗД';
+      const equipmentBtn = isOutdoor 
+        ? '<button onclick="openEquipmentModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-emerald-400" title="Акт выдачи и вывоза съёмочного оборудования ЦКТ КП11">' +
+            '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
+            '<span>Акт вывоза</span>' +
+          '</button>'
+        : '<span class="hidden lg:inline-flex text-[9px] font-mono px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--text-muted); border-color: var(--border-subtle);">Студия ЦКТ</span>';
+
+      const dismissalBtn = '<button onclick="openDismissalModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-[var(--brand-beige-text)]" title="Служебная записка / приказ на освобождение от учебных занятий">' +
+        '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+        '<span>Приказ</span>' +
+      '</button>';
+
       const isShootOpen = (window._openedShootIds ? window._openedShootIds.has(s.id) : (idx === 0));
       const expandBtnText = isShootOpen ? 'Свернуть ▴' : 'Развернуть ▾';
       const detailsStyle = isShootOpen ? 'transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);' : 'max-height: 0px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);';
@@ -2479,14 +3017,15 @@ function renderShootsList(shoots = globalShoots) {
           '<div class="flex items-center space-x-2">' +
             typeBadge +
             statusBadge +
-            techSpecBadge +
           '</div>' +
-          '<div class="flex items-center space-x-2 sm:space-x-2.5 text-xs font-mono">' +
-            '<span class="font-semibold" style="color: var(--text-muted);">' + formattedDate + '</span>' +
+          '<div class="flex items-center flex-wrap gap-1.5 sm:gap-2 text-xs font-mono">' +
+            '<span class="font-semibold hidden sm:inline" style="color: var(--text-muted);">' + formattedDate + '</span>' +
             '<button onclick="openCallsheetModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1" title="Оперативный вызывной лист">' +
               SVG_ICONS.telegram +
               '<span>Вызывной</span>' +
             '</button>' +
+            dismissalBtn +
+            equipmentBtn +
             '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
             deleteBtn +
           '</div>' +
