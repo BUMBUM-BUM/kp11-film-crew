@@ -1818,8 +1818,15 @@ async function loadShoots() {
         '</div>';
     }
 
-    const container = document.getElementById('shootsList');
-    if (!container) return;
+    renderShootsList(shoots);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderShootsList(shoots = globalShoots) {
+  const container = document.getElementById('shootsList');
+  if (!container) return;
 
     if (shoots.length === 0) {
       container.innerHTML = '<div class="p-8 viewfinder-card text-center text-xs uppercase font-mono font-bold" style="color: var(--text-muted);">Нет активных смен в производстве.</div>';
@@ -2040,10 +2047,9 @@ async function loadShoots() {
 
       '</div>';
     }).join('');
-  } catch (err) {
-    console.error(err);
-  }
 }
+
+window.renderShootsList = renderShootsList;
 
 updateNav();
 

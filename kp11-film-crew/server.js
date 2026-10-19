@@ -567,7 +567,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       });
     } catch (dbErr) {}
 
-    if (!shoots || shoots.length === 0) {
+    if (!shoots) {
       shoots = await store.getShoots();
     }
     if (!students || students.length === 0) {

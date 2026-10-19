@@ -195,7 +195,7 @@ async function getShoots() {
         },
         orderBy: { date: 'asc' }
       });
-      if (dbShoots && dbShoots.length > 0) return dbShoots;
+      if (Array.isArray(dbShoots)) return dbShoots;
     } catch (e) {}
   }
   return readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
