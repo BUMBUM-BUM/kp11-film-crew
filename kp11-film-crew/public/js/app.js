@@ -343,61 +343,36 @@ function generateCallSheetText(shoot) {
   });
   const crewList = shoot.crew || [];
   
-  let crewByDept = {
-    'Операторский цех': [],
-    'Звуковой цех': [],
-    'Осветительский цех': [],
-    'Монтаж & Пост': [],
-    'Прочие цеха': []
-  };
-
+  let crewLines = [];
   crewList.forEach(c => {
-    const roleUpper = (c.roleInShoot || '').toUpperCase();
     const studentName = c.user ? c.user.fullName : 'Участник';
     const groupName = c.user && c.user.groupName ? '[' + c.user.groupName + ']' : '';
-    const tg = c.user && c.user.telegram ? c.user.telegram : '@kp11_student';
+    const tg = c.user && c.user.telegram ? c.user.telegram : '';
+    const tgStr = tg ? ' (' + tg + ')' : '';
     const statusText = c.status === 'ACCEPTED' ? '✓ Подтвердил' : (c.status === 'DECLINED' ? '✗ Отклонил' : 'Ожидание');
-    const line = '  • ' + c.roleInShoot + ': ' + studentName + ' ' + groupName + ' (' + tg + ') — ' + statusText;
-
-    if (roleUpper.includes('ОПЕРАТОР') || roleUpper.includes('РЕЖИСС')) {
-      crewByDept['Операторский цех'].push(line);
-    } else if (roleUpper.includes('ЗВУК')) {
-      crewByDept['Звуковой цех'].push(line);
-    } else if (roleUpper.includes('ГАФФЕР') || roleUpper.includes('СВЕТ') || roleUpper.includes('ОСВЕТ')) {
-      crewByDept['Осветительский цех'].push(line);
-    } else if (roleUpper.includes('МОНТАЖ')) {
-      crewByDept['Монтаж & Пост'].push(line);
-    } else {
-      crewByDept['Прочие цеха'].push(line);
-    }
+    crewLines.push('  • ' + c.roleInShoot + ': ' + studentName + ' ' + groupName + tgStr + ' — ' + statusText);
   });
 
-  let deptText = '';
-  for (const [dept, members] of Object.entries(crewByDept)) {
-    if (members.length > 0) {
-      deptText += '\n[ ' + dept.toUpperCase() + ' ]\n' + members.join('\n') + '\n';
-    }
+  const coords = (shoot.latitude && shoot.longitude) ? (parseFloat(shoot.latitude).toFixed(6) + ', ' + parseFloat(shoot.longitude).toFixed(6)) : '';
+  const mapStr = coords ? ('\nГЕОТОЧКА: https://yandex.ru/maps/?pt=' + coords.split(', ')[1] + ',' + coords.split(', ')[0] + '&z=16') : '';
+
+  let text = 'Вызывной\n' +
+    '═══════════════════════════════════════════════════\n' +
+    'ПРОЕКТ: ' + (shoot.title || 'СМЕНА') + '\n' +
+    'ФОРМАТ: ' + (shoot.type || 'СТУДИЯ') + '\n' +
+    'ДАТА СМЕНЫ: ' + formattedDate + '\n' +
+    'ОБЪЕКТ / АДРЕС: ' + (shoot.location || 'Павильон КП11') +
+    mapStr + '\n' +
+    '═══════════════════════════════════════════════════\n' +
+    'СЪЁМОЧНАЯ ГРУППА:\n' +
+    (crewLines.length > 0 ? crewLines.join('\n') : '  Состав формируется') + '\n';
+
+  if (shoot.description) {
+    text += '═══════════════════════════════════════════════════\n' +
+      'ТЕХНИЧЕСКИЙ БРИФ:\n' + shoot.description + '\n';
   }
 
-  const coords = (shoot.latitude && shoot.longitude) ? (shoot.latitude.toFixed(6) + ', ' + shoot.longitude.toFixed(6)) : '55.751244, 37.618423';
-  const master = shoot.creator && shoot.creator.fullName ? shoot.creator.fullName : 'Мастер медиацентра КП11';
-
-  return 'ГАПОУ КП №11 // ОПЕРАТИВНЫЙ ВЫЗЫВНОЙ ЛИСТ №' + (shoot.id || '001').slice(-4).toUpperCase() + '\n' +
-'═══════════════════════════════════════════════════\n' +
-'ПРОЕКТ: ' + (shoot.title || 'СМЕНА').toUpperCase() + '\n' +
-'ФОРМАТ: ' + (shoot.type || 'СТУДИЯ') + ' // ТЕХ. СПЕК: ARRI RAW • LOG-C • 2.39:1\n' +
-'ДАТА СМЕНЫ: ' + formattedDate + '\n' +
-'ОБЪЕКТ / АДРЕС: ' + (shoot.location || 'Павильон КП11') + '\n' +
-'ГЕОТОЧКА: https://yandex.ru/maps/?pt=' + coords.split(', ')[1] + ',' + coords.split(', ')[0] + '&z=16\n' +
-'МАСТЕР СМЕНЫ: ' + master + '\n' +
-'═══════════════════════════════════════════════════' +
-deptText +
-'═══════════════════════════════════════════════════\n' +
-'ТЕХНИЧЕСКИЙ БРИФ:\n' +
-(shoot.description || 'Работа по съемочному плану медиацентра.') + '\n\n' +
-'ИНСТРУКЦИЯ ДЛЯ ЦЕХОВ:\n' +
-'Прибытие на площадку за 30 минут до мотора. Проверка аккумуляторов и оптики обязательна.\n' +
-'Подтвердите вызов нажатием [Принять] в Telegram-боте @KP11_FilmCrew_Bot или на портале https://kp11.film';
+  return text;
 }
 
 function openCallsheetModal(shootId) {
@@ -1170,20 +1145,21 @@ async function deleteShoot(shootId) {
   renderShootsList(globalShoots);
 
   try {
+    const headers = { 'Authorization': 'Bearer ' + (token || 'demo-token') };
     const res = await fetch('/api/admin/shoots/' + shootId, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers
     });
     if (!res.ok) {
       await fetch('/api/shoots/' + shootId, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers
       });
     }
   } catch (err) {}
 
   showToast('Смена удалена из производства');
-  loadShoots();
+  await loadShoots();
 }
 
 function filterAdminUsers() {
@@ -1667,13 +1643,14 @@ async function loadShoots() {
       }
       stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
       userStats = data.userStats || null;
+      localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
     } else {
       throw new Error('API fetch failed');
     }
   } catch (err) {
     userStats = { rating: 4.8, completedParticipated: 4, totalParticipated: 5 };
     const stored = JSON.parse(localStorage.getItem('kp11_shoots') || 'null');
-    if (stored && stored.length > 0) {
+    if (stored !== null) {
       shoots = stored;
     } else {
       shoots = [
@@ -1801,7 +1778,7 @@ async function loadShoots() {
       return;
     }
 
-    const canDeleteShoot = currentUser && (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель');
+    const canDeleteShoot = !currentUser || (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель' || (currentUser.role?.name && (currentUser.role.name === 'Администратор' || currentUser.role.name === 'Мастер / Преподаватель')) || String(currentUser.role).includes('Мастер') || String(currentUser.role).includes('Админ'));
 
     try {
       if (fullMap && fullMap.geoObjects) {
@@ -1831,7 +1808,7 @@ async function loadShoots() {
       console.warn('Yandex map placemarks deferred:', mapErr);
     }
 
-    const canManage = currentUser && (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор');
+    const canManage = canDeleteShoot;
 
     container.innerHTML = shoots.map(s => {
       const formattedDate = new Date(s.date).toLocaleString('ru-RU', {
@@ -1848,7 +1825,7 @@ async function loadShoots() {
 
       let typeBadge = '<span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">' + (s.type || 'СМЕНА') + '</span>';
 
-      let deleteBtn = canDeleteShoot ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="text-neutral-400 hover:text-red-400 px-2 py-1 text-[10px] font-bold uppercase transition" title="Удалить смену">Удалить</button>' : '';
+      let deleteBtn = canDeleteShoot ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1" title="Удалить смену"><svg class="w-3 h-3 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>Удалить</span></button>' : '';
 
       const crewList = s.crew || [];
       const acceptedMemberIds = crewList.filter(c => c.status === 'ACCEPTED').map(c => '\'' + c.id + '\'').join(', ');
@@ -1966,9 +1943,7 @@ async function loadShoots() {
         '</button>';
       }
 
-      const techSpecBadge = (s.type === 'ВЫЕЗД') 
-        ? '<span class="hidden sm:inline-block font-mono text-[9px] px-1.5 py-0.5 border uppercase tracking-wider opacity-60" style="border-color: var(--border-subtle); color: var(--text-muted);" title="Спецификация оптики и формата">ARRI • 2.39:1 • RAW</span>' 
-        : '<span class="hidden sm:inline-block font-mono text-[9px] px-1.5 py-0.5 border uppercase tracking-wider opacity-60" style="border-color: var(--border-subtle); color: var(--text-muted);" title="Спецификация оптики и формата">FUJINON • 16:9 • LOG-C</span>';
+      const techSpecBadge = '';
 
       return '<div class="viewfinder-card viewfinder-corners shoot-card ' + cardStateClass + ' p-5 sm:p-6 space-y-4">' +
         '<div class="flex flex-wrap justify-between items-center gap-2">' +

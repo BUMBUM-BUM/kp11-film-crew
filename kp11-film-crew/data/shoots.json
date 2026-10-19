@@ -1,83 +1,83 @@
 [
-    {
-        "id":  "demo-shoot-1",
-        "title":  "ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА",
-        "description":  "Съёмка короткометражного эпизода на выездной локации. Отработка ракурсов и экспозиции на открытой диафрагме f/1.4.",
-        "type":  "ВЫЕЗД",
-        "date":  "2026-10-18T14:00:00Z",
-        "location":  "ПАРК ЗЕЛЁНАЯ РЕКА (СЕРП И МОЛОТ)",
-        "isCompleted":  true,
-        "latitude":  55.751244,
-        "longitude":  37.688423,
-        "creator":  {
-                        "fullName":  "Бадиков Семён Станиславович"
-                    },
-        "crew":  [
-                     {
-                         "id":  "c1",
-                         "roleInShoot":  "ГАФФЕР",
-                         "status":  "ACCEPTED",
-                         "attendance":  "PRESENT",
-                         "userId":  "u3"
-                     },
-                     {
-                         "id":  "c2",
-                         "roleInShoot":  "ОПЕРАТОР",
-                         "status":  "ACCEPTED",
-                         "attendance":  "PRESENT",
-                         "userId":  "u5"
-                     },
-                     {
-                         "id":  "c3",
-                         "roleInShoot":  "ЗВУКОРЕЖИССЁР",
-                         "status":  "ACCEPTED",
-                         "attendance":  "PRESENT",
-                         "userId":  "demo-user-1"
-                     },
-                     {
-                         "id":  "c4",
-                         "roleInShoot":  "ОСВЕТИТЕЛЬ",
-                         "status":  "ACCEPTED",
-                         "attendance":  "PRESENT",
-                         "userId":  "u2"
-                     }
-                 ]
+  {
+    "id": "demo-shoot-1",
+    "title": "ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА",
+    "description": "Съёмка короткометражного эпизода на выездной локации. Отработка ракурсов и экспозиции на открытой диафрагме f/1.4.",
+    "type": "ВЫЕЗД",
+    "date": "2026-10-18T14:00:00Z",
+    "location": "ПАРК ЗЕЛЁНАЯ РЕКА (СЕРП И МОЛОТ)",
+    "isCompleted": true,
+    "latitude": 55.751244,
+    "longitude": 37.688423,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
     },
-    {
-        "id":  "demo-shoot-2",
-        "title":  "ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ",
-        "description":  "Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.",
-        "type":  "СТУДИЯ",
-        "date":  "2026-10-21T16:30:00Z",
-        "location":  "ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ)",
-        "isCompleted":  false,
-        "latitude":  55.858244,
-        "longitude":  37.518423,
-        "creator":  {
-                        "fullName":  "Бадиков Семён Станиславович"
-                    },
-        "crew":  [
-                     {
-                         "id":  "c5",
-                         "roleInShoot":  "ЗВУКОРЕЖИССЁР",
-                         "status":  "ACCEPTED",
-                         "attendance":  "PRESENT",
-                         "userId":  "demo-user-1"
-                     },
-                     {
-                         "id":  "c6",
-                         "roleInShoot":  "ОПЕРАТОР",
-                         "status":  "ACCEPTED",
-                         "attendance":  "PRESENT",
-                         "userId":  "u1"
-                     },
-                     {
-                         "id":  "c7",
-                         "roleInShoot":  "ОПЕРАТОР",
-                         "status":  "PENDING",
-                         "attendance":  "PRESENT",
-                         "userId":  "u4"
-                     }
-                 ]
-    }
+    "crew": [
+      {
+        "id": "c1",
+        "roleInShoot": "ГАФФЕР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u3"
+      },
+      {
+        "id": "c2",
+        "roleInShoot": "ОПЕРАТОР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u5"
+      },
+      {
+        "id": "c3",
+        "roleInShoot": "ЗВУКОРЕЖИССЁР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "demo-user-1"
+      },
+      {
+        "id": "c4",
+        "roleInShoot": "ОСВЕТИТЕЛЬ",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u2"
+      }
+    ]
+  },
+  {
+    "id": "demo-shoot-2",
+    "title": "ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ",
+    "description": "Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.",
+    "type": "СТУДИЯ",
+    "date": "2026-10-21T16:30:00Z",
+    "location": "ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ)",
+    "isCompleted": false,
+    "latitude": 55.858244,
+    "longitude": 37.518423,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "crew": [
+      {
+        "id": "c5",
+        "roleInShoot": "ЗВУКОРЕЖИССЁР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "demo-user-1"
+      },
+      {
+        "id": "c6",
+        "roleInShoot": "ОПЕРАТОР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u1"
+      },
+      {
+        "id": "c7",
+        "roleInShoot": "ОПЕРАТОР",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "userId": "u4"
+      }
+    ]
+  }
 ]

@@ -123,13 +123,12 @@ function formatCallsheetMessage(shoot, targetUserId = null, allUsers = []) {
   }).toUpperCase() : 'ДАТА УТОЧНЯЕТСЯ';
 
   const formattedTime = !isNaN(d.getTime()) ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '10:00';
-  const master = shoot.creator?.fullName || 'Мастер Медиацентра КП11';
 
   let crewSections = '';
   const crewList = shoot.crew || [];
 
   if (crewList.length > 0) {
-    crewSections = '\n\n<b>СЪЁМОЧНАЯ ГРУППА ПО ЦЕХАМ:</b>\n';
+    crewSections = '\n\n<b>СЪЁМОЧНАЯ ГРУППА:</b>\n';
     crewList.forEach((c) => {
       const uId = c.userId || c.user?.id || c.id;
       const matchedUser = allUsers.find(u => u.id === uId) || c.user;
@@ -141,37 +140,35 @@ function formatCallsheetMessage(shoot, targetUserId = null, allUsers = []) {
       const suffix = isTarget ? ' (ВЫ)</b>' : '';
       crewSections += `${prefix}${c.roleInShoot}: ${escapeHtml(uName)}${tgStr}${suffix} — <i>${statusIcon}</i>\n`;
     });
-  } else {
-    crewSections = '\n\n<i>Состав группы формируется мастером на сайте.</i>\n';
   }
 
   const coords = (shoot.latitude && shoot.longitude)
     ? `${parseFloat(shoot.latitude).toFixed(6)}, ${parseFloat(shoot.longitude).toFixed(6)}`
-    : '55.751244, 37.618423';
+    : null;
 
-  const yandexMapUrl = `https://yandex.ru/maps/?pt=${coords.split(', ')[1]},${coords.split(', ')[0]}&z=16&l=map`;
+  const yandexMapUrl = coords ? `https://yandex.ru/maps/?pt=${coords.split(', ')[1]},${coords.split(', ')[0]}&z=16&l=map` : null;
 
-  return (
-    `<b>ГАПОУ КОЛЛЕДЖ ПРЕДПРИНИМАТЕЛЬСТВА №11</b>\n` +
-    `<b>ОПЕРАТИВНЫЙ ВЫЗЫВНОЙ ЛИСТ // КИНОПРОИЗВОДСТВО</b>\n` +
+  let msg = `<b>Вызывной</b>\n` +
     `════════════════════════════════════\n` +
     `<b>ПРОЕКТ:</b> ${escapeHtml(shoot.title)}\n` +
     `<b>ФОРМАТ:</b> ${escapeHtml(shoot.type || 'СТУДИЯ')}\n` +
     `<b>ДАТА:</b> ${formattedDate}\n` +
-    `<b>ВРЕМЯ СБОРА (CALL TIME):</b> ${formattedTime}\n` +
-    `<b>ОБЪЕКТ / АДРЕС:</b> ${escapeHtml(shoot.location)}\n` +
-    `<b>ГЕОТОЧКА:</b> <a href="${yandexMapUrl}">Открыть на Яндекс.Картах</a>\n` +
-    `<b>МАСТЕР СМЕНЫ:</b> ${escapeHtml(master)}\n` +
-    `════════════════════════════════════` +
-    crewSections +
-    `════════════════════════════════════\n` +
-    `<b>ТЕХНИЧЕСКИЙ БРИФ:</b>\n` +
-    `${escapeHtml(shoot.description || 'Работа согласно утвержденному календарно-постановочному плану.')}\n\n` +
-    `<b>ИНСТРУКТАЖ:</b>\n` +
-    `1. Прибытие на площадку строго за 30 минут до назначенного времени.\n` +
-    `2. Проверка состояния оптики, матриц и заряда аккумуляторов обязательна.\n` +
-    `3. Подтвердите своё участие кнопкой ниже.`
-  );
+    `<b>ВРЕМЯ СБОРА:</b> ${formattedTime}\n` +
+    `<b>ОБЪЕКТ / АДРЕС:</b> ${escapeHtml(shoot.location)}\n`;
+
+  if (yandexMapUrl) {
+    msg += `<b>ГЕОТОЧКА:</b> <a href="${yandexMapUrl}">Открыть на Яндекс.Картах</a>\n`;
+  }
+
+  msg += `════════════════════════════════════` + crewSections;
+
+  if (shoot.description) {
+    msg += `\n════════════════════════════════════\n` +
+      `<b>ТЕХНИЧЕСКИЙ БРИФ:</b>\n` +
+      `${escapeHtml(shoot.description)}`;
+  }
+
+  return msg;
 }
 
 function escapeHtml(str) {

@@ -68,88 +68,35 @@ while ($listener.IsListening) {
                 $rawJsonToSend = "{`"success`":true,`"shoots`":$shootsRaw,`"students`":$usersRaw,`"stats`":{`"totalShoots`":$totalCount,`"completedShoots`":$completedCount},`"userStats`":{`"rating`":4.8,`"completedParticipated`":4,`"totalParticipated`":5}}"
             }
             elseif ($urlPath -eq "/api/shoots" -and $method -eq "POST") {
-                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
-                $usersFile = Join-Path $PSScriptRoot "data\users.json"
-                $shoots = if (Test-Path $shootsFile) { [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
-                $users = if (Test-Path $usersFile) { [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
-
-                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
-                $newId = "shoot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-
-                $creatorName = "Creator"
-                if ($users.Count -gt 0 -and $users[0].fullName) {
-                    $creatorName = $users[0].fullName
-                }
-
-                $newCrew = @()
-                if ($parsed.crewAssignments) {
-                    $cIdx = 1
-                    foreach ($ca in $parsed.crewAssignments) {
-                        $uId = $ca.userId
-                        $st = $users | Where-Object { $_.id -eq $uId } | Select-Object -First 1
-                        $cRole = if ($ca.craftRole) { $ca.craftRole } else { "Crew" }
-                        $memberObj = [PSCustomObject]@{
-                            id = "c-$newId-$cIdx"
-                            roleInShoot = $cRole
-                            status = "PENDING"
-                            attendance = "PRESENT"
-                            userId = $uId
-                            user = if ($st) {
-                                [PSCustomObject]@{
-                                    id = $st.id
-                                    fullName = $st.fullName
-                                    groupName = $st.groupName
-                                    rating = $st.rating
-                                    telegram = $st.telegram
-                                }
-                            } else {
-                                $null
-                            }
-                        }
-                        $newCrew += $memberObj
-                        $cIdx++
+                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
+                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
+                $tempFile = Join-Path $PSScriptRoot "data\temp_shoot_$([Guid]::NewGuid().ToString('N')).json"
+                try {
+                    [System.IO.File]::WriteAllText($tempFile, $reqBody, $utf8Encoding)
+                    if (Test-Path $nodeExe) {
+                        $rawJsonToSend = & $nodeExe $helperScript add $tempFile
+                    } else {
+                        $rawJsonToSend = "{`"success`":true}"
                     }
+                } finally {
+                    if (Test-Path $tempFile) { Remove-Item $tempFile -Force -ErrorAction SilentlyContinue }
                 }
-
-                $sTitle = if ($parsed.title) { $parsed.title } else { "New Shoot" }
-                $sDesc = if ($parsed.description) { $parsed.description } else { "" }
-                $sType = if ($parsed.type) { $parsed.type } else { "STUDIO" }
-                $sDate = if ($parsed.date) { $parsed.date } else { [DateTime]::UtcNow.ToString("o") }
-                $sLoc = if ($parsed.location) { $parsed.location } else { "KP11" }
-                $sLat = if ($parsed.latitude) { [double]$parsed.latitude } else { 55.751244 }
-                $sLon = if ($parsed.longitude) { [double]$parsed.longitude } else { 37.618423 }
-
-                $newShoot = [PSCustomObject]@{
-                    id = $newId
-                    title = $sTitle
-                    description = $sDesc
-                    type = $sType
-                    date = $sDate
-                    location = $sLoc
-                    isCompleted = $false
-                    latitude = $sLat
-                    longitude = $sLon
-                    creator = [PSCustomObject]@{
-                        fullName = $creatorName
-                    }
-                    crew = $newCrew
-                }
-
-                $updatedShoots = @($newShoot) + @($shoots)
-                $shootsJsonOut = $updatedShoots | ConvertTo-Json -Depth 6
-                [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
-
-                $newShootJson = $newShoot | ConvertTo-Json -Depth 5
-                $rawJsonToSend = "{`"success`":true,`"shoot`":$newShootJson}"
             }
             elseif ($urlPath -match "^/api/(?:admin/)?shoots/([^/]+)" -and $method -eq "DELETE") {
                 $targetShootId = $Matches[1]
-                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
-                if (Test-Path $shootsFile) {
-                    $shoots = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-                    $filteredShoots = @($shoots | Where-Object { $_.id -ne $targetShootId })
-                    $shootsJsonOut = $filteredShoots | ConvertTo-Json -Depth 6
-                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
+                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
+                if (Test-Path $nodeExe) {
+                    & $nodeExe $helperScript delete $targetShootId | Out-Null
+                } else {
+                    $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                    if (Test-Path $shootsFile) {
+                        $shoots = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                        $filteredShoots = @($shoots | Where-Object { $_.id -ne $targetShootId })
+                        if ($filteredShoots.Count -eq 0) {
+                            [System.IO.File]::WriteAllText($shootsFile, "[]", $utf8Encoding)
+                        }
+                    }
                 }
                 $rawJsonToSend = "{`"success`":true,`"message`":`"Shoot deleted`"}"
             }
