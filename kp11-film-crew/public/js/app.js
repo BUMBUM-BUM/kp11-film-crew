@@ -173,25 +173,50 @@ function closeModal() {
   if (modal) modal.classList.add('hidden');
 }
 
+let leafletFullMap = null;
+let leafletMarkersLayer = null;
+
 if (typeof ymaps !== 'undefined') {
   try {
     ymaps.ready(initMaps);
   } catch (e) {
     console.warn('Yandex Maps warning:', e.message);
   }
+} else {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMaps);
+  } else {
+    setTimeout(initMaps, 100);
+  }
 }
 
 function initMaps() {
   try {
     const mapEl = document.getElementById("fullMapContainer");
-    if (!mapEl || typeof ymaps === 'undefined') return;
-    fullMap = new ymaps.Map(mapEl, {
-      center: [55.751244, 37.618423],
-      zoom: 11,
-      controls: ['zoomControl', 'geolocationControl']
-    });
+    if (!mapEl) return;
+    if (typeof ymaps !== 'undefined' && ymaps.Map) {
+      fullMap = new ymaps.Map(mapEl, {
+        center: [55.751244, 37.618423],
+        zoom: 11,
+        controls: ['zoomControl', 'geolocationControl']
+      });
+      return;
+    }
+    if (typeof L !== 'undefined' && !leafletFullMap) {
+      leafletFullMap = L.map(mapEl, {
+        center: [55.858244, 37.518423],
+        zoom: 11,
+        zoomControl: true,
+        attributionControl: false
+      });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletFullMap);
+      leafletMarkersLayer = L.layerGroup().addTo(leafletFullMap);
+      if (globalShoots && globalShoots.length > 0) {
+        renderShootsList(globalShoots);
+      }
+    }
   } catch (e) {
-    console.warn('Yandex Maps init warning:', e.message);
+    console.warn('Maps init warning:', e.message);
   }
 }
 
@@ -428,8 +453,15 @@ function switchTab(tab) {
     tabAdminBtn.className = isAdmin ? activeTabClass : baseTabClass;
   }
 
-  if (isMap && fullMap) {
-    setTimeout(() => fullMap.container.fitToViewport(), 150);
+  if (isMap) {
+    if (fullMap && fullMap.container) {
+      setTimeout(() => fullMap.container.fitToViewport(), 150);
+    } else if (leafletFullMap) {
+      setTimeout(() => leafletFullMap.invalidateSize(), 150);
+    } else {
+      initMaps();
+      if (leafletFullMap) setTimeout(() => leafletFullMap.invalidateSize(), 200);
+    }
   }
   if (isStats) {
     loadStatisticsData();
@@ -1580,7 +1612,7 @@ async function openShootModal() {
 
   setTimeout(() => {
     try {
-      if (!pickerMap && typeof ymaps !== 'undefined') {
+      if (!pickerMap && typeof ymaps !== 'undefined' && ymaps.Map) {
         const pEl = document.getElementById("pickerMap");
         if (pEl) {
           pickerMap = new ymaps.Map(pEl, { center: [55.751244, 37.618423], zoom: 11 });
@@ -1598,7 +1630,38 @@ async function openShootModal() {
             }
           });
         }
-      } else if (pickerMap) {
+      } else if (!pickerMap && typeof L !== 'undefined') {
+        const pEl = document.getElementById("pickerMap");
+        if (pEl && !pEl.hasChildNodes()) {
+          const lMap = L.map(pEl, { center: [55.751244, 37.618423], zoom: 11, zoomControl: true, attributionControl: false });
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lMap);
+          let lMarker = null;
+          lMap.on('click', function (e) {
+            const coords = [e.latlng.lat, e.latlng.lng];
+            const latInp = document.getElementById('selectedLat');
+            const lonInp = document.getElementById('selectedLon');
+            if (latInp) latInp.value = coords[0].toFixed(6);
+            if (lonInp) lonInp.value = coords[1].toFixed(6);
+            if (lMarker) {
+              lMarker.setLatLng(coords);
+            } else {
+              const icon = L.divIcon({
+                className: 'custom-cinema-pin',
+                html: '<div style="background:#E30613;width:24px;height:24px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 10px rgba(227,6,19,0.8);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:11px;font-weight:bold;">📍</div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+              });
+              lMarker = L.marker(coords, { icon: icon }).addTo(lMap);
+            }
+          });
+          pickerMap = {
+            container: {
+              fitToViewport: () => lMap.invalidateSize()
+            }
+          };
+          setTimeout(() => lMap.invalidateSize(), 200);
+        }
+      } else if (pickerMap && pickerMap.container) {
         pickerMap.container.fitToViewport();
       }
     } catch (e) {
@@ -1807,10 +1870,11 @@ function setStarRating(memberId, starValue) {
       const idx = parseInt(star.getAttribute('data-star-idx'));
       if (idx <= starValue) {
         star.classList.remove('opacity-40');
-        star.classList.add('opacity-100');
+        star.classList.add('opacity-100', 'star-pop-animate');
         star.innerHTML = SVG_ICONS.star;
+        setTimeout(() => star.classList.remove('star-pop-animate'), 450);
       } else {
-        star.classList.remove('opacity-100');
+        star.classList.remove('opacity-100', 'star-pop-animate');
         star.classList.add('opacity-40');
         star.innerHTML = SVG_ICONS.starEmpty;
       }
@@ -1899,30 +1963,71 @@ function toggleShootExpand(shootId) {
       if (btn) btn.innerText = 'Свернуть ▴';
 
       const mapContainer = document.getElementById('mini_map_' + shootId);
-      if (mapContainer && !mapContainer.hasChildNodes() && typeof ymaps !== 'undefined') {
-        const lat = parseFloat(mapContainer.getAttribute('data-lat'));
-        const lon = parseFloat(mapContainer.getAttribute('data-lon'));
-        const title = mapContainer.getAttribute('data-title');
+      if (mapContainer && !mapContainer.hasChildNodes()) {
+        const lat = parseFloat(mapContainer.getAttribute('data-lat')) || 55.858244;
+        const lon = parseFloat(mapContainer.getAttribute('data-lon')) || 37.518423;
+        const title = mapContainer.getAttribute('data-title') || 'Локация смены';
 
-        ymaps.ready(() => {
-          const miniMap = new ymaps.Map(mapContainer, {
+        if (typeof ymaps !== 'undefined' && ymaps.Map) {
+          ymaps.ready(() => {
+            const miniMap = new ymaps.Map(mapContainer, {
+              center: [lat, lon],
+              zoom: 14,
+              controls: ['zoomControl']
+            });
+            const placemark = new ymaps.Placemark([lat, lon], {
+              balloonContent: '<strong>' + title + '</strong>'
+            }, {
+              preset: 'islands#redDotIcon'
+            });
+            miniMap.geoObjects.add(placemark);
+          });
+        } else if (typeof L !== 'undefined') {
+          // Leaflet fallback - completely immune to adblockers (BLOCKED_BY_CLIENT)
+          const miniMap = L.map(mapContainer, {
             center: [lat, lon],
             zoom: 14,
-            controls: ['zoomControl']
+            zoomControl: true,
+            attributionControl: false
           });
-          const placemark = new ymaps.Placemark([lat, lon], {
-            balloonContent: '<strong>' + title + '</strong>'
-          }, {
-            preset: 'islands#redDotIcon'
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+          }).addTo(miniMap);
+          const icon = L.divIcon({
+            className: 'custom-cinema-pin',
+            html: '<div style="background:#E30613;width:26px;height:26px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 10px rgba(227,6,19,0.8);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:12px;font-weight:bold;">🎬</div>',
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
           });
-          miniMap.geoObjects.add(placemark);
-        });
+          const marker = L.marker([lat, lon], { icon: icon }).addTo(miniMap);
+          const popupContent = '<div style="font-family:sans-serif;color:#141414;padding:4px;min-width:180px;">' +
+            '<b style="font-size:12px;color:#E30613;text-transform:uppercase;">' + title + '</b><br>' +
+            '<span style="font-size:10px;color:#555;">Координаты: ' + lat.toFixed(5) + ', ' + lon.toFixed(5) + '</span><br>' +
+            '<div style="margin-top:6px;display:flex;gap:6px;">' +
+              '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" style="background:#229ED9;color:#FFF;padding:4px 8px;font-size:10px;font-weight:bold;text-decoration:none;text-transform:uppercase;border-radius:2px;">Яндекс.Карты ↗</a>' +
+              '<a href="https://2gis.ru/geo/' + lon + '%2C' + lat + '" target="_blank" style="background:#2BA433;color:#FFF;padding:4px 8px;font-size:10px;font-weight:bold;text-decoration:none;text-transform:uppercase;border-radius:2px;">2ГИС ↗</a>' +
+            '</div></div>';
+          marker.bindPopup(popupContent).openPopup();
+          setTimeout(() => { miniMap.invalidateSize(); }, 300);
+        } else {
+          mapContainer.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-primary);color:var(--text-primary);padding:12px;text-align:center;">' +
+            '<span style="font-size:12px;font-family:monospace;margin-bottom:8px;">📍 ' + title + ' (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')</span>' +
+            '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" class="btn-brand-primary" style="padding:6px 12px;font-size:10px;text-decoration:none;">Открыть карту в новой вкладке ↗</a>' +
+            '</div>';
+        }
       }
     }
   }
 }
 
-function logout() { localStorage.clear(); location.reload(); }
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  currentUser = null;
+  token = '';
+  // Сохраняем kp11_shoots и kp11_theme, чтобы смены не исчезали при выходе
+  location.reload();
+}
 
 async function handleAuth(e) {
   e.preventDefault();
@@ -1952,6 +2057,7 @@ async function handleAuth(e) {
     token = data.token || 'demo-token';
     closeModal();
     updateNav();
+    await loadShoots();
   } catch (err) {
     alert('Ошибка: ' + err.message);
   }
@@ -2164,9 +2270,43 @@ function renderShootsList(shoots = globalShoots) {
           });
           fullMap.geoObjects.add(placemark);
         });
+      } else if (leafletFullMap && leafletMarkersLayer && typeof L !== 'undefined') {
+        leafletMarkersLayer.clearLayers();
+        const bounds = [];
+        shoots.forEach(s => {
+          const lat = parseFloat(s.latitude) || 55.858244;
+          const lon = parseFloat(s.longitude) || 37.518423;
+          bounds.push([lat, lon]);
+
+          const icon = L.divIcon({
+            className: 'custom-cinema-pin',
+            html: '<div style="background:' + (s.isCompleted ? '#10B981' : '#E30613') + ';width:28px;height:28px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 12px rgba(227,6,19,0.7);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:12px;font-weight:bold;">' + (s.isCompleted ? '✓' : '🎬') + '</div>',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          });
+          const marker = L.marker([lat, lon], { icon: icon });
+
+          let balloonHTML = '<div style="padding:6px; font-family:sans-serif; min-width:180px; color:#141414;">' +
+            '<strong style="font-size:12px; text-transform:uppercase; color:#E30613;">' + s.title + '</strong><br>' +
+            '<span style="font-size:11px; color:#555;">Формат: ' + (s.type || 'СМЕНА') + '</span><br>' +
+            '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
+            '<div style="margin-top:8px; display:flex; gap:6px;">' +
+              '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
+          if (canDeleteShoot) {
+            balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
+          }
+          balloonHTML += '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" style="background:#141414;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;text-decoration:none;display:inline-block;text-transform:uppercase;">Яндекс ↗</a>';
+          balloonHTML += '</div></div>';
+
+          marker.bindPopup(balloonHTML);
+          leafletMarkersLayer.addLayer(marker);
+        });
+        if (bounds.length > 0) {
+          leafletFullMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        }
       }
     } catch (mapErr) {
-      console.warn('Yandex map placemarks deferred:', mapErr);
+      console.warn('Map placemarks deferred:', mapErr);
     }
 
     container.innerHTML = shoots.map((s, idx) => {

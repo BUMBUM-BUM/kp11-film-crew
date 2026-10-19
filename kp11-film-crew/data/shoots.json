@@ -8,7 +8,7 @@
         "location":  "ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)",
         "latitude":  55.858244,
         "longitude":  37.518423,
-        "isCompleted":  false,
+        "isCompleted":  true,
         "creator":  {
                         "fullName":  "Бадиков Семён Станиславович"
                     },
@@ -18,28 +18,32 @@
                          "roleInShoot":  "ОПЕРАТОР-ПОСТАНОВЩИК",
                          "status":  "ACCEPTED",
                          "attendance":  "PRESENT",
-                         "userId":  "u1"
+                         "userId":  "u1",
+                         "grade":  5
                      },
                      {
                          "id":  "c101-2",
                          "roleInShoot":  "ГАФФЕР",
                          "status":  "ACCEPTED",
                          "attendance":  "PRESENT",
-                         "userId":  "u2"
+                         "userId":  "u2",
+                         "grade":  4
                      },
                      {
                          "id":  "c101-3",
                          "roleInShoot":  "ЗВУКОРЕЖИССЁР",
                          "status":  "PENDING",
                          "attendance":  "PRESENT",
-                         "userId":  "u4"
+                         "userId":  "u4",
+                         "grade":  5
                      },
                      {
                          "id":  "c101-4",
                          "roleInShoot":  "РЕЖИССЁР СМЕНЫ",
                          "status":  "ACCEPTED",
                          "attendance":  "PRESENT",
-                         "userId":  "demo-user-1"
+                         "userId":  "demo-user-1",
+                         "grade":  5
                      }
                  ]
     },

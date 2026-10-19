@@ -31,6 +31,91 @@ $mimeTypes = @{
 
 $utf8Encoding = New-Object System.Text.UTF8Encoding($false)
 
+function Set-PSProp($obj, [string]$propName, $val) {
+    if ($null -ne $obj) {
+        if ($obj.PSObject.Properties[$propName]) {
+            $obj.$propName = $val
+        } else {
+            $obj | Add-Member -NotePropertyName $propName -NotePropertyValue $val -Force
+        }
+    }
+}
+
+function Send-CallsheetTelegram($shootObj, $settingsFile, $usersFile) {
+    try {
+        if (-not (Test-Path $settingsFile)) { return @{ deliveredCount = 0; botTokenConfigured = $false } }
+        $settings = [System.IO.File]::ReadAllText($settingsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+        $botToken = $settings.telegramBotToken
+        if (-not $botToken) { $botToken = $env:TELEGRAM_BOT_TOKEN }
+        if (-not $botToken) { return @{ deliveredCount = 0; botTokenConfigured = $false } }
+        
+        $users = if (Test-Path $usersFile) { [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
+        
+        $title = $shootObj.title
+        $loc = $shootObj.location
+        $type = $shootObj.type
+        $dateStr = $shootObj.date
+        $creatorName = if ($shootObj.creator -and $shootObj.creator.fullName) { $shootObj.creator.fullName } else { "Мастер КП11" }
+        $delivered = 0
+        
+        if ($shootObj.crew) {
+            foreach ($cm in $shootObj.crew) {
+                $u = ($users | Where-Object { $_.id -eq $cm.userId }) | Select-Object -First 1
+                $chatId = if ($u -and $u.telegramChatId) { $u.telegramChatId } else { $null }
+                if ($chatId) {
+                    $roleInShoot = if ($cm.roleInShoot) { $cm.roleInShoot } else { "Специалист цеха" }
+                    $msg = "🎬 <b>ВЫЗЫВНОЙ ЛИСТ // МЕДИАЦЕНТР КП11</b>`n" +
+                           "════════════════════════════════════`n" +
+                           "Проект: <b>$title</b>`n" +
+                           "Формат: <b>$type</b>`n" +
+                           "Дата и время: <b>$dateStr</b>`n" +
+                           "Локация: <b>$loc</b>`n" +
+                           "Ваш цех/роль: <b>$roleInShoot</b>`n" +
+                           "Мастер смены: <b>$creatorName</b>`n" +
+                           "════════════════════════════════════`n" +
+                           "Вы назначены на съёмочную смену! Подтвердите явку в системе."
+                    
+                    try {
+                        $postBody = @{
+                            chat_id = $chatId
+                            text = $msg
+                            parse_mode = "HTML"
+                        } | ConvertTo-Json
+                        $tgRes = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/sendMessage" -Method Post -Body $postBody -ContentType "application/json; charset=utf-8" -TimeoutSec 5 -ErrorAction SilentlyContinue
+                        if ($tgRes -and $tgRes.ok) { $delivered++ }
+                    } catch {}
+                }
+            }
+        }
+        
+        if ($settings.defaultChatId) {
+            $chatIds = $settings.defaultChatId -split "[\s,;\n\r]+" | Where-Object { $_.Trim() -ne "" }
+            foreach ($cId in $chatIds) {
+                try {
+                    $groupMsg = "🎬 <b>НОВАЯ СМЕНА В ПРОИЗВОДСТВЕ // КП11</b>`n" +
+                               "════════════════════════════════════`n" +
+                               "Проект: <b>$title</b>`n" +
+                               "Формат: <b>$type</b>`n" +
+                               "Дата и время: <b>$dateStr</b>`n" +
+                               "Локация: <b>$loc</b>`n" +
+                               "Мастер смены: <b>$creatorName</b>`n" +
+                               "════════════════════════════════════"
+                    $postBody = @{
+                        chat_id = $cId.Trim()
+                        text = $groupMsg
+                        parse_mode = "HTML"
+                    } | ConvertTo-Json
+                    $tgRes = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/sendMessage" -Method Post -Body $postBody -ContentType "application/json; charset=utf-8" -TimeoutSec 5 -ErrorAction SilentlyContinue
+                    if ($tgRes -and $tgRes.ok) { $delivered++ }
+                } catch {}
+            }
+        }
+        return @{ deliveredCount = $delivered; botTokenConfigured = $true }
+    } catch {
+        return @{ deliveredCount = 0; botTokenConfigured = $false; error = $_.Exception.Message }
+    }
+}
+
 while ($listener.IsListening) {
     try {
         $context = $listener.GetContext()
@@ -61,14 +146,62 @@ while ($listener.IsListening) {
                 $totalCount = 0
                 $completedCount = 0
                 try {
-                    $sList = $shootsRaw | ConvertFrom-Json
+                    $sList = @([System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ })
                     if ($sList) {
-                        $totalCount = [int](@($sList).Count)
+                        $totalCount = [int]$sList.Count
                         $completedCount = [int](@($sList | Where-Object { $_.isCompleted -eq $true }).Count)
                     }
                 } catch {}
 
-                $rawJsonToSend = "{`"success`":true,`"shoots`":$shootsRaw,`"students`":$usersRaw,`"stats`":{`"totalShoots`":$totalCount,`"completedShoots`":$completedCount},`"userStats`":{`"rating`":4.8,`"completedParticipated`":4,`"totalParticipated`":5}}"
+                $authHeader = $request.Headers["Authorization"]
+                $targetUserId = ""
+                if ($authHeader -match "Bearer\s+(?:token-)?([^\s]+)") {
+                    $targetUserId = $Matches[1]
+                }
+                $userRating = 5.0
+                $compPart = 0
+                $totPart = 0
+                try {
+                    $uList = if (Test-Path $usersFile) { @([System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ }) } else { @() }
+                    $sObjList = $sList
+                    
+                    $matchedUser = $null
+                    if ($targetUserId -and $targetUserId -ne "demo-token" -and $targetUserId -ne "student-token" -and $targetUserId -ne "admin-token") {
+                        $matchedUser = ($uList | Where-Object { $_.id -eq $targetUserId -or $_.email -eq $targetUserId }) | Select-Object -First 1
+                    }
+                    if (-not $matchedUser -and $targetUserId -eq "student-token") {
+                        $matchedUser = ($uList | Where-Object { $_.id -eq "u1" }) | Select-Object -First 1
+                    }
+                    if (-not $matchedUser -and ($targetUserId -eq "admin-token" -or $targetUserId -eq "admin-1")) {
+                        $matchedUser = ($uList | Where-Object { $_.id -eq "admin-1" }) | Select-Object -First 1
+                    }
+                    if (-not $matchedUser) {
+                        $matchedUser = ($uList | Where-Object { $_.id -eq "demo-user-1" }) | Select-Object -First 1
+                    }
+                    if ($matchedUser) {
+                        $uId = $matchedUser.id
+                        $rDouble = 5.0
+                        $rRaw = "$($matchedUser.rating | Select-Object -First 1)".Replace(',', '.')
+                        if ($matchedUser.rating -ne $null -and [double]::TryParse($rRaw, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rDouble)) {
+                            $userRating = $rDouble
+                        }
+                        foreach ($sh in $sObjList) {
+                            if ($sh.crew) {
+                                foreach ($cm in $sh.crew) {
+                                    if ($cm.userId -eq $uId -or $cm.id -eq $uId) {
+                                        $totPart++
+                                        if ($sh.isCompleted -eq $true -and $cm.attendance -ne "ABSENT") {
+                                            $compPart++
+                                        }
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch {}
+
+                $rawJsonToSend = "{`"success`":true,`"shoots`":$shootsRaw,`"students`":$usersRaw,`"stats`":{`"totalShoots`":$totalCount,`"completedShoots`":$completedCount},`"userStats`":{`"rating`":$userRating,`"completedParticipated`":$compPart,`"totalParticipated`":$totPart}}"
             }
             elseif ($urlPath -eq "/api/shoots" -and $method -eq "POST") {
                 $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
@@ -138,6 +271,10 @@ while ($listener.IsListening) {
 
                     $newShootJson = $newShootObj | ConvertTo-Json -Depth 6
                     $rawJsonToSend = "{`"success`":true,`"shoot`":$newShootJson}"
+                    
+                    # Мгновенная отправка вызывного в Telegram участникам
+                    $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
+                    $null = Send-CallsheetTelegram $newShootObj $settingsFile $usersFile
                 }
             }
             elseif ($urlPath -match "^/api/(?:admin/)?shoots/([^/]+)" -and $method -eq "DELETE") {
@@ -409,31 +546,183 @@ while ($listener.IsListening) {
                 $rawJsonToSend = "{`"success`":true,`"settings`":$settingsJsonOut}"
             }
             elseif ($urlPath -eq "/api/shoots/complete" -and $method -eq "POST") {
-                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
-                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
-                $tempFile = Join-Path $PSScriptRoot "data\temp_complete_$([Guid]::NewGuid().ToString('N')).json"
-                try {
-                    [System.IO.File]::WriteAllText($tempFile, $reqBody, $utf8Encoding)
-                    if (Test-Path $nodeExe) {
-                        $rawJsonToSend = & $nodeExe $helperScript complete $tempFile
-                    } else {
-                        $rawJsonToSend = "{`"success`":true}"
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $targetShootId = $parsed.shootId
+                $grades = $parsed.grades
+                
+                $completedShoot = $null
+                if (Test-Path $shootsFile) {
+                    $shoots = @([System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ })
+                    $users = if (Test-Path $usersFile) { @([System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ }) } else { @() }
+                    
+                    foreach ($sh in $shoots) {
+                        if ($sh.id -eq $targetShootId) {
+                            Set-PSProp $sh "isCompleted" $true
+                            $completedShoot = $sh
+                            if ($sh.crew) {
+                                foreach ($m in $sh.crew) {
+                                    $gVal = $null
+                                    if ($grades) {
+                                        $mId = $m.id
+                                        $uId = $m.userId
+                                        if ($grades.$mId -ne $null) { $gVal = [double]$grades.$mId }
+                                        elseif ($grades.$uId -ne $null) { $gVal = [double]$grades.$uId }
+                                    }
+                                    if ($gVal -ne $null) {
+                                        $targetGrade = $gVal
+                                    } elseif ($m.PSObject.Properties['grade'] -and $m.grade) {
+                                        $targetGrade = [double]$m.grade
+                                    } else {
+                                        $targetGrade = 5.0
+                                    }
+                                    Set-PSProp $m "grade" $targetGrade
+                                }
+                            }
+                            break
+                        }
                     }
-                } finally {
-                    if (Test-Path $tempFile) { Remove-Item $tempFile -Force -ErrorAction SilentlyContinue }
+                    
+                    $shootsJsonOut = ($shoots | ConvertTo-Json -Depth 6)
+                    if (-not $shootsJsonOut.Trim().StartsWith("[")) { $shootsJsonOut = "[$shootsJsonOut]" }
+                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+                    
+                    # Recalculate rating for all users who have grades in completed shoots
+                    foreach ($u in $users) {
+                        $allUserGrades = @()
+                        foreach ($sh in $shoots) {
+                            if ($sh.isCompleted -eq $true -and $sh.crew) {
+                                foreach ($cm in $sh.crew) {
+                                    if (($cm.userId -eq $u.id -or $cm.id -eq $u.id) -and $cm.grade -ne $null -and $cm.attendance -ne "ABSENT") {
+                                        $allUserGrades += [double]$cm.grade
+                                    }
+                                }
+                            }
+                        }
+                        if ($allUserGrades.Count -gt 0) {
+                            $sum = ($allUserGrades | Measure-Object -Sum).Sum
+                            $newR = [Math]::Round(($sum / $allUserGrades.Count), 1)
+                            Set-PSProp $u "rating" $newR
+                        }
+                    }
+                    $usersJsonOut = $users | ConvertTo-Json -Depth 6
+                    if (-not $usersJsonOut.Trim().StartsWith("[")) { $usersJsonOut = "[$usersJsonOut]" }
+                    [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
                 }
+                
+                $completedJson = if ($completedShoot) { $completedShoot | ConvertTo-Json -Depth 6 } else { "{}" }
+                $rawJsonToSend = "{`"success`":true,`"shoot`":$completedJson}"
             }
             elseif ($urlPath -eq "/api/telegram/dispatch" -and $method -eq "POST") {
-                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
-                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
                 $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
                 $targetShootId = if ($parsed.shootId) { $parsed.shootId } elseif ($parsed.shoot -and $parsed.shoot.id) { $parsed.shoot.id } else { "" }
 
-                if ($targetShootId -and (Test-Path $nodeExe)) {
-                    $rawJsonToSend = & $nodeExe $helperScript dispatch $targetShootId
-                } else {
-                    $rawJsonToSend = "{`"success`":true,`"report`":{`"deliveredCount`":0,`"botTokenConfigured`":false}}"
+                $targetShoot = $null
+                if ($parsed.shoot) {
+                    $targetShoot = $parsed.shoot
+                } elseif (Test-Path $shootsFile) {
+                    $allShootsRaw = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    $allShootsList = if ($allShootsRaw -is [Array]) { @($allShootsRaw) } elseif ($allShootsRaw.value -is [Array]) { @($allShootsRaw.value) } elseif ($null -ne $allShootsRaw) { @($allShootsRaw) } else { @() }
+                    $targetShoot = ($allShootsList | Where-Object { $_.id -eq $targetShootId }) | Select-Object -First 1
                 }
+
+                $report = if ($targetShoot) {
+                    Send-CallsheetTelegram $targetShoot $settingsFile $usersFile
+                } else {
+                    @{ deliveredCount = 0; botTokenConfigured = $false }
+                }
+
+                $repJson = $report | ConvertTo-Json -Depth 3
+                $rawJsonToSend = "{`"success`":true,`"report`":$repJson}"
+            }
+            elseif ($urlPath -eq "/api/statistics" -and $method -eq "GET") {
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                $shoots = @()
+                $users = @()
+                if (Test-Path $shootsFile) {
+                    $shoots = @([System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ })
+                }
+                if (Test-Path $usersFile) {
+                    $users = @([System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ })
+                }
+                
+                $totalShoots = [int]$shoots.Count
+                $totalCompleted = [int](@($shoots | Where-Object { $_.isCompleted -eq $true }).Count)
+                
+                $leaders = @()
+                foreach ($u in $users) {
+                    $roleName = if ($u.role -and $u.role.name) { $u.role.name } elseif ($u.role) { [string]$u.role } else { "Студент" }
+                    if ($roleName -like "*Студент*") {
+                        $partCount = 0
+                        foreach ($sh in $shoots) {
+                            if ($sh.crew) {
+                                foreach ($cm in $sh.crew) {
+                                    if ($cm.userId -eq $u.id -or $cm.id -eq $u.id) {
+                                        $partCount++
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                        $rVal = 4.5
+                        $rRaw = "$($u.rating | Select-Object -First 1)".Replace(',', '.')
+                        if ($u.rating -ne $null -and [double]::TryParse($rRaw, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rVal)) {}
+                        $leaders += [PSCustomObject]@{
+                            id = [string]$u.id
+                            fullName = [string]$u.fullName
+                            groupName = if ($u.groupName) { [string]$u.groupName } else { "КТ-26" }
+                            rating = [double]$rVal
+                            participations = [int]$partCount
+                        }
+                    }
+                }
+                $sortedLeaders = @($leaders | Sort-Object -Property @{Expression="rating"; Descending=$true}, @{Expression="participations"; Descending=$true})
+                
+                $groupNames = @($sortedLeaders | ForEach-Object { $_.groupName } | Select-Object -Unique)
+                $groupsRating = @()
+                foreach ($gName in $groupNames) {
+                    $members = @($sortedLeaders | Where-Object { $_.groupName -eq $gName })
+                    $totalRating = 0.0
+                    $totalPart = 0
+                    foreach ($m in $members) {
+                        $totalRating += [double]$m.rating
+                        $totalPart += [int]$m.participations
+                    }
+                    $avg = if ($members.Count -gt 0) { [Math]::Round(($totalRating / $members.Count), 1) } else { 4.5 }
+                    $groupsRating += [PSCustomObject]@{
+                        groupName = [string]$gName
+                        avgRating = [double]$avg
+                        participations = [int]$totalPart
+                    }
+                }
+                $sortedGroups = @($groupsRating | Sort-Object -Property @{Expression="avgRating"; Descending=$true})
+                
+                $shootTitles = @{}
+                foreach ($sh in $shoots) {
+                    $t = [string]$sh.title
+                    if (-not $shootTitles.ContainsKey($t)) { $shootTitles[$t] = 0 }
+                    $shootTitles[$t] += 1
+                }
+                $frequent = @()
+                foreach ($tk in $shootTitles.Keys) {
+                    $frequent += [PSCustomObject]@{ title = [string]$tk; count = [int]$shootTitles[$tk] }
+                }
+                $sortedFrequent = @($frequent | Sort-Object -Property count -Descending | Select-Object -First 5)
+                
+                $statsObj = [PSCustomObject]@{
+                    success = $true
+                    totalShoots = $totalShoots
+                    totalCompleted = $totalCompleted
+                    leaders = $sortedLeaders
+                    groupsRating = $sortedGroups
+                    frequentShoots = $sortedFrequent
+                }
+                $rawJsonToSend = $statsObj | ConvertTo-Json -Depth 5
             }
             elseif ($urlPath -eq "/api/telegram/test" -and $method -eq "POST") {
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
