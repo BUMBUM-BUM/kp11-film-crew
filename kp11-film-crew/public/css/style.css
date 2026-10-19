@@ -1433,6 +1433,11 @@ a:hover svg path[d*="m22 2-7 20-4-9-9-4Z"] {
   30%, 100% { left: 160%; }
 }
 
+/* Гарантированное скрытие элементов с классом hidden */
+.hidden {
+  display: none !important;
+}
+
 /* Плавный аккордеон деталей смены */
 [id^="shoot_details_"] {
   will-change: max-height, opacity;

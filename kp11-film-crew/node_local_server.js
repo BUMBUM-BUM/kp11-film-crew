@@ -11,6 +11,7 @@ const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
+const LOCATIONS_FILE = path.join(DATA_DIR, 'locations.json');
 
 function readJsonFile(filePath, defaultVal = []) {
   try {
@@ -289,7 +290,15 @@ const server = http.createServer(async (req, res) => {
         title: jsonBody.title || 'Новая съёмочная смена',
         description: jsonBody.description || '',
         type: jsonBody.type || 'ПАВИЛЬОН',
-        date: jsonBody.date || new Date().toISOString(),
+        date: jsonBody.date || new Date().toISOString().split('T')[0],
+        callTime: jsonBody.callTime || '10:00',
+        startTime: jsonBody.startTime || '11:30',
+        endTime: jsonBody.endTime || '18:00',
+        timeline: Array.isArray(jsonBody.timeline) ? jsonBody.timeline : [
+          { time: jsonBody.callTime || '10:00', label: 'Сбор съёмочной группы' },
+          { time: jsonBody.startTime || '11:30', label: 'Мотор! Начало съёмки' },
+          { time: jsonBody.endTime || '18:00', label: 'Окончание смены' }
+        ],
         location: jsonBody.location || 'Павильон КП11',
         latitude: parseFloat(jsonBody.latitude) || 55.858244,
         longitude: parseFloat(jsonBody.longitude) || 37.518423,
@@ -537,6 +546,63 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, item: updatedItem, inventory: updated }));
     }
 
+    // 8.1. УПРАВЛЕНИЕ ЛОКАЦИЯМИ СЪЁМОК (CRUD)
+    // GET /api/locations
+    if (pathname === '/api/locations' && req.method === 'GET') {
+      const locations = readJsonFile(LOCATIONS_FILE, []);
+      return res.end(JSON.stringify({ success: true, locations }));
+    }
+
+    // POST /api/locations
+    if (pathname === '/api/locations' && req.method === 'POST') {
+      const locations = readJsonFile(LOCATIONS_FILE, []);
+      const newLoc = {
+        id: jsonBody.id || `loc-${Date.now()}`,
+        name: jsonBody.name || 'Новая съёмочная площадка',
+        type: jsonBody.type || 'СТУДИЯ',
+        latitude: parseFloat(jsonBody.latitude) || 55.858244,
+        longitude: parseFloat(jsonBody.longitude) || 37.518423,
+        badge: jsonBody.badge || jsonBody.name || 'Локация'
+      };
+      const updated = [...locations, newLoc];
+      writeJsonFile(LOCATIONS_FILE, updated);
+      return res.end(JSON.stringify({ success: true, location: newLoc, locations: updated }));
+    }
+
+    // PUT /api/locations/:id
+    const locPutMatch = pathname.match(/^\/api\/locations\/([^/]+)$/);
+    if (locPutMatch && req.method === 'PUT') {
+      const locId = locPutMatch[1];
+      const locations = readJsonFile(LOCATIONS_FILE, []);
+      let updatedLoc = null;
+      const updated = locations.map(l => {
+        if (l.id === locId) {
+          updatedLoc = {
+            ...l,
+            name: jsonBody.name !== undefined ? jsonBody.name : l.name,
+            type: jsonBody.type !== undefined ? jsonBody.type : l.type,
+            latitude: jsonBody.latitude !== undefined ? parseFloat(jsonBody.latitude) : l.latitude,
+            longitude: jsonBody.longitude !== undefined ? parseFloat(jsonBody.longitude) : l.longitude,
+            badge: jsonBody.badge !== undefined ? jsonBody.badge : l.badge
+          };
+          return updatedLoc;
+        }
+        return l;
+      });
+      writeJsonFile(LOCATIONS_FILE, updated);
+      return res.end(JSON.stringify({ success: true, location: updatedLoc, locations: updated }));
+    }
+
+    // DELETE /api/locations/:id
+    const locDelMatch = pathname.match(/^\/api\/locations\/([^/]+)$/);
+    if (locDelMatch && req.method === 'DELETE') {
+      const locId = locDelMatch[1];
+      const locations = readJsonFile(LOCATIONS_FILE, []);
+      const updated = locations.filter(l => l.id !== locId);
+      writeJsonFile(LOCATIONS_FILE, updated);
+      return res.end(JSON.stringify({ success: true, locations: updated, message: 'Локация удалена' }));
+    }
+
     // 9. АВТОРИЗАЦИЯ
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const users = readJsonFile(USERS_FILE, []);
@@ -611,6 +677,45 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, settings: jsonBody }));
     }
 
+    // Полное редактирование пользователя администратором (ФИО, группа, роль, рейтинг, компетенции, telegram, chatId, блокировка)
+    const userFullEditMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)(?:\/full)?$/);
+    if (userFullEditMatch && (req.method === 'PUT' || (req.method === 'POST' && pathname.endsWith('/full')))) {
+      const targetUserId = userFullEditMatch[1];
+      const users = readJsonFile(USERS_FILE, []);
+      let updatedUser = null;
+      users.forEach(u => {
+        if (u.id === targetUserId) {
+          if (jsonBody.fullName !== undefined) u.fullName = jsonBody.fullName;
+          if (jsonBody.email !== undefined) u.email = jsonBody.email;
+          if (jsonBody.groupName !== undefined) u.groupName = jsonBody.groupName;
+          if (jsonBody.rating !== undefined) u.rating = Number(jsonBody.rating);
+          if (jsonBody.telegram !== undefined) u.telegram = jsonBody.telegram;
+          if (jsonBody.telegramChatId !== undefined) u.telegramChatId = jsonBody.telegramChatId ? String(jsonBody.telegramChatId).trim() : null;
+          if (jsonBody.craftRank !== undefined) u.craftRank = jsonBody.craftRank;
+          if (jsonBody.completedShoots !== undefined) u.completedShoots = Number(jsonBody.completedShoots);
+          if (jsonBody.isSuspended !== undefined) u.isSuspended = Boolean(jsonBody.isSuspended);
+          if (jsonBody.role || jsonBody.roleName) {
+            const rName = jsonBody.roleName || (jsonBody.role && jsonBody.role.name) || jsonBody.role || 'Студент';
+            u.role = { name: rName };
+          }
+          if (jsonBody.competencies && typeof jsonBody.competencies === 'object') {
+            u.competencies = {
+              camera: Number(jsonBody.competencies.camera ?? (u.competencies && u.competencies.camera) ?? 85),
+              sound: Number(jsonBody.competencies.sound ?? (u.competencies && u.competencies.sound) ?? 80),
+              light: Number(jsonBody.competencies.light ?? (u.competencies && u.competencies.light) ?? 80),
+              edit: Number(jsonBody.competencies.edit ?? (u.competencies && u.competencies.edit) ?? 85)
+            };
+          }
+          if (Array.isArray(jsonBody.skills)) {
+            u.skills = jsonBody.skills;
+          }
+          updatedUser = u;
+        }
+      });
+      writeJsonFile(USERS_FILE, users);
+      return res.end(JSON.stringify({ success: true, user: updatedUser, message: 'Все данные пользователя успешно сохранены' }));
+    }
+
     const userPatchMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)(?:\/role)?$/);
     if (userPatchMatch && req.method === 'PATCH') {
       const targetUserId = userPatchMatch[1];
@@ -629,6 +734,44 @@ const server = http.createServer(async (req, res) => {
       });
       writeJsonFile(USERS_FILE, users);
       return res.end(JSON.stringify({ success: true, message: 'Пользователь обновлён' }));
+    }
+
+    // QR ЧЕК-ИН НА СЪЁМОЧНУЮ СМЕНУ
+    const qrCheckinMatch = pathname.match(/^\/api\/shoots\/([^/]+)\/qr-checkin$/);
+    if (qrCheckinMatch && req.method === 'POST') {
+      const shootId = qrCheckinMatch[1];
+      const studentId = (jsonBody.studentId || '').trim();
+      const shoots = readJsonFile(SHOOTS_FILE, []);
+      let matchedMember = null;
+      let targetShoot = null;
+
+      shoots.forEach(sh => {
+        if (sh.id === shootId && Array.isArray(sh.crew)) {
+          targetShoot = sh;
+          sh.crew.forEach(cm => {
+            if (cm.userId === studentId || cm.id === studentId || (cm.user && cm.user.id === studentId)) {
+              cm.attendance = 'PRESENT';
+              cm.status = 'ACCEPTED';
+              matchedMember = cm;
+            }
+          });
+        }
+      });
+
+      if (matchedMember) {
+        writeJsonFile(SHOOTS_FILE, shoots);
+        return res.end(JSON.stringify({
+          success: true,
+          message: 'Явка подтверждена по QR-пропуску!',
+          member: matchedMember,
+          shoot: targetShoot
+        }));
+      } else {
+        return res.end(JSON.stringify({
+          success: false,
+          error: 'Участник не найден в составе съёмочной группы данной смены'
+        }));
+      }
     }
 
     // 11. ПОСЕЩАЕМОСТЬ И ОТВЕТ НА ВЫЗЫВНОЙ

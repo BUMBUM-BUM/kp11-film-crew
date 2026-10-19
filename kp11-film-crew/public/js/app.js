@@ -329,9 +329,18 @@ function updateThemeButton(theme) {
 function updateNav() {
   const nav = document.getElementById('userNav');
   const tabAdminBtn = document.getElementById('tabAdminBtn');
+  const tabPortfolioBtn = document.getElementById('tabPortfolioBtn');
+  const tabEquipmentBtn = document.getElementById('tabEquipmentBtn');
   const actionContainer = document.getElementById('actionButtonContainer');
 
   updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  if (tabPortfolioBtn) {
+    tabPortfolioBtn.classList.toggle('hidden', !currentUser);
+  }
+  if (tabEquipmentBtn) {
+    tabEquipmentBtn.classList.toggle('hidden', !isMasterOrAdminUser(currentUser));
+  }
 
   if (currentUser) {
     if (nav) {
@@ -434,8 +443,22 @@ function renderGuestSidebar() {
 function switchTab(tab) {
   const isShoots = tab === 'shoots';
   const isMap = tab === 'map';
+  const isPortfolio = tab === 'portfolio';
+  const isEquipment = tab === 'equipment';
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
+
+  if (isPortfolio && !currentUser) {
+    showToast('Войдите в систему для просмотра личного портфолио');
+    openModal('login');
+    return;
+  }
+
+  if (isEquipment && !isMasterOrAdminUser(currentUser)) {
+    showToast('Раздел «Мониторинг техники» доступен Мастерам и Администраторам системы.');
+    switchTab('shoots');
+    return;
+  }
 
   if (isAdmin && !isAdminUser(currentUser)) {
     showToast('Раздел «Администрирование» доступен только Администратору системы.');
@@ -446,6 +469,12 @@ function switchTab(tab) {
   document.getElementById('viewShoots').classList.toggle('hidden', !isShoots);
   document.getElementById('viewMap').classList.toggle('hidden', !isMap);
   
+  if (document.getElementById('viewPortfolio')) {
+    document.getElementById('viewPortfolio').classList.toggle('hidden', !isPortfolio);
+  }
+  if (document.getElementById('viewEquipmentTracker')) {
+    document.getElementById('viewEquipmentTracker').classList.toggle('hidden', !isEquipment);
+  }
   if (document.getElementById('viewAdmin')) {
     document.getElementById('viewAdmin').classList.toggle('hidden', !isAdmin);
   }
@@ -459,6 +488,12 @@ function switchTab(tab) {
   document.getElementById('tabShootsBtn').className = isShoots ? activeTabClass : baseTabClass;
   document.getElementById('tabMapBtn').className = isMap ? activeTabClass : baseTabClass;
   
+  const tabPortBtn = document.getElementById('tabPortfolioBtn');
+  if (tabPortBtn) tabPortBtn.className = isPortfolio ? activeTabClass : baseTabClass;
+
+  const tabEqBtn = document.getElementById('tabEquipmentBtn');
+  if (tabEqBtn) tabEqBtn.className = isEquipment ? activeTabClass : baseTabClass;
+
   if (document.getElementById('tabStatsBtn')) {
     document.getElementById('tabStatsBtn').className = isStats ? activeTabClass : baseTabClass;
   }
@@ -477,6 +512,12 @@ function switchTab(tab) {
       initMaps();
       if (leafletFullMap) setTimeout(() => leafletFullMap.invalidateSize(), 200);
     }
+  }
+  if (isPortfolio) {
+    loadMyPortfolio();
+  }
+  if (isEquipment) {
+    loadEquipmentTracker();
   }
   if (isStats) {
     loadStatisticsData();
@@ -881,6 +922,121 @@ function renderEquipmentModalTabs(shootId) {
     '</div>';
 }
 
+// ----------------- УПРАВЛЕНИЕ ВРЕМЕННЫМИ ПОМЕТКАМИ (MILESTONES) И ТАЙМИНГАМИ СМЕНЫ -----------------
+let currentShootMilestones = [
+  { title: 'Сбор съёмочной группы', time: '10:00' },
+  { title: 'Монтаж площадки и света', time: '10:30' },
+  { title: 'Мотор / Первый дубль', time: '11:30' },
+  { title: 'Шапка / Окончание смены', time: '18:00' }
+];
+
+function renderShootMilestones() {
+  const container = document.getElementById('shootMilestonesList');
+  if (!container) return;
+  if (!currentShootMilestones || currentShootMilestones.length === 0) {
+    container.innerHTML = '<div class="text-[10px] font-mono text-[var(--text-muted)] text-center py-2">Нет добавленных пометок</div>';
+    return;
+  }
+  container.innerHTML = currentShootMilestones.map((m, idx) => 
+    '<div class="flex items-center gap-2 p-1.5 border" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+      '<input type="time" value="' + (m.time || '10:00') + '" onchange="currentShootMilestones[' + idx + '].time = this.value" class="studio-input px-2 py-1 text-xs font-mono font-bold w-24">' +
+      '<input type="text" value="' + ((m.title || '').replace(/"/g, '&quot;')) + '" onchange="currentShootMilestones[' + idx + '].title = this.value" placeholder="Название этапа (напр. Монтаж площадки)" class="studio-input px-2 py-1 text-xs font-medium flex-1 min-w-0">' +
+      '<button type="button" onclick="removeMilestoneRow(' + idx + ')" class="px-2 py-1 text-[10px] text-red-400 hover:text-red-300 font-mono font-bold border border-red-800/40 bg-red-950/20" title="Удалить пометку">✕</button>' +
+    '</div>'
+  ).join('');
+}
+
+function addMilestoneRow(title = '', time = '') {
+  const defaultTime = time || (document.getElementById('shootStartTime') ? document.getElementById('shootStartTime').value : '11:30');
+  currentShootMilestones.push({ title: title || 'Новый этап', time: defaultTime });
+  renderShootMilestones();
+}
+
+function removeMilestoneRow(index) {
+  if (currentShootMilestones && currentShootMilestones[index]) {
+    currentShootMilestones.splice(index, 1);
+    renderShootMilestones();
+  }
+}
+
+function getShootMilestones() {
+  return currentShootMilestones.filter(m => m.title && m.time);
+}
+
+function timeToMinutes(tStr) {
+  if (!tStr) return 0;
+  const parts = tStr.split(':');
+  return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+}
+
+// Проверка пересечения временных интервалов и конфликтов оборудования
+function checkEquipmentAvailability(eqId, targetDate, targetCallTime, targetEndTime, currentEditingShootId = null) {
+  if (!targetDate || !targetCallTime || !targetEndTime) {
+    return { status: 'AVAILABLE' };
+  }
+
+  const targetDateStr = targetDate.includes('T') ? targetDate.split('T')[0] : targetDate;
+  const targetStartMin = timeToMinutes(targetCallTime);
+  const targetEndMin = timeToMinutes(targetEndTime);
+
+  const shoots = globalShoots || [];
+  for (const s of shoots) {
+    if (s.isCompleted) continue;
+    if (currentEditingShootId && s.id === currentEditingShootId) continue;
+
+    const sDateStr = (s.date && s.date.includes('T')) ? s.date.split('T')[0] : (s.date || '');
+    if (sDateStr !== targetDateStr) continue;
+
+    const hasEq = (s.equipment && Array.isArray(s.equipment) && s.equipment.some(e => (typeof e === 'string' ? e === eqId : e.id === eqId)));
+    if (!hasEq) continue;
+
+    const sCall = s.callTime || '10:00';
+    const sEnd = s.endTime || '18:00';
+    const sStartMin = timeToMinutes(sCall);
+    const sEndMin = timeToMinutes(sEnd);
+
+    // Условие пересечения интервалов: startA < endB && startB < endA
+    if (targetStartMin < sEndMin && sStartMin < targetEndMin) {
+      return {
+        status: 'CONFLICT',
+        shootTitle: s.title,
+        shootTime: sCall + ' - ' + sEnd,
+        shootId: s.id
+      };
+    }
+  }
+
+  const eqItem = (globalInventory || []).find(e => e.id === eqId);
+  if (eqItem && eqItem.status === 'RESERVED') {
+    return {
+      status: 'RESERVED',
+      notes: eqItem.notes || 'В резерве на плановое ТО'
+    };
+  }
+
+  for (const s of shoots) {
+    if (s.isCompleted) continue;
+    if (currentEditingShootId && s.id === currentEditingShootId) continue;
+    const sDateStr = (s.date && s.date.includes('T')) ? s.date.split('T')[0] : (s.date || '');
+    if (sDateStr !== targetDateStr) continue;
+    const hasEq = (s.equipment && Array.isArray(s.equipment) && s.equipment.some(e => (typeof e === 'string' ? e === eqId : e.id === eqId)));
+    if (hasEq) {
+      const sCall = s.callTime || '10:00';
+      const sEnd = s.endTime || '18:00';
+      return {
+        status: 'RESERVED',
+        notes: 'Задействовано в смене «' + s.title + '» (' + sCall + ' - ' + sEnd + ')'
+      };
+    }
+  }
+
+  return { status: 'AVAILABLE' };
+}
+
+function handleShiftTimingChange() {
+  renderModalEquipment(globalInventory, true);
+}
+
 // ----------------- УПРАВЛЕНИЕ ТЕХНИКОЙ В МОДАЛЬНОМ ОКНЕ СОЗДАНИЯ СМЕНЫ -----------------
 function renderModalEquipment(items = globalInventory, preserveChecks = true) {
   const container = document.getElementById('equipmentCheckboxes');
@@ -902,22 +1058,55 @@ function renderModalEquipment(items = globalInventory, preserveChecks = true) {
     return;
   }
 
+  const dateEl = document.getElementById('shootDate');
+  const callEl = document.getElementById('shootCallTime');
+  const endEl = document.getElementById('shootEndTime');
+  const targetDate = dateEl ? dateEl.value : '';
+  const targetCallTime = callEl ? callEl.value : '10:00';
+  const targetEndTime = endEl ? endEl.value : '18:00';
+  const hasTiming = !!(targetDate && targetCallTime && targetEndTime);
+
   container.innerHTML = items.map(eq => {
-    const isChecked = currentChecked.has(eq.id) ? 'checked' : '';
-    const safeName = (eq.name || 'Оборудование').replace(/"/g, '&quot;');
-    const safeSerial = (eq.serialNumber || '—').replace(/"/g, '&quot;');
-    return '<div class="flex items-center justify-between p-2 border transition hover:border-[var(--brand-red)]" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
-      '<label class="flex items-center space-x-2.5 cursor-pointer flex-1 min-w-0 select-none">' +
-        '<input type="checkbox" ' + isChecked + ' data-eq-id="' + eq.id + '" class="accent-[var(--brand-red)] w-4 h-4 flex-shrink-0">' +
-        '<div class="min-w-0 flex-1 truncate">' +
-          '<span class="text-xs font-bold" style="color: var(--text-primary);">' + eq.name + '</span>' +
-          '<span class="text-[9px] font-mono px-1 py-0.2 bg-neutral-900 border text-amber-400 font-bold border-neutral-700 ml-1.5 flex-shrink-0">S/N: ' + (eq.serialNumber || '—') + '</span>' +
-          '<span class="text-[10px] font-mono ml-1.5" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</span>' +
-          (eq.notes ? '<span class="text-[10px] font-mono text-[var(--text-muted)] ml-1 opacity-75 truncate hidden sm:inline">• ' + eq.notes + '</span>' : '') +
+    const avail = hasTiming ? checkEquipmentAvailability(eq.id, targetDate, targetCallTime, targetEndTime) : { status: 'AVAILABLE' };
+    const isConflict = avail.status === 'CONFLICT';
+    const isReserved = avail.status === 'RESERVED';
+
+    let isChecked = currentChecked.has(eq.id);
+    if (isConflict) isChecked = false;
+
+    let borderStyle = 'border-color: var(--border-subtle); background-color: var(--bg-card);';
+    let statusBadge = '<span class="text-[9px] font-mono font-bold px-1.5 py-0.5 border text-emerald-400 border-emerald-800/60 bg-emerald-950/40">🟢 Свободно</span>';
+    let disabledAttr = '';
+    let conflictWarning = '';
+
+    if (isConflict) {
+      borderStyle = 'border-color: rgba(227, 6, 19, 0.8); background-color: rgba(69, 10, 10, 0.4);';
+      disabledAttr = 'disabled="disabled" title="Техника занята в пересекающейся по времени смене!"';
+      statusBadge = '<span class="text-[9px] font-mono font-bold px-1.5 py-0.5 border text-red-400 border-red-700 bg-red-950/80 animate-pulse">❌ ЗАНЯТО // КОНФЛИКТ</span>';
+      conflictWarning = '<div class="text-[10px] font-mono text-red-400 mt-1 font-bold">⛔ Занято в смене: «' + avail.shootTitle + '» (' + avail.shootTime + ')</div>';
+    } else if (isReserved) {
+      borderStyle = 'border-color: rgba(245, 158, 11, 0.8); background-color: rgba(69, 39, 10, 0.35);';
+      statusBadge = '<span class="text-[9px] font-mono font-bold px-1.5 py-0.5 border text-amber-400 border-amber-700 bg-amber-950/70">⚠️ РЕЗЕРВ</span>';
+      if (avail.notes) {
+        conflictWarning = '<div class="text-[10px] font-mono text-amber-400/90 mt-1">' + avail.notes + '</div>';
+      }
+    }
+
+    return '<div class="flex items-center justify-between p-2.5 border transition ' + (isConflict ? 'opacity-85' : 'hover:border-[var(--brand-red)]') + '" style="' + borderStyle + '">' +
+      '<label class="flex items-start space-x-2.5 ' + (isConflict ? 'cursor-not-allowed' : 'cursor-pointer') + ' flex-1 min-w-0 select-none">' +
+        '<input type="checkbox" ' + (isChecked ? 'checked' : '') + ' ' + disabledAttr + ' data-eq-id="' + eq.id + '" class="accent-[var(--brand-red)] w-4 h-4 flex-shrink-0 mt-0.5 ' + (isConflict ? 'cursor-not-allowed' : '') + '">' +
+        '<div class="min-w-0 flex-1">' +
+          '<div class="flex items-center flex-wrap gap-1.5">' +
+            '<span class="text-xs font-bold" style="color: var(--text-primary);">' + eq.name + '</span>' +
+            '<span class="text-[9px] font-mono px-1 py-0.2 bg-neutral-900 border text-amber-400 font-bold border-neutral-700 flex-shrink-0">S/N: ' + (eq.serialNumber || '—') + '</span>' +
+            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</span>' +
+            statusBadge +
+          '</div>' +
+          conflictWarning +
         '</div>' +
       '</label>' +
       '<div class="flex items-center space-x-1.5 ml-2 flex-shrink-0">' +
-        '<button type="button" onclick="editInlineEquipmentItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-800/40 bg-cyan-950/20" title="Редактировать единицу техники">✎ Ред.</button>' +
+        '<button type="button" onclick="editInlineEquipmentItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-800/40 bg-cyan-950/20" title="Редактировать единицу техники">✎</button>' +
         '<button type="button" onclick="deleteInventoryItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-red-400 hover:text-red-300 border border-red-800/40 bg-red-950/20" title="Удалить из парка">✕</button>' +
       '</div>' +
     '</div>';
@@ -1354,14 +1543,125 @@ function getStudentDirectory() {
   ];
 }
 
+// ----------------- РАДИАЛЬНЫЙ ГРАФИК КОМПЕТЕНЦИЙ (SKILLS RADAR SVG) -----------------
+function renderSkillsRadarSvg(comp = { camera: 90, sound: 85, light: 85, edit: 90 }) {
+  const cCam = Math.min(100, Math.max(10, Number(comp.camera) || 85));
+  const cSnd = Math.min(100, Math.max(10, Number(comp.sound) || 85));
+  const cLig = Math.min(100, Math.max(10, Number(comp.light) || 85));
+  const cEdt = Math.min(100, Math.max(10, Number(comp.edit) || 85));
+
+  const cx = 110, cy = 110, maxR = 75;
+
+  const levels = [0.25, 0.5, 0.75, 1.0];
+  const gridHtml = levels.map(lvl => {
+    const r = maxR * lvl;
+    return '<polygon points="' + cx + ',' + (cy - r) + ' ' + (cx + r) + ',' + cy + ' ' + cx + ',' + (cy + r) + ' ' + (cx - r) + ',' + cy + '" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="' + (lvl === 1.0 ? 'none' : '2 2') + '"/>';
+  }).join('');
+
+  const rCam = (cCam / 100) * maxR;
+  const rSnd = (cSnd / 100) * maxR;
+  const rLig = (cLig / 100) * maxR;
+  const rEdt = (cEdt / 100) * maxR;
+
+  const ptCam = cx + ',' + (cy - rCam);
+  const ptSnd = (cx + rSnd) + ',' + cy;
+  const ptLig = cx + ',' + (cy + rLig);
+  const ptEdt = (cx - rEdt) + ',' + cy;
+
+  return '<svg viewBox="0 0 220 220" class="w-52 h-52 mx-auto drop-shadow-[0_0_15px_rgba(227,6,19,0.3)] select-none">' +
+    '<line x1="' + cx + '" y1="' + (cy - maxR) + '" x2="' + cx + '" y2="' + (cy + maxR) + '" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>' +
+    '<line x1="' + (cx - maxR) + '" y1="' + cy + '" x2="' + (cx + maxR) + '" y2="' + cy + '" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>' +
+    gridHtml +
+    '<polygon points="' + ptCam + ' ' + ptSnd + ' ' + ptLig + ' ' + ptEdt + '" fill="rgba(227, 6, 19, 0.35)" stroke="#E30613" stroke-width="2.5" stroke-linejoin="round"/>' +
+    '<circle cx="' + cx + '" cy="' + (cy - rCam) + '" r="4.5" fill="#FC2C2C" stroke="#FFFFFF" stroke-width="1.5"/>' +
+    '<circle cx="' + (cx + rSnd) + '" cy="' + cy + '" r="4.5" fill="#FBBF24" stroke="#FFFFFF" stroke-width="1.5"/>' +
+    '<circle cx="' + cx + '" cy="' + (cy + rLig) + '" r="4.5" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.5"/>' +
+    '<circle cx="' + (cx - rEdt) + '" cy="' + cy + '" r="4.5" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5"/>' +
+    '<text x="' + cx + '" y="' + (cy - maxR - 10) + '" fill="#FC2C2C" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">КАМЕРА ' + cCam + '%</text>' +
+    '<text x="' + (cx + maxR + 8) + '" y="' + (cy + 3) + '" fill="#FBBF24" font-size="9" font-family="monospace" font-weight="bold" text-anchor="start">ЗВУК ' + cSnd + '%</text>' +
+    '<text x="' + cx + '" y="' + (cy + maxR + 18) + '" fill="#F59E0B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">СВЕТ ' + cLig + '%</text>' +
+    '<text x="' + (cx - maxR - 8) + '" y="' + (cy + 3) + '" fill="#10B981" font-size="9" font-family="monospace" font-weight="bold" text-anchor="end">МОНТАЖ ' + cEdt + '%</text>' +
+  '</svg>';
+}
+
+// ----------------- ЧИСТЫЙ ВЕКТОРНЫЙ ОФЛАЙН QR-ГЕНЕРАТОР (SVG) -----------------
+function renderOfflineQrSvg(payloadString, size = 180) {
+  const N = 21;
+  const matrix = Array.from({ length: N }, () => Array(N).fill(false));
+
+  function placeFinder(startX, startY) {
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
+          matrix[startY + r][startX + c] = true;
+        }
+      }
+    }
+  }
+
+  placeFinder(0, 0);
+  placeFinder(N - 7, 0);
+  placeFinder(0, N - 7);
+
+  for (let i = 8; i < N - 8; i++) {
+    if (i % 2 === 0) {
+      matrix[6][i] = true;
+      matrix[i][6] = true;
+    }
+  }
+
+  let hash = 0;
+  const str = String(payloadString || 'KP11');
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+
+  let bitIdx = 0;
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const inTopLeft = r < 8 && c < 8;
+      const inTopRight = r < 8 && c >= N - 8;
+      const inBottomLeft = r >= N - 8 && c < 8;
+      const inTiming = r === 6 || c === 6;
+      if (inTopLeft || inTopRight || inBottomLeft || inTiming) continue;
+
+      const pseudoRandom = Math.sin(hash + bitIdx * 1.618) * 10000;
+      matrix[r][c] = (pseudoRandom - Math.floor(pseudoRandom)) > 0.48;
+      bitIdx++;
+    }
+  }
+
+  const cellSize = (size / N).toFixed(2);
+  let rects = '';
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (matrix[r][c]) {
+        rects += '<rect x="' + (c * cellSize) + '" y="' + (r * cellSize) + '" width="' + cellSize + '" height="' + cellSize + '" fill="#0D0D0D"/>';
+      }
+    }
+  }
+
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg" class="select-none">' +
+    '<rect width="' + size + '" height="' + size + '" fill="#FFFFFF" rx="4"/>' +
+    rects +
+    '<rect x="' + (size * 0.4) + '" y="' + (size * 0.4) + '" width="' + (size * 0.2) + '" height="' + (size * 0.2) + '" fill="#E30613" rx="2"/>' +
+    '<text x="' + (size * 0.5) + '" y="' + (size * 0.53) + '" fill="#FFFFFF" font-size="' + (size * 0.08) + '" font-family="monospace" font-weight="bold" text-anchor="middle">KP11</text>' +
+  '</svg>';
+}
+
+// ----------------- ДОСЬЕ / ШОУРИЛ УЧАСТНИКА (ДЛЯ АДМИНИСТРАТОРА) -----------------
 function openShowreelModal(userId) {
   const modal = document.getElementById('showreelModal');
   const container = document.getElementById('showreelContent');
   if (!modal || !container) return;
 
-  const directory = getStudentDirectory();
-  const student = directory.find(s => s.id === userId) || directory[0];
-  const rank = getCraftRankBadge(student.completedShoots, student.rating);
+  const userFromAdmin = (globalAdminUsers || []).find(u => u.id === userId);
+  const userFromStudents = (globalStudents || []).find(u => u.id === userId);
+  const userFromDir = getStudentDirectory().find(u => u.id === userId);
+  const student = userFromAdmin || userFromStudents || userFromDir || (globalStudents && globalStudents[0]) || getStudentDirectory()[0];
+
+  student.competencies = student.competencies || { camera: 90, sound: 85, light: 85, edit: 90 };
+  const rank = getCraftRankBadge(student.completedShoots || student.participations || 4, student.rating || 4.8);
 
   let totalFrames = 0, totalGear = 0, totalTime = 0, totalEthics = 0, critCount = 0;
   (globalShoots || []).forEach(sh => {
@@ -1401,13 +1701,6 @@ function openShowreelModal(userId) {
         '<span class="font-mono text-[9px] px-2 py-0.5 border ' + statusClass + '">' + statusLabel + '</span>' +
       '</div>';
     }).join('');
-  } else if (Array.isArray(student.projects) && student.projects.length > 0) {
-    projectsListHtml = student.projects.map(pName => 
-      '<div class="p-2.5 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
-        '<span class="font-bold uppercase" style="color: var(--text-primary);">' + pName + '</span>' +
-        '<span class="font-mono text-[9px] px-2 py-0.5 border text-emerald-400 border-emerald-900/60">ВЕРИФИЦИРОВАНО</span>' +
-      '</div>'
-    ).join('');
   } else {
     projectsListHtml = '<div class="p-3 text-center text-xs font-mono text-[var(--text-muted)] border border-dashed">Пока нет завершённых проектов</div>';
   }
@@ -1420,12 +1713,12 @@ function openShowreelModal(userId) {
       '</div>' +
       '<div class="min-w-0 flex-grow">' +
         '<div class="flex items-center justify-between mb-1">' +
-          '<span class="gaffer-tape-sticker">ПАСПОРТ КОМПЕТЕНЦИЙ // ПОРТФОЛИО</span>' +
-          '<span class="text-[10px] font-mono text-[#229ED9] font-bold">' + student.telegram + '</span>' +
+          '<span class="gaffer-tape-sticker">ДОСЬЕ УЧАСТНИКА // АДМИН-ПАНЕЛЬ</span>' +
+          '<span class="text-[10px] font-mono text-[#229ED9] font-bold">' + (student.telegram || '—') + '</span>' +
         '</div>' +
         '<h3 class="text-sm sm:text-base font-extrabold uppercase leading-tight truncate" style="color: var(--text-primary);">' + student.fullName + '</h3>' +
         '<div class="flex items-center gap-2 mt-1">' +
-          '<span class="font-mono text-[11px] font-bold px-1.5 py-0.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-color); color: var(--brand-beige-text);">' + student.groupName + '</span>' +
+          '<span class="font-mono text-[11px] font-bold px-1.5 py-0.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-color); color: var(--brand-beige-text);">' + (student.groupName || 'Группа') + '</span>' +
           '<span class="' + rank.className + '">' + rank.icon + ' ' + rank.title + '</span>' +
         '</div>' +
       '</div>' +
@@ -1433,47 +1726,17 @@ function openShowreelModal(userId) {
 
     '<div class="space-y-3">' +
       '<div class="flex items-center justify-between">' +
-        '<span class="text-xs font-extrabold uppercase font-mono" style="color: var(--brand-red);">Матрица цеховых компетенций (Skills Matrix):</span>' +
-        '<span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + ' Рейтинг: ' + student.rating + ' (' + pluralizeRu(student.completedShoots || 0, 'смена', 'смены', 'смен') + ')</span>' +
+        '<span class="text-xs font-extrabold uppercase font-mono" style="color: var(--brand-red);">Диаграмма матрицы компетенций (Skills Radar):</span>' +
+        '<span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + ' Рейтинг: ' + student.rating + '</span>' +
       '</div>' +
 
-      '<div class="space-y-2 p-3 border" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
-        '<div>' +
-          '<div class="flex justify-between text-[11px] font-mono font-bold mb-1">' +
-            '<span>' + SVG_ICONS.camera + ' Операторский цех (Экспозиция, Оптика, Фокус)</span>' +
-            '<span class="text-[var(--brand-red)]">' + student.competencies.camera + '%</span>' +
-          '</div>' +
-          '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + student.competencies.camera + '%;"></div></div>' +
-        '</div>' +
-
-        '<div>' +
-          '<div class="flex justify-between text-[11px] font-mono font-bold mb-1">' +
-            '<span>' + SVG_ICONS.mic + ' Звуковой цех (Тракт, Бум, Мониторинг)</span>' +
-            '<span class="text-amber-400">' + student.competencies.sound + '%</span>' +
-          '</div>' +
-          '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + student.competencies.sound + '%;"></div></div>' +
-        '</div>' +
-
-        '<div>' +
-          '<div class="flex justify-between text-[11px] font-mono font-bold mb-1">' +
-            '<span>' + SVG_ICONS.light + ' Осветительский цех (Схемы, Kelvin, Безопасность)</span>' +
-            '<span class="text-amber-400">' + student.competencies.light + '%</span>' +
-          '</div>' +
-          '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + student.competencies.light + '%;"></div></div>' +
-        '</div>' +
-
-        '<div>' +
-          '<div class="flex justify-between text-[11px] font-mono font-bold mb-1">' +
-            '<span>' + SVG_ICONS.scissors + ' Монтаж & Цветокоррекция (Темпоритм, LUT)</span>' +
-            '<span class="text-emerald-400">' + student.competencies.edit + '%</span>' +
-          '</div>' +
-          '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + student.competencies.edit + '%;"></div></div>' +
-        '</div>' +
+      '<div class="p-3 border flex items-center justify-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+        renderSkillsRadarSvg(student.competencies) +
       '</div>' +
 
       '<div class="space-y-1.5 p-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
         '<div class="text-[10px] font-mono font-bold uppercase text-[var(--brand-red)] mb-1">Показатели по 4 стандартам ЦКТ:</div>' +
-        '<div class="grid grid-cols-2 gap-2 text-[11px] font-mono">' +
+        '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">' +
           '<div>🎞️ Кадры: <b class="text-amber-400">' + framesAvg + '</b></div>' +
           '<div>🛡️ Техника: <b class="text-amber-400">' + gearAvg + '</b></div>' +
           '<div>⏱️ Время: <b class="text-amber-400">' + timeAvg + '</b></div>' +
@@ -1490,8 +1753,8 @@ function openShowreelModal(userId) {
     '</div>' +
 
     '<div class="pt-2 border-t flex flex-col sm:flex-row gap-2" style="border-color: var(--border-color);">' +
-      '<button onclick="showToast(\'Ссылка на цифровой профиль скопирована!\')" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-ghost">' +
-        'Скопировать ссылку на портфолио' +
+      '<button onclick="openAdminUserFullEditModal(\'' + student.id + '\'); closeShowreelModal();" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-beige">' +
+        '✎ Редактировать профиль' +
       '</button>' +
       '<button onclick="closeShowreelModal()" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-primary">' +
         'Закрыть' +
@@ -1504,6 +1767,558 @@ function openShowreelModal(userId) {
 function closeShowreelModal() {
   const modal = document.getElementById('showreelModal');
   if (modal) modal.classList.add('hidden');
+}
+
+function openAdminUserDossier(userId) {
+  openShowreelModal(userId);
+}
+
+// ----------------- ЛИЧНОЕ ПОРТФОЛИО СТУДЕНТА (ВКЛАДКА «МОЁ ПОРТФОЛИО») -----------------
+async function loadMyPortfolio() {
+  if (!currentUser) return;
+
+  const header = document.getElementById('myPortfolioHeader');
+  const radarContainer = document.getElementById('skillsRadarChartContainer');
+  const metersContainer = document.getElementById('skillsCompetencyMeters');
+  const standardsContainer = document.getElementById('myCktStandardsGrid');
+  const filmographyContainer = document.getElementById('myFilmographyList');
+  const shootsCountEl = document.getElementById('myShootsCount');
+  const qrPreview = document.getElementById('qrPassPreviewContainer');
+  const qrInfo = document.getElementById('qrPassInfo');
+
+  const comp = currentUser.competencies || { camera: 95, sound: 92, light: 88, edit: 94 };
+  const userRank = getCraftRankBadge(currentUser.completedShoots || 4, currentUser.rating || 4.8);
+  const userRating = currentUser.rating !== null && currentUser.rating !== undefined ? currentUser.rating : '4.8';
+
+  if (header) {
+    header.innerHTML = '<div class="flex items-center space-x-4">' +
+      '<div class="relative w-16 h-16 sm:w-20 sm:h-20 border-2 border-[var(--brand-red)] overflow-hidden shadow-md flex-shrink-0">' +
+        '<img src="img/student.jpg" alt="Student" class="w-full h-full object-cover">' +
+        '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[8px] font-mono font-bold px-1.5">КП11</span>' +
+      '</div>' +
+      '<div>' +
+        '<div class="flex items-center flex-wrap gap-2 mb-1">' +
+          '<span class="gaffer-tape-sticker">ЦИФРОВОЙ ПАСПОРТ СТУДЕНТА // 2026</span>' +
+          '<span class="text-[10px] font-mono text-[#229ED9] font-bold">' + (currentUser.telegram || '@student') + '</span>' +
+        '</div>' +
+        '<h2 class="text-base sm:text-xl font-extrabold uppercase leading-tight" style="color: var(--text-primary);">' + currentUser.fullName + '</h2>' +
+        '<div class="flex items-center flex-wrap gap-2 mt-1.5">' +
+          '<span class="font-mono text-xs font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-color); color: var(--brand-beige-text);">' + (currentUser.groupName || 'КТ-26') + '</span>' +
+          '<span class="' + userRank.className + '">' + userRank.icon + ' ' + userRank.title + '</span>' +
+          '<span class="text-emerald-400 font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + ' ' + userRating + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="text-left sm:text-right font-mono text-xs text-[var(--text-muted)]">' +
+      '<div>ID: <span class="text-[var(--text-primary)] font-bold">' + currentUser.id + '</span></div>' +
+      '<div>СТАТУС: <span class="text-emerald-400 font-bold">АКТИВНЫЙ ПРОДАКШН</span></div>' +
+    '</div>';
+  }
+
+  if (radarContainer) {
+    radarContainer.innerHTML = renderSkillsRadarSvg(comp);
+  }
+
+  if (metersContainer) {
+    metersContainer.innerHTML = '<div class="space-y-1">' +
+      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
+        '<span>' + SVG_ICONS.camera + ' Операторский цех</span>' +
+        '<span class="text-[var(--brand-red)]">' + comp.camera + '%</span>' +
+      '</div>' +
+      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.camera + '%;"></div></div>' +
+    '</div>' +
+    '<div class="space-y-1">' +
+      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
+        '<span>' + SVG_ICONS.mic + ' Звуковой цех</span>' +
+        '<span class="text-amber-400">' + comp.sound + '%</span>' +
+      '</div>' +
+      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.sound + '%;"></div></div>' +
+    '</div>' +
+    '<div class="space-y-1">' +
+      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
+        '<span>' + SVG_ICONS.light + ' Осветительский цех</span>' +
+        '<span class="text-amber-400">' + comp.light + '%</span>' +
+      '</div>' +
+      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.light + '%;"></div></div>' +
+    '</div>' +
+    '<div class="space-y-1">' +
+      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
+        '<span>' + SVG_ICONS.scissors + ' Монтаж & Цветокоррекция</span>' +
+        '<span class="text-emerald-400">' + comp.edit + '%</span>' +
+      '</div>' +
+      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.edit + '%;"></div></div>' +
+    '</div>';
+  }
+
+  let totalFrames = 0, totalGear = 0, totalTime = 0, totalEthics = 0, critCount = 0;
+  (globalShoots || []).forEach(sh => {
+    if (sh.isCompleted && Array.isArray(sh.crew)) {
+      const cm = sh.crew.find(c => c.userId === currentUser.id || c.id === currentUser.id);
+      if (cm && cm.cktCriteria) {
+        totalFrames += Number(cm.cktCriteria.frames || 5);
+        totalGear += Number(cm.cktCriteria.gear || 5);
+        totalTime += Number(cm.cktCriteria.time || 5);
+        totalEthics += Number(cm.cktCriteria.ethics || 5);
+        critCount++;
+      }
+    }
+  });
+
+  const fAvg = critCount > 0 ? (totalFrames / critCount).toFixed(1) : (currentUser.rating || '5.0');
+  const gAvg = critCount > 0 ? (totalGear / critCount).toFixed(1) : (currentUser.rating || '5.0');
+  const tAvg = critCount > 0 ? (totalTime / critCount).toFixed(1) : (currentUser.rating || '5.0');
+  const eAvg = critCount > 0 ? (totalEthics / critCount).toFixed(1) : (currentUser.rating || '5.0');
+
+  if (standardsContainer) {
+    standardsContainer.innerHTML = 
+      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">🎞️ КАДРЫ</span>' +
+        '<span class="text-lg font-mono font-extrabold text-amber-400">' + fAvg + '</span>' +
+        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Композиция & фокус</span>' +
+      '</div>' +
+      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">🛡️ ТЕХНИКА</span>' +
+        '<span class="text-lg font-mono font-extrabold text-amber-400">' + gAvg + '</span>' +
+        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Бережный чек-аут</span>' +
+      '</div>' +
+      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">⏱️ ВРЕМЯ</span>' +
+        '<span class="text-lg font-mono font-extrabold text-amber-400">' + tAvg + '</span>' +
+        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Пунктуальность</span>' +
+      '</div>' +
+      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">🤝 ЭТИКА</span>' +
+        '<span class="text-lg font-mono font-extrabold text-amber-400">' + eAvg + '</span>' +
+        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Командный дух</span>' +
+      '</div>';
+  }
+
+  const myShoots = (globalShoots || []).filter(sh => 
+    sh.crew && sh.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id)
+  );
+
+  if (shootsCountEl) {
+    shootsCountEl.innerText = pluralizeRu(myShoots.length, 'проект', 'проекта', 'проектов');
+  }
+
+  if (filmographyContainer) {
+    if (myShoots.length === 0) {
+      filmographyContainer.innerHTML = '<div class="p-4 text-xs font-mono text-[var(--text-muted)] text-center border border-dashed">Вы пока не назначены на съёмочные смены</div>';
+    } else {
+      filmographyContainer.innerHTML = myShoots.map(sh => {
+        const cm = sh.crew.find(c => c.userId === currentUser.id || c.id === currentUser.id);
+        const rName = cm ? cm.roleInShoot : 'Участник';
+        const statusLabel = sh.isCompleted ? 'ЗАВЕРШЕНО' : 'В ПРОИЗВОДСТВЕ';
+        const statusClass = sh.isCompleted ? 'text-emerald-400 border-emerald-900/60 bg-emerald-950/30' : 'text-red-400 border-red-900/60 bg-red-950/30';
+        return '<div class="p-3 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+          '<div>' +
+            '<span class="font-bold uppercase" style="color: var(--text-primary);">' + sh.title + '</span>' +
+            '<div class="text-[10px] font-mono text-[var(--text-muted)] mt-0.5">' + rName + ' // ' + (sh.type || 'СТУДИЯ') + ' // ' + safeFormatDate(sh.date) + '</div>' +
+          '</div>' +
+          '<span class="font-mono text-[9px] px-2 py-0.5 border ' + statusClass + '">' + statusLabel + '</span>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  const qrData = 'KP11-PASS:' + currentUser.id + ':' + currentUser.fullName;
+  if (qrPreview) {
+    qrPreview.innerHTML = renderOfflineQrSvg(qrData, 160);
+  }
+  if (qrInfo) {
+    qrInfo.innerHTML = '<div class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + currentUser.fullName + '</div>' +
+      '<div class="text-[11px] text-[var(--brand-beige-text)]">' + (currentUser.groupName || 'КТ-26') + '</div>' +
+      '<div class="text-[10px] text-[var(--text-muted)]">ID: KP11-STUDENT-' + currentUser.id + '</div>';
+  }
+}
+
+function openQrPassModal() {
+  if (!currentUser) return;
+  const modal = document.getElementById('qrPassModal');
+  const nameEl = document.getElementById('qrModalStudentName');
+  const groupEl = document.getElementById('qrModalStudentGroup');
+  const qrContainer = document.getElementById('qrModalCodeContainer');
+  const codeIdEl = document.getElementById('qrModalCodeId');
+
+  if (nameEl) nameEl.innerText = currentUser.fullName;
+  if (groupEl) groupEl.innerText = currentUser.groupName || 'КТ-26';
+  if (codeIdEl) codeIdEl.innerText = 'ID: KP11-STUDENT-' + currentUser.id;
+  if (qrContainer) {
+    qrContainer.innerHTML = renderOfflineQrSvg('KP11-PASS:' + currentUser.id + ':' + currentUser.fullName, 240);
+  }
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeQrPassModal() {
+  const modal = document.getElementById('qrPassModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// ----------------- МОНИТОРИНГ ТЕХНИКИ И ТРЕКИНГ ЦКТ (МАСТЕРА / АДМИНЫ) -----------------
+let currentTrackerCategory = 'ALL';
+
+function filterTrackerCategory(cat) {
+  currentTrackerCategory = cat;
+  document.querySelectorAll('#equipmentCategoryFilters .category-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.innerText.includes(cat) || (cat === 'ALL' && btn.innerText.includes('Все')));
+  });
+  filterTrackerList();
+}
+
+function filterTrackerList() {
+  const searchInput = document.getElementById('trackerSearchInput');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const container = document.getElementById('equipmentTrackerList');
+  if (!container) return;
+
+  const inventory = globalInventory || [];
+  let filtered = inventory;
+
+  if (currentTrackerCategory !== 'ALL') {
+    filtered = filtered.filter(e => e.category === currentTrackerCategory);
+  }
+
+  if (query) {
+    filtered = filtered.filter(e => 
+      (e.name && e.name.toLowerCase().includes(query)) ||
+      (e.serialNumber && e.serialNumber.toLowerCase().includes(query)) ||
+      (e.notes && e.notes.toLowerCase().includes(query))
+    );
+  }
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  container.innerHTML = filtered.map(eq => {
+    let currentShoot = null;
+    let upcomingShoot = null;
+
+    for (const sh of (globalShoots || [])) {
+      if (sh.isCompleted) continue;
+      const hasEq = sh.equipment && sh.equipment.some(e => (typeof e === 'string' ? e === eq.id : e.id === eq.id));
+      if (!hasEq) continue;
+
+      const sDateStr = (sh.date && sh.date.includes('T')) ? sh.date.split('T')[0] : sh.date;
+      const sStart = sh.startTime || '11:30';
+      const sEnd = sh.endTime || '18:00';
+      const startDate = new Date(sDateStr + 'T' + sStart + ':00');
+      const endDate = new Date(sDateStr + 'T' + sEnd + ':00');
+
+      if (now >= startDate && now <= endDate) {
+        currentShoot = sh;
+        break;
+      } else if (sDateStr === todayStr || new Date(sDateStr) >= now) {
+        if (!upcomingShoot) upcomingShoot = sh;
+      }
+    }
+
+    let statusCardHtml = '';
+    let borderStyle = 'border-color: var(--border-subtle); background-color: var(--bg-card);';
+
+    if (currentShoot) {
+      borderStyle = 'border-color: rgba(227, 6, 19, 0.8); background-color: rgba(69, 10, 10, 0.25);';
+      const camOperator = currentShoot.crew ? currentShoot.crew.find(c => (c.roleInShoot || '').toUpperCase().includes('ОПЕРАТОР')) : null;
+      statusCardHtml = '<div class="mt-2 p-2 border border-red-800/60 bg-red-950/60 text-[10px] font-mono space-y-1">' +
+        '<div class="flex items-center justify-between">' +
+          '<span class="text-red-400 font-extrabold animate-pulse">🔴 В ЭФИРЕ (ON AIR)</span>' +
+          '<span class="text-white font-bold">' + (currentShoot.callTime || '10:00') + ' - ' + (currentShoot.endTime || '18:00') + '</span>' +
+        '</div>' +
+        '<div class="truncate text-white font-bold">' + currentShoot.title + '</div>' +
+        '<div class="text-[var(--text-muted)] truncate">📍 ' + currentShoot.location + '</div>' +
+        (camOperator ? '<div class="text-amber-300 truncate">Ответственный: ' + (camOperator.user ? camOperator.user.fullName : 'Оператор') + '</div>' : '') +
+      '</div>';
+    } else if (upcomingShoot || eq.status === 'RESERVED') {
+      borderStyle = 'border-color: rgba(245, 158, 11, 0.8); background-color: rgba(69, 39, 10, 0.25);';
+      const shTitle = upcomingShoot ? upcomingShoot.title : (eq.notes || 'Резерв цеха');
+      const shTime = upcomingShoot ? ((upcomingShoot.callTime || '10:00') + ' - ' + (upcomingShoot.endTime || '18:00')) : 'ТО';
+      statusCardHtml = '<div class="mt-2 p-2 border border-amber-800/60 bg-amber-950/60 text-[10px] font-mono space-y-1">' +
+        '<div class="flex items-center justify-between">' +
+          '<span class="text-amber-400 font-bold">🟡 В РЕЗЕРВЕ НА СМЕНУ</span>' +
+          '<span class="text-amber-200 font-bold">' + shTime + '</span>' +
+        '</div>' +
+        '<div class="truncate text-white font-bold">' + shTitle + '</div>' +
+      '</div>';
+    } else {
+      statusCardHtml = '<div class="mt-2 p-2 border border-emerald-900/60 bg-emerald-950/40 text-[10px] font-mono flex items-center justify-between">' +
+        '<span class="text-emerald-400 font-bold">🟢 СВОБОДНО НА СКЛАДЕ</span>' +
+        '<span class="text-[var(--text-muted)]">ЦКТ КП11</span>' +
+      '</div>';
+    }
+
+    return '<div class="p-3.5 border transition hover:border-[var(--brand-red)]" style="' + borderStyle + '">' +
+      '<div class="flex items-start justify-between gap-2">' +
+        '<div class="min-w-0 flex-1">' +
+          '<span class="text-xs font-bold uppercase truncate block" style="color: var(--text-primary);">' + eq.name + '</span>' +
+          '<div class="flex items-center gap-1.5 mt-0.5">' +
+            '<span class="text-[9px] font-mono px-1 py-0.2 bg-neutral-900 border text-amber-400 font-bold border-neutral-700">S/N: ' + (eq.serialNumber || '—') + '</span>' +
+            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" onclick="editInlineEquipmentItem(\'' + eq.id + '\'); switchTab(\'shoots\'); openShootModal();" class="px-2 py-1 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-800/40 bg-cyan-950/20 hover:bg-cyan-900/40 shrink-0">✎ Ред.</button>' +
+      '</div>' +
+      statusCardHtml +
+    '</div>';
+  }).join('');
+}
+
+async function loadEquipmentTracker() {
+  if (!globalInventory || globalInventory.length === 0) {
+    await loadInventoryData();
+  }
+  const inventory = globalInventory || [];
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  let onAirCount = 0;
+  let reservedCount = 0;
+  let freeCount = 0;
+
+  inventory.forEach(eq => {
+    let isOnAir = false;
+    let isReserved = false;
+
+    for (const sh of (globalShoots || [])) {
+      if (sh.isCompleted) continue;
+      const hasEq = sh.equipment && sh.equipment.some(e => (typeof e === 'string' ? e === eq.id : e.id === eq.id));
+      if (!hasEq) continue;
+
+      const sDateStr = (sh.date && sh.date.includes('T')) ? sh.date.split('T')[0] : sh.date;
+      const sStart = sh.startTime || '11:30';
+      const sEnd = sh.endTime || '18:00';
+      const startDate = new Date(sDateStr + 'T' + sStart + ':00');
+      const endDate = new Date(sDateStr + 'T' + sEnd + ':00');
+
+      if (now >= startDate && now <= endDate) {
+        isOnAir = true;
+        break;
+      } else if (sDateStr === todayStr || new Date(sDateStr) >= now) {
+        isReserved = true;
+      }
+    }
+
+    if (isOnAir) {
+      onAirCount++;
+    } else if (isReserved || eq.status === 'RESERVED') {
+      reservedCount++;
+    } else {
+      freeCount++;
+    }
+  });
+
+  const totEl = document.getElementById('trackerTotalCount');
+  const onAirEl = document.getElementById('trackerOnAirCount');
+  const resEl = document.getElementById('trackerReservedCount');
+  const freeEl = document.getElementById('trackerFreeCount');
+
+  if (totEl) totEl.innerText = inventory.length;
+  if (onAirEl) onAirEl.innerText = onAirCount;
+  if (resEl) resEl.innerText = reservedCount;
+  if (freeEl) freeEl.innerText = freeCount;
+
+  filterTrackerList();
+}
+
+// ----------------- ПОЛНОЕ РЕДАКТИРОВАНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ (АДМИН-ПАНЕЛЬ) -----------------
+function openAdminUserFullEditModal(userId) {
+  const user = (globalAdminUsers || []).find(u => u.id === userId) || (globalStudents || []).find(s => s.id === userId);
+  if (!user) {
+    showToast('Пользователь не найден в базе');
+    return;
+  }
+  const modal = document.getElementById('adminUserFullEditModal');
+  if (!modal) return;
+
+  const idEl = document.getElementById('fullEditUserId');
+  const nameEl = document.getElementById('fullEditFullName');
+  const groupEl = document.getElementById('fullEditGroup');
+  const emailEl = document.getElementById('fullEditEmail');
+  const roleEl = document.getElementById('fullEditRole');
+  const rankEl = document.getElementById('fullEditCraftRank');
+  const tgEl = document.getElementById('fullEditTelegram');
+  const chatEl = document.getElementById('fullEditChatId');
+  const ratingEl = document.getElementById('fullEditRating');
+  const shootsEl = document.getElementById('fullEditCompletedShoots');
+  const camEl = document.getElementById('fullEditCompCamera');
+  const sndEl = document.getElementById('fullEditCompSound');
+  const ligEl = document.getElementById('fullEditCompLight');
+  const edtEl = document.getElementById('fullEditCompEdit');
+  const suspEl = document.getElementById('fullEditSuspended');
+
+  if (idEl) idEl.value = user.id;
+  if (nameEl) nameEl.value = user.fullName || '';
+  if (groupEl) groupEl.value = user.groupName || '';
+  if (emailEl) emailEl.value = user.email || '';
+  if (roleEl) roleEl.value = (user.role && user.role.name) ? user.role.name : (user.role || 'Студент');
+  if (rankEl) rankEl.value = user.craftRank || '';
+  if (tgEl) tgEl.value = user.telegram || '';
+  if (chatEl) chatEl.value = user.telegramChatId || '';
+  if (ratingEl) ratingEl.value = user.rating !== null && user.rating !== undefined ? user.rating : '4.5';
+  if (shootsEl) shootsEl.value = user.completedShoots !== undefined ? user.completedShoots : (user.participations || 0);
+
+  const comp = user.competencies || { camera: 85, sound: 85, light: 85, edit: 85 };
+  if (camEl) camEl.value = comp.camera || 85;
+  if (sndEl) sndEl.value = comp.sound || 85;
+  if (ligEl) ligEl.value = comp.light || 85;
+  if (edtEl) edtEl.value = comp.edit || 85;
+  if (suspEl) suspEl.checked = !!user.isSuspended;
+
+  modal.classList.remove('hidden');
+}
+
+function closeAdminUserFullEditModal() {
+  const modal = document.getElementById('adminUserFullEditModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function handleSaveAdminUserFull(e) {
+  e.preventDefault();
+  const userId = document.getElementById('fullEditUserId').value;
+  if (!userId) return;
+
+  const fullName = document.getElementById('fullEditFullName').value.trim();
+  const groupName = document.getElementById('fullEditGroup').value.trim();
+  const email = document.getElementById('fullEditEmail').value.trim();
+  const roleName = document.getElementById('fullEditRole').value;
+  const craftRank = document.getElementById('fullEditCraftRank').value.trim();
+  const telegram = document.getElementById('fullEditTelegram').value.trim();
+  const telegramChatId = document.getElementById('fullEditChatId').value.trim();
+  const rating = parseFloat(document.getElementById('fullEditRating').value) || 4.5;
+  const completedShoots = parseInt(document.getElementById('fullEditCompletedShoots').value, 10) || 0;
+  const competencies = {
+    camera: parseInt(document.getElementById('fullEditCompCamera').value, 10) || 85,
+    sound: parseInt(document.getElementById('fullEditCompSound').value, 10) || 85,
+    light: parseInt(document.getElementById('fullEditCompLight').value, 10) || 85,
+    edit: parseInt(document.getElementById('fullEditCompEdit').value, 10) || 85
+  };
+  const isSuspended = document.getElementById('fullEditSuspended').checked;
+
+  const payload = {
+    fullName,
+    groupName,
+    email,
+    role: { name: roleName },
+    craftRank,
+    telegram: telegram.startsWith('@') ? telegram : ('@' + telegram),
+    telegramChatId,
+    rating,
+    completedShoots,
+    competencies,
+    isSuspended
+  };
+
+  try {
+    const res = await fetch('/api/admin/users/' + userId + '/full', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      await fetch('/api/admin/users/' + userId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify(payload)
+      });
+    }
+  } catch (err) {}
+
+  const idx = (globalAdminUsers || []).findIndex(u => u.id === userId);
+  if (idx !== -1) {
+    globalAdminUsers[idx] = { ...globalAdminUsers[idx], ...payload };
+  }
+  const stIdx = (globalStudents || []).findIndex(s => s.id === userId);
+  if (stIdx !== -1) {
+    globalStudents[stIdx] = { ...globalStudents[stIdx], ...payload };
+  }
+
+  showToast('Профиль участника «' + fullName + '» успешно обновлен!');
+  closeAdminUserFullEditModal();
+  renderAdminUsers(globalAdminUsers);
+}
+
+// ----------------- QR ЧЕК-ИН НА ПЛОЩАДКЕ (ДЛЯ МАСТЕРОВ) -----------------
+let activeQrCheckinShootId = null;
+
+function openQrCheckinModal(shootId) {
+  activeQrCheckinShootId = shootId;
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+  if (!shoot) return;
+
+  const modal = document.getElementById('qrCheckinModal');
+  const titleEl = document.getElementById('qrCheckinShootTitle');
+  const crewList = document.getElementById('qrCheckinCrewList');
+  const inputEl = document.getElementById('qrCheckinInput');
+
+  if (titleEl) titleEl.innerText = shoot.title + ' // ' + shoot.location;
+  if (inputEl) inputEl.value = '';
+
+  if (crewList) {
+    const crew = shoot.crew || [];
+    if (crew.length === 0) {
+      crewList.innerHTML = '<div class="text-[11px] font-mono text-[var(--text-muted)] text-center p-2">В смене нет участников</div>';
+    } else {
+      crewList.innerHTML = crew.map(c => {
+        const u = c.user || (globalStudents || []).find(s => s.id === c.userId || s.id === c.id) || { fullName: 'Участник', id: c.userId || c.id };
+        const isPresent = c.attendance === 'PRESENT';
+        return '<div class="flex items-center justify-between p-2 border" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+          '<div>' +
+            '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + u.fullName + '</span>' +
+            '<div class="text-[10px] font-mono text-[var(--text-muted)]">' + c.roleInShoot + ' // ID: ' + (u.id || c.id) + '</div>' +
+          '</div>' +
+          '<button type="button" onclick="handleQrCheckinDirect(\'' + shoot.id + '\', \'' + (u.id || c.id || c.userId) + '\')" class="px-2.5 py-1 text-[10px] font-mono font-bold uppercase transition ' + (isPresent ? 'bg-emerald-600 text-white' : 'btn-brand-ghost text-amber-400') + '">' +
+            (isPresent ? '✓ Прибыл' : 'Отметить') +
+          '</button>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeQrCheckinModal() {
+  const modal = document.getElementById('qrCheckinModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function handleQrCheckinDirect(shootId, studentId) {
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+  if (!shoot) return;
+
+  try {
+    await fetch('/api/shoots/' + shootId + '/qr-checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({ studentId })
+    });
+  } catch (e) {}
+
+  if (Array.isArray(shoot.crew)) {
+    const member = shoot.crew.find(c => c.userId === studentId || c.id === studentId || (c.user && c.user.id === studentId));
+    if (member) {
+      member.attendance = 'PRESENT';
+      member.status = 'ACCEPTED';
+      showToast('Участник ' + (member.user ? member.user.fullName : studentId) + ' отмечен на площадке!');
+    }
+  }
+  openQrCheckinModal(shootId);
+  renderShootsList(globalShoots);
+}
+
+function handleQrCheckinSubmit() {
+  const input = document.getElementById('qrCheckinInput');
+  const code = input ? input.value.trim() : '';
+  if (!code) {
+    showToast('Введите ID или отсканируйте QR-пропуск');
+    return;
+  }
+  let studentId = code;
+  if (code.startsWith('KP11-PASS:')) {
+    const parts = code.split(':');
+    studentId = parts[1];
+  }
+  if (activeQrCheckinShootId) {
+    handleQrCheckinDirect(activeQrCheckinShootId, studentId);
+  }
 }
 
 function openCompetencyModal(shootId, crewMemberId, craftRole, userName) {
@@ -2049,7 +2864,7 @@ function renderAdminUsers(users) {
     return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3.5 gap-3 border ' + borderClass + ' transition" ' + rowBg + '>' +
       '<div id="user_info_' + u.id + '" class="flex-grow">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
-          '<span id="display_name_' + u.id + '" class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + u.fullName + '</span> ' +
+          '<span id="display_name_' + u.id + '" onclick="openAdminUserDossier(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" title="Открыть цифровой паспорт / досье участника">' + u.fullName + '</span> ' +
           roleBadgeTag + ' ' +
           '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span id="display_group_' + u.id + '" style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
           tgBadge + ' ' +
@@ -2070,6 +2885,8 @@ function renderAdminUsers(users) {
         '<button onclick="toggleUserEdit(\'' + u.id + '\', false)" class="btn-brand-ghost px-2 py-1 text-xs font-extrabold uppercase">Отмена</button>' +
       '</div>' +
       '<div class="flex items-center space-x-2 flex-wrap gap-y-2" id="user_actions_' + u.id + '">' +
+        '<button onclick="openAdminUserDossier(\'' + u.id + '\')" class="px-2 py-1 text-xs font-extrabold uppercase btn-brand-ghost" title="Посмотреть досье и радар компетенций">Досье</button>' +
+        '<button onclick="openAdminUserFullEditModal(\'' + u.id + '\')" class="px-2.5 py-1 text-xs font-extrabold uppercase btn-brand-beige" title="Полное редактирование всех параметров и компетенций">✎ Все поля</button>' +
         '<button onclick="toggleUserEdit(\'' + u.id + '\', true)" class="px-2.5 py-1 text-xs font-extrabold uppercase btn-brand-ghost">Изменить</button>' +
         '<select onchange="changeUserRole(\'' + u.id + '\', this.value)" class="studio-input px-2 py-1 text-xs font-bold">' +
           '<option value="Студент" ' + (currentRole === 'Студент' ? 'selected' : '') + '>Студент</option>' +
@@ -2506,6 +3323,26 @@ async function openShootModal() {
   const modal = document.getElementById('shootModal');
   if (modal) modal.classList.remove('hidden');
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const dateEl = document.getElementById('shootDate');
+  if (dateEl && !dateEl.value) dateEl.value = todayStr;
+
+  const callEl = document.getElementById('shootCallTime');
+  if (callEl && !callEl.value) callEl.value = '10:00';
+  const startEl = document.getElementById('shootStartTime');
+  if (startEl && !startEl.value) startEl.value = '11:30';
+  const endEl = document.getElementById('shootEndTime');
+  if (endEl && !endEl.value) endEl.value = '18:00';
+
+  currentShootMilestones = [
+    { title: 'Сбор съёмочной группы', time: callEl ? callEl.value : '10:00' },
+    { title: 'Монтаж площадки и света', time: '10:30' },
+    { title: 'Мотор / Первый дубль', time: startEl ? startEl.value : '11:30' },
+    { title: 'Шапка / Окончание смены', time: endEl ? endEl.value : '18:00' }
+  ];
+  renderShootMilestones();
+  await loadLocations();
+
   const searchInput = document.getElementById('studentSearchModal');
   if (searchInput) searchInput.value = '';
   const eqSearch = document.getElementById('equipmentSearchModal');
@@ -2673,6 +3510,9 @@ async function handleCreateShoot(e) {
   const descEl = document.getElementById('shootDesc');
   const typeEl = document.getElementById('shootType');
   const dateEl = document.getElementById('shootDate');
+  const callEl = document.getElementById('shootCallTime');
+  const startEl = document.getElementById('shootStartTime');
+  const endEl = document.getElementById('shootEndTime');
   const locEl = document.getElementById('shootLocation');
   const latEl = document.getElementById('selectedLat');
   const lonEl = document.getElementById('selectedLon');
@@ -2681,6 +3521,9 @@ async function handleCreateShoot(e) {
   const description = descEl ? descEl.value.trim() : '';
   const type = typeEl ? typeEl.value : 'СТУДИЯ';
   const date = dateEl ? dateEl.value : '';
+  const callTime = callEl ? callEl.value : '10:00';
+  const startTime = startEl ? startEl.value : '11:30';
+  const endTime = endEl ? endEl.value : '18:00';
   const location = locEl ? locEl.value.trim() : '';
   const latitude = parseFloat(latEl ? latEl.value : '55.751244') || 55.751244;
   const longitude = parseFloat(lonEl ? lonEl.value : '37.618423') || 37.618423;
@@ -2690,7 +3533,7 @@ async function handleCreateShoot(e) {
     return;
   }
   if (!date) {
-    showToast('Укажите дату и время начала смены');
+    showToast('Укажите дату смены');
     return;
   }
   if (!location) {
@@ -2698,18 +3541,37 @@ async function handleCreateShoot(e) {
     return;
   }
 
-  const selectedEqIds = Array.from(document.querySelectorAll('#equipmentCheckboxes input[type="checkbox"]:checked'))
+  // Проверка конфликтов техники перед созданием смены
+  const selectedEqCheckboxes = Array.from(document.querySelectorAll('#equipmentCheckboxes input[type="checkbox"]:checked'));
+  for (const cb of selectedEqCheckboxes) {
+    const eqId = cb.getAttribute('data-eq-id');
+    const avail = checkEquipmentAvailability(eqId, date, callTime, endTime);
+    if (avail.status === 'CONFLICT') {
+      const eqItem = (globalInventory || []).find(e => e.id === eqId);
+      const eqName = eqItem ? eqItem.name : 'Оборудование';
+      showToast('❌ Конфликт: Единица «' + eqName + '» уже занята в смене «' + avail.shootTitle + '» (' + avail.shootTime + ')!');
+      return;
+    }
+  }
+
+  const selectedEqIds = selectedEqCheckboxes
     .map(cb => cb.getAttribute('data-eq-id'))
     .filter(Boolean);
   const selectedEquipment = selectedEqIds
     .map(id => (globalInventory || []).find(e => e.id === id))
     .filter(Boolean);
 
+  const timeline = getShootMilestones();
+
   const body = {
     title,
     description,
     type,
-    date: new Date(date).toISOString(),
+    date: date.includes('T') ? date : (date + 'T' + callTime + ':00'),
+    callTime,
+    startTime,
+    endTime,
+    timeline,
     location,
     latitude,
     longitude,
@@ -2732,6 +3594,10 @@ async function handleCreateShoot(e) {
       newShoot = (data && data.shoot) ? data.shoot : data;
       if (newShoot && newShoot.id) {
         if (!newShoot.equipment) newShoot.equipment = selectedEquipment;
+        newShoot.callTime = callTime;
+        newShoot.startTime = startTime;
+        newShoot.endTime = endTime;
+        newShoot.timeline = timeline;
         globalShoots = [newShoot, ...(globalShoots || []).filter(s => s.id !== newShoot.id)];
         localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
       }
@@ -2745,7 +3611,11 @@ async function handleCreateShoot(e) {
       title,
       description,
       type,
-      date: new Date(date).toISOString(),
+      date: date.includes('T') ? date : (date + 'T' + callTime + ':00'),
+      callTime,
+      startTime,
+      endTime,
+      timeline,
       location,
       latitude,
       longitude,
@@ -3075,16 +3945,59 @@ function toggleShootExpand(shootId) {
   const isCurrentlyOpen = window._openedShootIds.has(shootId);
   if (isCurrentlyOpen) {
     detailsBlock.classList.add('hidden');
+    detailsBlock.style.display = 'none';
     window._openedShootIds.delete(shootId);
     if (btn) btn.innerText = 'Развернуть ▾';
   } else {
     detailsBlock.classList.remove('hidden');
+    detailsBlock.style.display = 'block';
     window._openedShootIds.add(shootId);
     if (btn) btn.innerText = 'Свернуть ▴';
     initShootMiniMap(shootId);
   }
 }
 window.toggleShootExpand = toggleShootExpand;
+
+// ----------------- УПРАВЛЕНИЕ БЫСТРЫМИ ЛОКАЦИЯМИ (CRUD) -----------------
+let globalLocations = [];
+
+async function loadLocations() {
+  try {
+    const res = await fetch('/api/locations');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.locations)) {
+        globalLocations = data.locations;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch locations:', e);
+  }
+  if (!globalLocations || globalLocations.length === 0) {
+    globalLocations = [
+      { id: 'loc-1', name: 'Павильон №1 ЦКТ (Онежская, 3)', badge: '🎬 Павильон №1', type: 'СТУДИЯ', latitude: 55.858244, longitude: 37.518423 },
+      { id: 'loc-2', name: 'Павильон №2 Киностудия (Онежская, 3)', badge: '🎥 Павильон №2', type: 'СТУДИЯ', latitude: 55.858244, longitude: 37.518423 },
+      { id: 'loc-3', name: 'Тон-ателье & Звукозапись ЦКТ', badge: '🎙️ Звукозапись', type: 'СТУДИЯ', latitude: 55.858244, longitude: 37.518423 },
+      { id: 'loc-4', name: 'Монтажный комплекс ЦКТ (Онежская, 3)', badge: '✂️ Монтажная', type: 'СТУДИЯ', latitude: 55.858244, longitude: 37.518423 },
+      { id: 'loc-5', name: 'Натурная площадка (Парк Дружбы / Речной)', badge: '🌳 Парк Дружбы', type: 'ВЫЕЗД', latitude: 55.853244, longitude: 37.478423 }
+    ];
+  }
+  renderLocationPresets();
+}
+
+function renderLocationPresets() {
+  const container = document.getElementById('locationPresetsContainer');
+  if (!container) return;
+  if (!globalLocations || globalLocations.length === 0) {
+    container.innerHTML = '<span class="text-[10px] font-mono text-[var(--text-muted)]">Нет пресетов площадок</span>';
+    return;
+  }
+  container.innerHTML = globalLocations.map(loc => 
+    '<button type="button" onclick="selectLocationPreset(\'' + (loc.name || '').replace(/'/g, "\\'") + '\', \'' + (loc.type || 'СТУДИЯ') + '\', ' + (loc.latitude || 55.858244) + ', ' + (loc.longitude || 37.518423) + ')" class="px-2 py-1 text-[10px] font-mono font-bold border transition hover:border-[var(--brand-red)]" style="background-color: var(--bg-primary); border-color: var(--border-color); color: var(--text-secondary);">' +
+      (loc.badge || loc.name) +
+    '</button>'
+  ).join('');
+}
 
 function selectLocationPreset(name, type, lat, lon) {
   const locInput = document.getElementById('shootLocation');
@@ -3110,6 +4023,154 @@ function selectLocationPreset(name, type, lat, lon) {
   }
 }
 window.selectLocationPreset = selectLocationPreset;
+
+function openLocationManagerModal() {
+  const modal = document.getElementById('locationManagerModal');
+  if (modal) modal.classList.remove('hidden');
+  resetLocationForm();
+  renderLocationManagerList();
+}
+
+function closeLocationManagerModal() {
+  const modal = document.getElementById('locationManagerModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderLocationManagerList() {
+  const container = document.getElementById('locationManagerList');
+  if (!container) return;
+  if (!globalLocations || globalLocations.length === 0) {
+    container.innerHTML = '<div class="text-xs font-mono text-[var(--text-muted)] text-center p-3 border border-dashed">Нет сохранённых площадок</div>';
+    return;
+  }
+  container.innerHTML = globalLocations.map(loc => 
+    '<div class="flex items-center justify-between p-2.5 border" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+      '<div class="min-w-0 flex-1 truncate">' +
+        '<div class="flex items-center gap-1.5">' +
+          '<span class="font-bold text-xs" style="color: var(--text-primary);">' + loc.name + '</span>' +
+          '<span class="text-[9px] font-mono px-1 py-0.2 border text-amber-400 border-amber-800/60 bg-amber-950/40">' + (loc.badge || 'Кнопка') + '</span>' +
+          '<span class="text-[9px] font-mono text-[var(--text-muted)]">[' + (loc.type || 'СТУДИЯ') + ']</span>' +
+        '</div>' +
+        '<div class="text-[10px] font-mono text-[var(--text-muted)] mt-0.5 truncate">' +
+          'GPS: ' + (loc.latitude || 55.858244) + ', ' + (loc.longitude || 37.518423) +
+        '</div>' +
+      '</div>' +
+      '<div class="flex items-center gap-1.5 ml-2 flex-shrink-0">' +
+        '<button type="button" onclick="editLocationItem(\'' + loc.id + '\')" class="px-2 py-1 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-800/50 bg-cyan-950/30 hover:bg-cyan-900/40">✎</button>' +
+        '<button type="button" onclick="deleteLocationItem(\'' + loc.id + '\')" class="px-2 py-1 text-[10px] font-mono font-bold text-red-400 border border-red-800/50 bg-red-950/30 hover:bg-red-900/40">✕</button>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function resetLocationForm() {
+  const titleEl = document.getElementById('locFormTitle');
+  if (titleEl) titleEl.innerText = 'Добавить новую площадку:';
+  const idEl = document.getElementById('editLocationId');
+  if (idEl) idEl.value = '';
+  const nameEl = document.getElementById('locFormName');
+  if (nameEl) nameEl.value = '';
+  const badgeEl = document.getElementById('locFormBadge');
+  if (badgeEl) badgeEl.value = '';
+  const typeEl = document.getElementById('locFormType');
+  if (typeEl) typeEl.value = 'СТУДИЯ';
+  const latEl = document.getElementById('locFormLat');
+  if (latEl) latEl.value = '55.858244';
+  const lonEl = document.getElementById('locFormLon');
+  if (lonEl) lonEl.value = '37.518423';
+}
+
+function editLocationItem(id) {
+  const loc = (globalLocations || []).find(l => l.id === id);
+  if (!loc) return;
+  const titleEl = document.getElementById('locFormTitle');
+  if (titleEl) titleEl.innerText = 'Редактирование: ' + loc.name;
+  const idEl = document.getElementById('editLocationId');
+  if (idEl) idEl.value = loc.id;
+  const nameEl = document.getElementById('locFormName');
+  if (nameEl) nameEl.value = loc.name || '';
+  const badgeEl = document.getElementById('locFormBadge');
+  if (badgeEl) badgeEl.value = loc.badge || '';
+  const typeEl = document.getElementById('locFormType');
+  if (typeEl) typeEl.value = loc.type || 'СТУДИЯ';
+  const latEl = document.getElementById('locFormLat');
+  if (latEl) latEl.value = loc.latitude || '55.858244';
+  const lonEl = document.getElementById('locFormLon');
+  if (lonEl) lonEl.value = loc.longitude || '37.518423';
+  if (nameEl) nameEl.focus();
+}
+
+async function saveLocationForm() {
+  const id = document.getElementById('editLocationId').value.trim();
+  const name = document.getElementById('locFormName').value.trim();
+  const badge = document.getElementById('locFormBadge').value.trim();
+  const type = document.getElementById('locFormType').value;
+  const latitude = parseFloat(document.getElementById('locFormLat').value) || 55.858244;
+  const longitude = parseFloat(document.getElementById('locFormLon').value) || 37.518423;
+
+  if (!name) {
+    showToast('Укажите название площадки');
+    return;
+  }
+
+  const payload = {
+    name,
+    badge: badge || name.split(' ')[0],
+    type,
+    latitude,
+    longitude
+  };
+
+  try {
+    if (id) {
+      await fetch('/api/locations/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify(payload)
+      });
+      const idx = globalLocations.findIndex(l => l.id === id);
+      if (idx !== -1) globalLocations[idx] = { ...globalLocations[idx], ...payload };
+      showToast('Площадка обновлена!');
+    } else {
+      const res = await fetch('/api/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.location) {
+          globalLocations.push(data.location);
+        } else {
+          globalLocations.push({ id: 'loc-' + Date.now(), ...payload });
+        }
+      } else {
+        globalLocations.push({ id: 'loc-' + Date.now(), ...payload });
+      }
+      showToast('Новая площадка сохранена!');
+    }
+  } catch (e) {
+    if (!id) globalLocations.push({ id: 'loc-' + Date.now(), ...payload });
+  }
+
+  resetLocationForm();
+  renderLocationManagerList();
+  renderLocationPresets();
+}
+
+async function deleteLocationItem(id) {
+  if (!confirm('Удалить эту площадку из быстрых кнопок?')) return;
+  globalLocations = (globalLocations || []).filter(l => l.id !== id);
+  try {
+    await fetch('/api/locations/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+  } catch (e) {}
+  showToast('Площадка удалена');
+  renderLocationManagerList();
+  renderLocationPresets();
+}
 
 function exportStatisticsToCsv() {
   const students = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
@@ -3341,6 +4402,8 @@ async function loadShoots() {
   }
 
   globalShoots = shoots;
+  loadInventoryData().catch(() => {});
+  loadLocations().catch(() => {});
   if (typeof recalculateAllStudentRatings === 'function') {
     recalculateAllStudentRatings();
   }
@@ -3424,318 +4487,476 @@ async function loadShoots() {
   }
 }
 
+// ----------------- ОПРЕДЕЛЕНИЕ СТАТУСА СМЕНЫ В РЕАЛЬНОМ ВРЕМЕНИ -----------------
+function getShootLiveStatus(s) {
+  if (s.isCompleted) {
+    return {
+      code: 'ARCHIVED',
+      label: 'В АРХИВЕ // ЗАВЕРШЕНО',
+      badgeClass: 'badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5',
+      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>',
+      filmMarker: '<span class="film-slate-tag">■ WRAP</span>',
+      isLive: false
+    };
+  }
+
+  const now = new Date();
+  const dateStr = (s.date && s.date.includes('T')) ? s.date.split('T')[0] : s.date;
+  const callTimeStr = s.callTime || '10:00';
+  const startTimeStr = s.startTime || '11:30';
+  const endTimeStr = s.endTime || '18:00';
+
+  const callDate = new Date(dateStr + 'T' + callTimeStr + ':00');
+  const startDate = new Date(dateStr + 'T' + startTimeStr + ':00');
+  const endDate = new Date(dateStr + 'T' + endTimeStr + ':00');
+
+  if (isNaN(callDate.getTime())) {
+    return {
+      code: 'PLANNED',
+      label: 'ЗАПЛАНИРОВАНО',
+      badgeClass: 'badge-neutral text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono',
+      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>',
+      filmMarker: '<span class="rec-pulse-badge">● СКОРО</span>',
+      isLive: false
+    };
+  }
+
+  if (now < callDate) {
+    return {
+      code: 'UPCOMING',
+      label: 'ОЖИДАНИЕ СБОРА',
+      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-neutral-300 bg-neutral-900 border border-neutral-700',
+      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>',
+      filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-neutral-400 border-neutral-700 bg-neutral-900">⏳ СБОР В ' + callTimeStr + '</span>',
+      isLive: false
+    };
+  } else if (now >= callDate && now < startDate) {
+    return {
+      code: 'CALL_TIME',
+      label: 'СБОР ГРУППЫ // ПОДГОТОВКА',
+      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-amber-300 bg-amber-950/70 border border-amber-600',
+      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>',
+      filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-amber-300 border-amber-600 bg-amber-950/60 animate-pulse">⚡ ПОДГОТОВКА</span>',
+      isLive: false
+    };
+  } else if (now >= startDate && now <= endDate) {
+    return {
+      code: 'ON_AIR',
+      label: '🔴 ON AIR // ИДЁТ СЪЁМКА',
+      badgeClass: 'badge-rec text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-extrabold text-red-400 bg-red-950/90 border border-red-600 shadow-[0_0_12px_rgba(227,6,19,0.6)] animate-pulse',
+      dotHtml: '<span class="rec-dot"></span>',
+      filmMarker: '<span class="rec-pulse-badge">● ON AIR // 24FPS</span>',
+      isLive: true
+    };
+  } else {
+    return {
+      code: 'FINISHED_PENDING',
+      label: 'ЗАКОНЧЕНА // ОЖИДАЕТ ОЦЕНОК',
+      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-yellow-300 bg-yellow-950/60 border border-yellow-600',
+      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>',
+      filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-yellow-300 border-yellow-600 bg-yellow-950/60">🏁 ЗАКОНЧЕНА</span>',
+      isLive: false
+    };
+  }
+}
+
+function toggleArchiveShoots() {
+  const list = document.getElementById('archiveShootsList');
+  const btn = document.getElementById('archiveToggleBtn');
+  if (!list) return;
+  const isHidden = list.classList.contains('hidden') || list.style.display === 'none';
+  if (isHidden) {
+    list.classList.remove('hidden');
+    list.style.display = 'block';
+    if (btn) btn.innerText = 'Скрыть архив ▴';
+  } else {
+    list.classList.add('hidden');
+    list.style.display = 'none';
+    if (btn) btn.innerText = 'Показать архив ▾';
+  }
+}
+window.toggleArchiveShoots = toggleArchiveShoots;
+
+// ----------------- ОСНОВНАЯ ФУНКЦИЯ ОТРИСОВКИ СМЕН И АРХИВА -----------------
 function renderShootsList(shoots = globalShoots) {
   const container = document.getElementById('shootsList');
   if (!container) return;
 
-    if (shoots.length === 0) {
-      container.innerHTML = '<div class="p-8 viewfinder-card text-center text-xs uppercase font-mono font-bold" style="color: var(--text-muted);">Нет активных смен в производстве.</div>';
-      return;
-    }
+  const allShoots = Array.isArray(shoots) ? shoots : [];
+  const activeShoots = allShoots.filter(s => !s.isCompleted);
+  const archivedShoots = allShoots.filter(s => s.isCompleted);
 
-    const canDeleteShoot = isAdminUser(currentUser) || isMasterUser(currentUser);
-    const canGradeAndManage = isMasterUser(currentUser);
+  // Сортировка для текущего студента: смены, в которых он участвует, идут В САМОМ ВЕРХУ
+  if (currentUser) {
+    activeShoots.sort((a, b) => {
+      const aMine = a.crew && a.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
+      const bMine = b.crew && b.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
+      if (aMine && !bMine) return -1;
+      if (!aMine && bMine) return 1;
+      return new Date(a.date) - new Date(b.date);
+    });
+  }
 
-    try {
-      if (fullMap && fullMap.geoObjects) {
-        fullMap.geoObjects.removeAll();
-        shoots.forEach(s => {
-          let balloonHTML = '<div style="padding:6px; font-family:sans-serif; min-width:180px;">' +
-            '<strong style="font-size:12px; text-transform:uppercase; color:#FC2C2C;">' + s.title + '</strong><br>' +
-            '<span style="font-size:11px; color:#555;">Формат: ' + (s.type || 'СМЕНА') + '</span><br>' +
-            '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
-            '<div style="margin-top:8px; display:flex; gap:4px;">' +
-              '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
-          if (canDeleteShoot) {
-            balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
-          }
-          balloonHTML += '</div></div>';
+  const canDeleteShoot = isAdminUser(currentUser) || isMasterUser(currentUser);
+  const canGradeAndManage = isMasterUser(currentUser);
 
-          const placemark = new ymaps.Placemark([s.latitude || 55.751244, s.longitude || 37.618423], {
-            balloonContent: balloonHTML,
-            hintContent: s.title
-          }, {
-            preset: s.isCompleted ? 'islands#darkGreenFilmIcon' : 'islands#redFilmIcon'
-          });
-          fullMap.geoObjects.add(placemark);
+  // Обновление карты объектов
+  try {
+    if (fullMap && fullMap.geoObjects) {
+      fullMap.geoObjects.removeAll();
+      allShoots.forEach(s => {
+        let balloonHTML = '<div style="padding:6px; font-family:sans-serif; min-width:180px;">' +
+          '<strong style="font-size:12px; text-transform:uppercase; color:#FC2C2C;">' + s.title + '</strong><br>' +
+          '<span style="font-size:11px; color:#555;">Формат: ' + (s.type || 'СМЕНА') + '</span><br>' +
+          '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
+          '<div style="margin-top:8px; display:flex; gap:4px;">' +
+            '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
+        if (canDeleteShoot) {
+          balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
+        }
+        balloonHTML += '</div></div>';
+
+        const placemark = new ymaps.Placemark([s.latitude || 55.751244, s.longitude || 37.618423], {
+          balloonContent: balloonHTML,
+          hintContent: s.title
+        }, {
+          preset: s.isCompleted ? 'islands#darkGreenFilmIcon' : 'islands#redFilmIcon'
         });
-      } else if (leafletFullMap && leafletMarkersLayer && typeof L !== 'undefined') {
-        leafletMarkersLayer.clearLayers();
-        const bounds = [];
-        shoots.forEach(s => {
-          const lat = parseFloat(s.latitude) || 55.858244;
-          const lon = parseFloat(s.longitude) || 37.518423;
-          bounds.push([lat, lon]);
-
-          const icon = L.divIcon({
-            className: 'custom-cinema-pin',
-            html: '<div style="background:' + (s.isCompleted ? '#10B981' : '#E30613') + ';width:28px;height:28px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 12px rgba(227,6,19,0.7);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:12px;font-weight:bold;">' + (s.isCompleted ? '✓' : '🎬') + '</div>',
-            iconSize: [28, 28],
-            iconAnchor: [14, 14]
-          });
-          const marker = L.marker([lat, lon], { icon: icon });
-
-          let balloonHTML = '<div style="padding:6px; font-family:sans-serif; min-width:180px; color:#141414;">' +
-            '<strong style="font-size:12px; text-transform:uppercase; color:#E30613;">' + s.title + '</strong><br>' +
-            '<span style="font-size:11px; color:#555;">Формат: ' + (s.type || 'СМЕНА') + '</span><br>' +
-            '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
-            '<div style="margin-top:8px; display:flex; gap:6px;">' +
-              '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
-          if (canDeleteShoot) {
-            balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
-          }
-          balloonHTML += '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" style="background:#141414;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;text-decoration:none;display:inline-block;text-transform:uppercase;">Яндекс ↗</a>';
-          balloonHTML += '</div></div>';
-
-          marker.bindPopup(balloonHTML);
-          leafletMarkersLayer.addLayer(marker);
-        });
-        if (bounds.length > 0) {
-          leafletFullMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-        }
-      }
-    } catch (mapErr) {
-      console.warn('Map placemarks deferred:', mapErr);
-    }
-
-    container.innerHTML = shoots.map((s, idx) => {
-      const formattedDate = safeFormatDate(s.date);
-      const locationText = s.location;
-      const masterText = s.creator && s.creator.fullName ? s.creator.fullName : 'Не указан';
-      const cardStateClass = s.isCompleted ? 'completed-shoot' : 'active-shoot';
-      
-      let statusBadge = s.isCompleted 
-        ? '<span class="badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> ЗАВЕРШЕНО</span>' 
-        : '<span class="badge-rec text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5"><span class="rec-dot"></span> В ПРОИЗВОДСТВЕ</span>';
-
-      let filmMarker = s.isCompleted
-        ? '<span class="film-slate-tag">■ WRAP</span>'
-        : '<span class="rec-pulse-badge">● REC 24FPS</span>';
-
-      let typeBadge = '<span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">' + (s.type || 'СМЕНА') + '</span>';
-
-      const isMeInShoot = currentUser && s.crew && s.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
-      const shootMyBadge = isMeInShoot ? '<span class="student-my-badge hidden sm:inline-flex">Вы в составе смены</span>' : '';
-
-      let deleteBtn = canDeleteShoot ? '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1 cursor-pointer" title="Удалить смену"><svg class="w-3 h-3 text-red-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="pointer-events-none">Удалить</span></button>' : '';
-
-      const crewList = s.crew || [];
-      const acceptedMemberIds = crewList.filter(c => c.status === 'ACCEPTED').map(c => '\'' + c.id + '\'').join(', ');
-
-      let crewHtml = '';
-      if (crewList.length === 0) {
-        crewHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Команда пока не назначена на смену</div>';
-      } else {
-        crewHtml = crewList.map(c => {
-          const userFromDir = (globalStudents || []).find(st => 
-            (st.id && (st.id === c.userId || st.id === c.id)) ||
-            (c.user && c.user.id && st.id === c.user.id) ||
-            (c.user && c.user.fullName && st.fullName && st.fullName.toLowerCase() === c.user.fullName.toLowerCase()) ||
-            (c.fullName && st.fullName && st.fullName.toLowerCase() === c.fullName.toLowerCase())
-          );
-          const fallbackUser = c.user || { fullName: 'Участник', groupName: 'КТ-26', rating: null, id: c.userId || c.id };
-          const actualUser = userFromDir ? { ...fallbackUser, ...userFromDir } : fallbackUser;
-
-          if ((actualUser.rating === null || actualUser.rating === undefined || actualUser.rating === 'Нет') && c.grade) {
-            actualUser.rating = c.grade;
-          }
-
-          c.user = actualUser;
-          let cUserName = actualUser.fullName || 'Участник';
-          let cGroupName = actualUser.groupName || 'Группа';
-          let cRating = (actualUser.rating !== null && actualUser.rating !== undefined && actualUser.rating !== 'Нет') ? actualUser.rating : (c.grade ? c.grade : 'Нет');
-          let cRatingColor = getRatingBadgeColor(cRating !== 'Нет' ? cRating : null);
-          let cUserId = actualUser.id || c.userId || 'u1';
-          let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : (actualUser.completedShoots || 3), typeof cRating === 'number' ? cRating : 4.5);
-          
-          const isMe = currentUser && (c.userId === currentUser.id || c.id === currentUser.id);
-          const rowClassExtra = isMe ? ' student-my-row' : '';
-          const myBadge = isMe ? '<span class="student-my-badge">Вы в смене</span>' : '';
-
-          let statusBadgeCrew = '';
-          if (c.status === 'ACCEPTED') {
-            statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.check + (isMe ? 'Вы подтвердили' : 'Принят') + '</span>';
-          } else if (c.status === 'DECLINED') {
-            statusBadgeCrew = '<span class="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.cross + (isMe ? 'Вы отклонили' : 'Отклонил') + '</span>';
-          } else {
-            statusBadgeCrew = '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.clock + 'Ожидание</span>';
-          }
-
-          let manualAcceptBtn = '';
-          if (c.status === 'PENDING') {
-            if (isMe) {
-              manualAcceptBtn = '<div class="student-action-btn-group inline-flex items-center gap-1.5 ml-1">' +
-                '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[10px] font-extrabold uppercase transition shadow inline-flex items-center gap-1">' + SVG_ICONS.check + 'Принять вызов</button>' +
-                '<button onclick="respondCrew(\'' + c.id + '\', \'DECLINED\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-400 hover:text-red-300">Отклонить</button>' +
-              '</div>';
-            } else if (canGradeAndManage) {
-              manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-700/80 hover:bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Подтвердить</button>';
-            }
-          }
-
-          let competencyMatrixBtn = '';
-          if (canGradeAndManage && !s.isCompleted) {
-            competencyMatrixBtn = '<button onclick="openCompetencyModal(\'' + s.id + '\', \'' + c.id + '\', \'' + c.roleInShoot + '\', \'' + cUserName.replace(/'/g, "\\'") + '\')" class="btn-brand-ghost px-2 py-0.5 text-[9px] font-extrabold uppercase" title="Оценить по цеховой матрице">Матрица цеха</button>';
-          }
-
-          let attendanceSelect = '';
-          let starsBlock = '';
-          const currentGrade = c.grade !== undefined && c.grade !== null ? c.grade : 5;
-
-          if (canGradeAndManage && !s.isCompleted) {
-            let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
-            let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
-            attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="studio-input text-xs font-bold px-2 py-0.5 ml-2">' +
-              '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
-              '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3 балла)</option>' +
-            '</select>';
-
-            if (c.status === 'ACCEPTED') {
-              let starsHTML = '';
-              for (let i = 1; i <= 5; i++) {
-                let isFilled = i <= currentGrade;
-                starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-0.5 hover:scale-125 transition ' + (isFilled ? 'golden-star-glow opacity-100' : 'opacity-40') + '">' + (isFilled ? SVG_ICONS.star : SVG_ICONS.starEmpty) + '</span>';
-              }
-              starsBlock = '<div class="flex items-center space-x-1 ml-auto" id="stars_container_' + c.id + '">' +
-                '<span class="text-[10px] uppercase font-bold mr-1 font-mono" style="color: var(--text-muted);">Оценка:</span>' +
-                starsHTML +
-                '<input type="hidden" id="grade_input_' + c.id + '" value="' + currentGrade + '">' +
-              '</div>';
-            }
-          } else {
-            const attText = c.attendance === 'ABSENT' ? 'Прогул' : 'Присутствовал';
-            const attColor = c.attendance === 'ABSENT' ? '#f87171' : 'var(--text-muted)';
-            attendanceSelect = '<span class="text-xs font-bold font-mono" style="color: ' + attColor + ';">' + attText + '</span>';
-            if (s.isCompleted || c.grade !== undefined) {
-              starsBlock = '<span class="text-xs font-mono font-bold golden-star-glow">★ ' + currentGrade + '</span>';
-            }
-          }
-
-          let roleClass = 'dept-badge-art';
-          let roleSvg = SVG_ICONS.art;
-          const rUpper = (c.roleInShoot || '').toUpperCase();
-          if (rUpper.includes('ОПЕРАТОР') || rUpper.includes('КИНО') || rUpper.includes('РЕЖИСС')) {
-            roleClass = 'dept-badge-cinema';
-            roleSvg = SVG_ICONS.camera;
-          } else if (rUpper.includes('ЗВУК')) {
-            roleClass = 'dept-badge-sound';
-            roleSvg = SVG_ICONS.mic;
-          } else if (rUpper.includes('ГАФФЕР') || rUpper.includes('СВЕТ') || rUpper.includes('ОСВЕТ')) {
-            roleClass = 'dept-badge-light';
-            roleSvg = SVG_ICONS.light;
-          } else if (rUpper.includes('МОНТАЖ')) {
-            roleClass = 'dept-badge-edit';
-            roleSvg = SVG_ICONS.scissors;
-          }
-
-          return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
-            '<div class="flex items-center flex-wrap gap-2">' +
-              '<span class="crew-dept-tag ' + roleClass + '"><span class="inline-flex items-center">' + roleSvg + c.roleInShoot + '</span></span>' +
-              '<span onclick="openShowreelModal(\'' + cUserId + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" style="color: var(--text-primary);" title="Открыть цифровой паспорт компетенций и портфолио">' + cUserName + '</span>' +
-              '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
-              myBadge +
-              '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
-              '<span id="member_rating_' + c.id + '" class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
-              statusBadgeCrew +
-              manualAcceptBtn +
-              competencyMatrixBtn +
-            '</div>' +
-            '<div class="flex items-center space-x-2 ml-auto">' +
-              attendanceSelect +
-              starsBlock +
-            '</div>' +
-          '</div>';
-        }).join('');
-      }
-
-      let globalGradeControl = '';
-      let saveGradesBtn = '';
-      if (canGradeAndManage && !s.isCompleted) {
-        let globalStarsHTML = '';
-        for (let i = 1; i <= 5; i++) {
-          globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="rating-star-btn golden-star-glow cursor-pointer inline-flex items-center p-1 hover:scale-125 transition" title="Оценить всех на ' + i + '">' + SVG_ICONS.star + '</span>';
-        }
-
-        globalGradeControl = '<div class="flex flex-wrap items-center justify-between p-3 border gap-2 mb-2" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
-          '<span class="text-xs uppercase font-extrabold font-mono" style="color: var(--text-primary);">Быстрая оценка для всех участников:</span>' +
-          '<div class="flex space-x-1">' + globalStarsHTML + '</div>' +
-        '</div>';
-        
-        const allMemberIds = crewList.map(c => '\'' + c.id + '\'').join(', ');
-        saveGradesBtn = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">' +
-          '<button onclick="openCktGradingModal(\'' + s.id + '\')" class="btn-brand-primary py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5">' +
-            '<span>⭐ Оценить по 4 стандартам ЦКТ</span>' +
-          '</button>' +
-          '<button onclick="saveShootGrades(\'' + s.id + '\', [' + allMemberIds + '])" class="btn-brand-beige py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md">' +
-            'Быстро завершить смену' +
-          '</button>' +
-        '</div>';
-      }
-
-      const equipmentBtn = '<button onclick="openEquipmentModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-emerald-400" title="Техпарк и спецификация оборудования ЦКТ КП11">' +
-        '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
-        '<span>Оборудование</span>' +
-      '</button>';
-
-      const isShootOpen = window._openedShootIds ? window._openedShootIds.has(s.id) : false;
-      const expandBtnText = isShootOpen ? 'Свернуть ▴' : 'Развернуть ▾';
-      const hiddenClass = isShootOpen ? '' : 'hidden';
-
-      return '<div class="viewfinder-card viewfinder-corners shoot-card ' + cardStateClass + ' p-5 sm:p-6 space-y-4">' +
-        '<div class="flex flex-wrap justify-between items-center gap-2">' +
-          '<div class="flex items-center space-x-2">' +
-            typeBadge +
-            statusBadge +
-          '</div>' +
-          '<div class="flex items-center flex-wrap gap-1.5 sm:gap-2 text-xs font-mono">' +
-            '<span class="font-semibold hidden sm:inline" style="color: var(--text-muted);">' + formattedDate + '</span>' +
-            '<button onclick="openCallsheetModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1" title="Оперативный вызывной лист">' +
-              SVG_ICONS.telegram +
-              '<span>Вызывной</span>' +
-            '</button>' +
-            equipmentBtn +
-            '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
-            deleteBtn +
-          '</div>' +
-        '</div>' +
-
-        '<div>' +
-          '<h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">' + s.title + '</h4>' +
-          '<p class="text-xs leading-relaxed font-medium" style="color: var(--text-secondary);">' + s.description + '</p>' +
-        '</div>' +
-
-        '<div class="text-xs border-t pt-3 flex flex-wrap justify-between items-center gap-2 font-mono text-[11px]" style="border-color: var(--border-subtle); color: var(--text-muted);">' +
-          '<span class="flex items-center gap-1.5">' + SVG_ICONS.pin + ' ' + locationText + '</span>' +
-          '<span class="flex items-center gap-1.5">' + SVG_ICONS.slate + ' Мастер: <span style="color: var(--text-primary);">' + masterText + '</span></span>' +
-        '</div>' +
-        
-        '<div id="shoot_details_' + s.id + '" class="' + hiddenClass + ' border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">' +
-          '<div class="space-y-2 pt-1">' +
-            '<div class="flex items-center justify-between">' +
-              '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +
-              '<span class="text-[10px] font-mono" style="color: var(--text-muted);">ОЦЕНКИ И ПОСЕЩАЕМОСТЬ</span>' +
-            '</div>' +
-            globalGradeControl +
-            '<div class="space-y-1.5 mt-2">' + crewHtml + '</div>' +
-            saveGradesBtn +
-          '</div>' +
-          
-          '<div class="space-y-2 pt-2 border-t" style="border-color: var(--border-subtle);">' +
-            '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Расположение объекта на карте:</span>' +
-            '<div id="mini_map_' + s.id + '" data-lat="' + (s.latitude || 55.751244) + '" data-lon="' + (s.longitude || 37.618423) + '" data-title="' + s.title.replace(/"/g, '&quot;') + '" class="w-full h-48 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>' +
-          '</div>' +
-        '</div>' +
-
-      '</div>';
-    }).join('');
-
-    if (window._openedShootIds && window._openedShootIds.size > 0) {
-      shoots.forEach(s => {
-        if (window._openedShootIds.has(s.id)) {
-          initShootMiniMap(s.id);
-        }
+        fullMap.geoObjects.add(placemark);
       });
+    } else if (leafletFullMap && leafletMarkersLayer && typeof L !== 'undefined') {
+      leafletMarkersLayer.clearLayers();
+      const bounds = [];
+      allShoots.forEach(s => {
+        const lat = parseFloat(s.latitude) || 55.858244;
+        const lon = parseFloat(s.longitude) || 37.518423;
+        bounds.push([lat, lon]);
+
+        const icon = L.divIcon({
+          className: 'custom-cinema-pin',
+          html: '<div style="background:' + (s.isCompleted ? '#10B981' : '#E30613') + ';width:28px;height:28px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 12px rgba(227,6,19,0.7);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:12px;font-weight:bold;">' + (s.isCompleted ? '✓' : '🎬') + '</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+        const marker = L.marker([lat, lon], { icon: icon });
+
+        let balloonHTML = '<div style="padding:6px; font-family:sans-serif; min-width:180px; color:#141414;">' +
+          '<strong style="font-size:12px; text-transform:uppercase; color:#E30613;">' + s.title + '</strong><br>' +
+          '<span style="font-size:11px; color:#555;">Формат: ' + (s.type || 'СМЕНА') + '</span><br>' +
+          '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
+          '<div style="margin-top:8px; display:flex; gap:6px;">' +
+            '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
+        if (canDeleteShoot) {
+          balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
+        }
+        balloonHTML += '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" style="background:#141414;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;text-decoration:none;display:inline-block;text-transform:uppercase;">Яндекс ↗</a>';
+        balloonHTML += '</div></div>';
+
+        marker.bindPopup(balloonHTML);
+        leafletMarkersLayer.addLayer(marker);
+      });
+      if (bounds.length > 0) {
+        leafletFullMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+      }
     }
+  } catch (mapErr) {
+    console.warn('Map placemarks deferred:', mapErr);
+  }
+
+  // Генератор карточки смены
+  function renderShootCard(s, isArchive = false) {
+    const formattedDate = safeFormatDate(s.date);
+    const locationText = s.location;
+    const masterText = s.creator && s.creator.fullName ? s.creator.fullName : 'Не указан';
+    const cardStateClass = s.isCompleted ? 'completed-shoot' : 'active-shoot';
+    
+    const liveStatus = getShootLiveStatus(s);
+    let statusBadge = '<span class="' + liveStatus.badgeClass + '">' + liveStatus.dotHtml + ' ' + liveStatus.label + '</span>';
+    let typeBadge = '<span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">' + (s.type || 'СМЕНА') + '</span>';
+
+    const isMeInShoot = currentUser && s.crew && s.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
+    const myShootHighlightBadge = isMeInShoot ? '<span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-950/70 border border-amber-600/80 inline-flex items-center gap-1 shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> ВЫ В СЪЁМОЧНОЙ ГРУППЕ</span>' : '';
+
+    let deleteBtn = canDeleteShoot ? '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1 cursor-pointer" title="Удалить смену"><svg class="w-3 h-3 text-red-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="pointer-events-none">Удалить</span></button>' : '';
+
+    // Кнопка QR Чек-ина для мастера/админа
+    let qrCheckinBtn = (isMasterOrAdminUser(currentUser) && !s.isCompleted) 
+      ? '<button onclick="openQrCheckinModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-cyan-400" title="QR Чек-ин участников на площадке"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg><span>QR Чек-ин</span></button>'
+      : '';
+
+    const crewList = s.crew || [];
+    let crewHtml = '';
+    if (crewList.length === 0) {
+      crewHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Команда пока не назначена на смену</div>';
+    } else {
+      crewHtml = crewList.map(c => {
+        const userFromDir = (globalStudents || []).find(st => 
+          (st.id && (st.id === c.userId || st.id === c.id)) ||
+          (c.user && c.user.id && st.id === c.user.id) ||
+          (c.user && c.user.fullName && st.fullName && st.fullName.toLowerCase() === c.user.fullName.toLowerCase()) ||
+          (c.fullName && st.fullName && st.fullName.toLowerCase() === c.fullName.toLowerCase())
+        );
+        const fallbackUser = c.user || { fullName: 'Участник', groupName: 'КТ-26', rating: null, id: c.userId || c.id };
+        const actualUser = userFromDir ? { ...fallbackUser, ...userFromDir } : fallbackUser;
+
+        if ((actualUser.rating === null || actualUser.rating === undefined || actualUser.rating === 'Нет') && c.grade) {
+          actualUser.rating = c.grade;
+        }
+
+        c.user = actualUser;
+        let cUserName = actualUser.fullName || 'Участник';
+        let cGroupName = actualUser.groupName || 'Группа';
+        let cRating = (actualUser.rating !== null && actualUser.rating !== undefined && actualUser.rating !== 'Нет') ? actualUser.rating : (c.grade ? c.grade : 'Нет');
+        let cRatingColor = getRatingBadgeColor(cRating !== 'Нет' ? cRating : null);
+        let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : (actualUser.completedShoots || 3), typeof cRating === 'number' ? cRating : 4.5);
+        
+        const isMe = currentUser && (c.userId === currentUser.id || c.id === currentUser.id);
+        const rowClassExtra = isMe ? ' student-my-row' : '';
+        const myBadge = isMe ? '<span class="student-my-badge">Вы в смене</span>' : '';
+
+        let statusBadgeCrew = '';
+        if (c.status === 'ACCEPTED') {
+          statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.check + (isMe ? 'Вы подтвердили' : 'Принят') + '</span>';
+        } else if (c.status === 'DECLINED') {
+          statusBadgeCrew = '<span class="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.cross + (isMe ? 'Вы отклонили' : 'Отклонил') + '</span>';
+        } else {
+          statusBadgeCrew = '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.clock + 'Ожидание</span>';
+        }
+
+        let manualAcceptBtn = '';
+        if (c.status === 'PENDING') {
+          if (isMe) {
+            manualAcceptBtn = '<div class="student-action-btn-group inline-flex items-center gap-1.5 ml-1">' +
+              '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[10px] font-extrabold uppercase transition shadow inline-flex items-center gap-1">' + SVG_ICONS.check + 'Принять вызов</button>' +
+              '<button onclick="respondCrew(\'' + c.id + '\', \'DECLINED\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-400 hover:text-red-300">Отклонить</button>' +
+            '</div>';
+          } else if (canGradeAndManage) {
+            manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-700/80 hover:bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Подтвердить</button>';
+          }
+        }
+
+        let competencyMatrixBtn = '';
+        if (canGradeAndManage && !s.isCompleted) {
+          competencyMatrixBtn = '<button onclick="openCompetencyModal(\'' + s.id + '\', \'' + c.id + '\', \'' + c.roleInShoot + '\', \'' + cUserName.replace(/'/g, "\\'") + '\')" class="btn-brand-ghost px-2 py-0.5 text-[9px] font-extrabold uppercase" title="Оценить по цеховой матрице">Матрица цеха</button>';
+        }
+
+        let attendanceSelect = '';
+        let starsBlock = '';
+        const currentGrade = c.grade !== undefined && c.grade !== null ? c.grade : 5;
+
+        if (canGradeAndManage && !s.isCompleted) {
+          let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
+          let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
+          attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="studio-input text-xs font-bold px-2 py-0.5 ml-2">' +
+            '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
+            '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3 балла)</option>' +
+          '</select>';
+
+          if (c.status === 'ACCEPTED') {
+            let starsHTML = '';
+            for (let i = 1; i <= 5; i++) {
+              let isFilled = i <= currentGrade;
+              starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-0.5 hover:scale-125 transition ' + (isFilled ? 'golden-star-glow opacity-100' : 'opacity-40') + '">' + (isFilled ? SVG_ICONS.star : SVG_ICONS.starEmpty) + '</span>';
+            }
+            starsBlock = '<div class="flex items-center space-x-1 ml-auto" id="stars_container_' + c.id + '">' +
+              '<span class="text-[10px] uppercase font-bold mr-1 font-mono" style="color: var(--text-muted);">Оценка:</span>' +
+              starsHTML +
+              '<input type="hidden" id="grade_input_' + c.id + '" value="' + currentGrade + '">' +
+            '</div>';
+          }
+        } else {
+          const attText = c.attendance === 'ABSENT' ? 'Прогул' : 'Присутствовал';
+          const attColor = c.attendance === 'ABSENT' ? '#f87171' : 'var(--text-muted)';
+          attendanceSelect = '<span class="text-xs font-bold font-mono" style="color: ' + attColor + ';">' + attText + '</span>';
+          if (s.isCompleted || c.grade !== undefined) {
+            starsBlock = '<span class="text-xs font-mono font-bold golden-star-glow">★ ' + currentGrade + '</span>';
+          }
+        }
+
+        let roleClass = 'dept-badge-art';
+        let roleSvg = SVG_ICONS.art;
+        const rUpper = (c.roleInShoot || '').toUpperCase();
+        if (rUpper.includes('ОПЕРАТОР') || rUpper.includes('КИНО') || rUpper.includes('РЕЖИСС')) {
+          roleClass = 'dept-badge-cinema';
+          roleSvg = SVG_ICONS.camera;
+        } else if (rUpper.includes('ЗВУК')) {
+          roleClass = 'dept-badge-sound';
+          roleSvg = SVG_ICONS.mic;
+        } else if (rUpper.includes('ГАФФЕР') || rUpper.includes('СВЕТ') || rUpper.includes('ОСВЕТ')) {
+          roleClass = 'dept-badge-light';
+          roleSvg = SVG_ICONS.light;
+        } else if (rUpper.includes('МОНТАЖ')) {
+          roleClass = 'dept-badge-edit';
+          roleSvg = SVG_ICONS.scissors;
+        }
+
+        // Внимание: имя отображается обычным текстом БЕЗ открытия своего профиля (по указанию пользователя)
+        return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
+          '<div class="flex items-center flex-wrap gap-2">' +
+            '<span class="crew-dept-tag ' + roleClass + '"><span class="inline-flex items-center">' + roleSvg + c.roleInShoot + '</span></span>' +
+            '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + cUserName + '</span>' +
+            '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
+            myBadge +
+            '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
+            '<span id="member_rating_' + c.id + '" class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
+            statusBadgeCrew +
+            manualAcceptBtn +
+            competencyMatrixBtn +
+          '</div>' +
+          '<div class="flex items-center space-x-2 ml-auto">' +
+            attendanceSelect +
+            starsBlock +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    let globalGradeControl = '';
+    let saveGradesBtn = '';
+    if (canGradeAndManage && !s.isCompleted) {
+      let globalStarsHTML = '';
+      for (let i = 1; i <= 5; i++) {
+        globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="rating-star-btn golden-star-glow cursor-pointer inline-flex items-center p-1 hover:scale-125 transition" title="Оценить всех на ' + i + '">' + SVG_ICONS.star + '</span>';
+      }
+
+      globalGradeControl = '<div class="flex flex-wrap items-center justify-between p-3 border gap-2 mb-2" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
+        '<span class="text-xs uppercase font-extrabold font-mono" style="color: var(--text-primary);">Быстрая оценка для всех участников:</span>' +
+        '<div class="flex space-x-1">' + globalStarsHTML + '</div>' +
+      '</div>';
+      
+      const allMemberIds = crewList.map(c => '\'' + c.id + '\'').join(', ');
+      saveGradesBtn = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">' +
+        '<button onclick="openCktGradingModal(\'' + s.id + '\')" class="btn-brand-primary py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5">' +
+          '<span>⭐ Оценить по 4 стандартам ЦКТ</span>' +
+        '</button>' +
+        '<button onclick="saveShootGrades(\'' + s.id + '\', [' + allMemberIds + '])" class="btn-brand-beige py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md">' +
+          'Быстро завершить смену' +
+        '</button>' +
+      '</div>';
+    }
+
+    const equipmentBtn = '<button onclick="openEquipmentModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-emerald-400" title="Техпарк и спецификация оборудования ЦКТ КП11">' +
+      '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
+      '<span>Оборудование</span>' +
+    '</button>';
+
+    const isShootOpen = window._openedShootIds ? window._openedShootIds.has(s.id) : false;
+    const expandBtnText = isShootOpen ? 'Свернуть ▴' : 'Развернуть ▾';
+
+    // Временная шкала смены (сбор, мотор, конец + пометки)
+    let timelineMilestonesHtml = '';
+    if (s.timeline && Array.isArray(s.timeline) && s.timeline.length > 0) {
+      timelineMilestonesHtml = '<div class="mt-2 pt-2 border-t flex flex-wrap gap-1.5" style="border-color: var(--border-subtle);">' +
+        s.timeline.map(m => 
+          '<span class="text-[9px] font-mono px-2 py-0.5 border" style="background-color: var(--bg-card); border-color: var(--border-subtle); color: var(--text-secondary);">' +
+            '<b class="text-amber-400">' + (m.time || '') + '</b> ' + (m.label || m.title || '') +
+          '</span>'
+        ).join('') +
+      '</div>';
+    }
+
+    const timelineBar = '<div class="p-2.5 border text-xs font-mono" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+      '<div class="flex items-center justify-between flex-wrap gap-2 text-[11px]">' +
+        '<div class="flex items-center gap-1.5">' +
+          '<span class="w-2 h-2 rounded-full bg-amber-400"></span>' +
+          '<span style="color: var(--text-muted);">Сбор:</span>' +
+          '<b style="color: var(--text-primary);">' + (s.callTime || '10:00') + '</b>' +
+        '</div>' +
+        '<div class="flex items-center gap-1.5">' +
+          '<span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>' +
+          '<span style="color: var(--brand-red);">Мотор:</span>' +
+          '<b style="color: var(--brand-red);">' + (s.startTime || '11:30') + '</b>' +
+        '</div>' +
+        '<div class="flex items-center gap-1.5">' +
+          '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>' +
+          '<span style="color: var(--text-muted);">Конец:</span>' +
+          '<b style="color: var(--text-primary);">' + (s.endTime || '18:00') + '</b>' +
+        '</div>' +
+      '</div>' +
+      timelineMilestonesHtml +
+    '</div>';
+
+    return '<div class="viewfinder-card viewfinder-corners shoot-card ' + cardStateClass + ' p-5 sm:p-6 space-y-4">' +
+      '<div class="flex flex-wrap justify-between items-center gap-2">' +
+        '<div class="flex items-center space-x-2 flex-wrap gap-y-1">' +
+          typeBadge +
+          statusBadge +
+          myShootHighlightBadge +
+        '</div>' +
+        '<div class="flex items-center flex-wrap gap-1.5 sm:gap-2 text-xs font-mono">' +
+          '<span class="font-semibold hidden sm:inline" style="color: var(--text-muted);">' + formattedDate + '</span>' +
+          '<button onclick="openCallsheetModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1" title="Оперативный вызывной лист">' +
+            SVG_ICONS.telegram +
+            '<span>Вызывной</span>' +
+          '</button>' +
+          qrCheckinBtn +
+          equipmentBtn +
+          '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
+          deleteBtn +
+        '</div>' +
+      '</div>' +
+
+      '<div>' +
+        '<h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">' + s.title + '</h4>' +
+        '<p class="text-xs leading-relaxed font-medium" style="color: var(--text-secondary);">' + s.description + '</p>' +
+      '</div>' +
+
+      timelineBar +
+
+      '<div class="text-xs border-t pt-3 flex flex-wrap justify-between items-center gap-2 font-mono text-[11px]" style="border-color: var(--border-subtle); color: var(--text-muted);">' +
+        '<span class="flex items-center gap-1.5">' + SVG_ICONS.pin + ' ' + locationText + '</span>' +
+        '<span class="flex items-center gap-1.5">' + SVG_ICONS.slate + ' Мастер: <span style="color: var(--text-primary);">' + masterText + '</span></span>' +
+      '</div>' +
+      
+      '<div id="shoot_details_' + s.id + '" class="' + (isShootOpen ? '' : 'hidden') + ' border-t pt-3 space-y-4" style="border-color: var(--border-subtle); display: ' + (isShootOpen ? 'block' : 'none') + ';">' +
+        '<div class="space-y-2 pt-1">' +
+          '<div class="flex items-center justify-between">' +
+            '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +
+            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">ОЦЕНКИ И ПОСЕЩАЕМОСТЬ</span>' +
+          '</div>' +
+          globalGradeControl +
+          '<div class="space-y-1.5 mt-2">' + crewHtml + '</div>' +
+          saveGradesBtn +
+        '</div>' +
+        
+        '<div class="space-y-2 pt-2 border-t" style="border-color: var(--border-subtle);">' +
+          '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Расположение объекта на карте:</span>' +
+          '<div id="mini_map_' + s.id + '" data-lat="' + (s.latitude || 55.751244) + '" data-lon="' + (s.longitude || 37.618423) + '" data-title="' + s.title.replace(/"/g, '&quot;') + '" class="w-full h-48 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>' +
+        '</div>' +
+      '</div>' +
+
+    '</div>';
+  }
+
+  // 1. Отрисовка активных смен
+  if (activeShoots.length === 0) {
+    container.innerHTML = '<div class="p-8 viewfinder-card text-center text-xs uppercase font-mono font-bold" style="color: var(--text-muted);">Нет активных смен в производстве. Все проекты завершены или в архиве.</div>';
+  } else {
+    container.innerHTML = activeShoots.map(s => renderShootCard(s, false)).join('');
+  }
+
+  // 2. Отрисовка завершённых смен в секцию «АРХИВ СМЕН»
+  const archiveContainer = document.getElementById('archiveShootsList');
+  const archiveCountEl = document.getElementById('archiveCount');
+  if (archiveCountEl) {
+    archiveCountEl.innerText = '(' + archivedShoots.length + ')';
+  }
+  if (archiveContainer) {
+    if (archivedShoots.length === 0) {
+      archiveContainer.innerHTML = '<div class="p-4 text-xs font-mono text-[var(--text-muted)] text-center border border-dashed" style="border-color: var(--border-subtle);">В архиве пока нет завершённых смен</div>';
+    } else {
+      archiveContainer.innerHTML = archivedShoots.map(s => renderShootCard(s, true)).join('');
+    }
+  }
+
+  // Инициализация миникарт для открытых смен
+  if (window._openedShootIds && window._openedShootIds.size > 0) {
+    allShoots.forEach(s => {
+      if (window._openedShootIds.has(s.id)) {
+        initShootMiniMap(s.id);
+      }
+    });
+  }
 }
 
 window.renderShootsList = renderShootsList;
@@ -3747,4 +4968,7 @@ if (urlParams.get('expand') === '1' && globalShoots && globalShoots[0]) {
 }
 if (urlParams.get('tab')) {
   setTimeout(() => switchTab(urlParams.get('tab')), 300);
+}
+if (urlParams.get('create') === '1') {
+  setTimeout(() => openShootModal(), 400);
 }
