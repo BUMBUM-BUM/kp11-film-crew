@@ -33,6 +33,19 @@ try {
         $response = $context.Response
 
         $urlPath = $request.Url.LocalPath
+
+        # Обработка API вызовов в режиме локального предпросмотра
+        if ($urlPath.StartsWith("/api/")) {
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.StatusCode = 200
+            $jsonRes = '{"success":true,"message":"KP11 Film Crew Bot Dispatch OK","bot":"@KP11_FilmCrew_Bot"}'
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonRes)
+            $response.ContentLength64 = $bytes.Length
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
         if ($urlPath -eq "/" -or [string]::IsNullOrWhiteSpace($urlPath)) {
             $urlPath = "/index.html"
         }

@@ -992,7 +992,7 @@ body {
 }
 
 /* ==========================================================================
-   МОДУЛЬ 3, 4, 6: МЕДИАТЕКА, ВЫЗЫВНЫЕ ЛИСТЫ TELEGRAM И МАТРИЦА КОМПЕТЕНЦИЙ
+   МОДУЛЬ 3 & 6: ВЫЗЫВНЫЕ ЛИСТЫ TELEGRAM И МАТРИЦА КОМПЕТЕНЦИЙ
    ========================================================================== */
 
 /* Цеховые грейды мастерства (Модуль 6) */
@@ -1026,71 +1026,6 @@ body {
   color: var(--brand-red);
   border: 1px solid var(--brand-red);
   box-shadow: 0 0 10px rgba(252, 44, 44, 0.25);
-}
-
-/* Карточки шоурилов и медиатеки (Модуль 4) */
-.showreel-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  transition: transform var(--transition-smooth), border-color var(--transition-smooth), box-shadow var(--transition-smooth);
-  overflow: hidden;
-  position: relative;
-}
-
-.showreel-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--brand-red);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-}
-
-.video-aspect-16-9 {
-  position: relative;
-  width: 100%;
-  padding-bottom: 56.25%;
-  background-color: #0A0A0A;
-  overflow: hidden;
-}
-
-.video-aspect-16-9 iframe,
-.video-aspect-16-9 video {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-.video-play-btn {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.video-play-btn:hover {
-  background: rgba(0, 0, 0, 0.25);
-}
-
-.video-play-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--brand-red);
-  color: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 20px rgba(252, 44, 44, 0.5);
-  transition: transform var(--transition-fast);
-}
-
-.video-play-btn:hover .video-play-icon {
-  transform: scale(1.12);
 }
 
 /* Оформление Telegram вызывных листов (Модуль 3) */

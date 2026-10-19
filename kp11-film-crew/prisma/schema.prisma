@@ -43,6 +43,8 @@ model User {
   course            Int?
   rating            Float?
   telegram          String?
+  telegramChatId    String?
+  telegramToken     String?
   craftRank         String?            @default("Ассистент цеха")
   isSuspended       Boolean            @default(false)
   skills            String[]
@@ -71,8 +73,6 @@ model Shoot {
   location    String
   latitude    Float?       @default(55.751244)
   longitude   Float?       @default(37.618423)
-  videoUrl    String?
-  previewUrl  String?
   isCompleted Boolean      @default(false)
   creatorId   String
   creator     User         @relation("CreatedShoots", fields: [creatorId], references: [id])

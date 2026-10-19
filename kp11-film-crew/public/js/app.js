@@ -21,8 +21,6 @@ let isRegister = false;
 let globalStudents = [];
 let globalAdminUsers = [];
 let globalShoots = [];
-let globalMediaProjects = [];
-let currentMediaFilter = 'ALL';
 let activeCallsheetShootId = null;
 let activeCompetencyData = null;
 let fullMap = null;
@@ -298,7 +296,6 @@ function switchTab(tab) {
   const isMap = tab === 'map';
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
-  const isMedia = tab === 'media';
 
   if (isAdmin && (!currentUser || (currentUser.role !== 'Администратор' && currentUser.role !== 'Мастер / Преподаватель'))) {
     alert('Доступ запрещён!');
@@ -315,9 +312,6 @@ function switchTab(tab) {
   if (document.getElementById('viewStats')) {
     document.getElementById('viewStats').classList.toggle('hidden', !isStats);
   }
-  if (document.getElementById('viewMedia')) {
-    document.getElementById('viewMedia').classList.toggle('hidden', !isMedia);
-  }
 
   const baseTabClass = 'studio-tab text-xs font-extrabold uppercase';
   const activeTabClass = 'studio-tab active text-xs font-extrabold uppercase';
@@ -327,9 +321,6 @@ function switchTab(tab) {
   
   if (document.getElementById('tabStatsBtn')) {
     document.getElementById('tabStatsBtn').className = isStats ? activeTabClass : baseTabClass;
-  }
-  if (document.getElementById('tabMediaBtn')) {
-    document.getElementById('tabMediaBtn').className = isMedia ? activeTabClass : baseTabClass;
   }
 
   const tabAdminBtn = document.getElementById('tabAdminBtn');
@@ -342,9 +333,6 @@ function switchTab(tab) {
   }
   if (isStats) {
     loadStatisticsData();
-  }
-  if (isMedia) {
-    loadMediaProjects();
   }
 }
 
@@ -451,264 +439,14 @@ async function dispatchTelegramBot() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ shootId: activeCallsheetShootId })
     });
-  } catch (err) {
-    // offline preview fallback
-  }
+  } catch (err) {}
   setTimeout(() => {
     showToast('Вызывной успешно разослан всем цехам через Telegram!');
     closeCallsheetModal();
   }, 500);
 }
 
-// ================= МОДУЛЬ 4: МЕДИАТЕКА & ШОУРИЛЫ =================
-function getInitialMediaProjects() {
-  return [
-    {
-      id: 'proj-1',
-      title: 'ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА',
-      dept: 'CAMERA',
-      description: 'Короткометражный постановочный этюд. Отработка ракурсов, фокус-пуллинга на открытой диафрагме f/1.4 и расширенного динамического диапазона на пленэре.',
-      type: 'ВЫЕЗД',
-      date: '2026-10-18T14:00:00Z',
-      duration: '03:42',
-      techSpecs: 'ARRI MASTER PRIME // 2.39:1 // RAW // ISO 800',
-      videoUrl: 'https://vk.com/video_ext.php?oid=-1&id=456239017',
-      previewUrl: 'img/hero.jpg',
-      crew: [
-        { userId: 'u5', role: 'Оператор-постановщик', name: 'Жемчужников Ярослав', group: 'КТ-25', rank: 'Бригадир цеха / 1-й номер', rating: 4.5 },
-        { userId: 'u3', role: 'Гаффер / Свет', name: 'Гусев Андрей', group: 'КТ-25', rank: 'Ассистент цеха', rating: 3.5 },
-        { userId: 'demo-user-1', role: 'Звукорежиссер', name: 'Бадиков Семён', group: 'КТ-26', rank: 'Бригадир цеха / 1-й номер', rating: 5.0 },
-        { userId: 'u2', role: 'Осветитель', name: 'Демидов Тимофей', group: 'ФВТ-22', rank: 'Специалист площадки', rating: 4.5 }
-      ]
-    },
-    {
-      id: 'proj-2',
-      title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
-      dept: 'SOUND',
-      description: 'Студийный многокамерный подкаст с поканальной записью звука. Изоляция голосов, сведение в реальном времени, динамический монтаж.',
-      type: 'СТУДИЯ',
-      date: '2026-10-15T16:30:00Z',
-      duration: '28:10',
-      techSpecs: 'SHURE SM7B // 3-CAM SETUP // LOG-C 3200K // 24 FPS',
-      videoUrl: 'https://rutube.ru/play/embed/sample',
-      previewUrl: 'img/student.jpg',
-      crew: [
-        { userId: 'demo-user-1', role: 'Звукорежиссер записи', name: 'Бадиков Семён', group: 'КТ-26', rank: 'Бригадир цеха / 1-й номер', rating: 5.0 },
-        { userId: 'u1', role: 'Оператор Камера А', name: 'Ковалев Михаил', group: 'ФВТ-22', rank: 'Специалист площадки', rating: 4.7 },
-        { userId: 'u4', role: 'Оператор Камера B', name: 'Соколова Анна', group: 'КТ-15', rank: 'Специалист площадки', rating: 4.0 },
-        { userId: 'u5', role: 'Монтажер эфира', name: 'Жемчужников Ярослав', group: 'КТ-25', rank: 'Бригадир цеха / 1-й номер', rating: 4.5 }
-      ]
-    },
-    {
-      id: 'proj-3',
-      title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ',
-      dept: 'LIGHT',
-      description: 'Учебная сцена с низким ключом (Low-Key). Постановка жесткого рисующего света, подсветка дыма, точный баланс теней и световых пятен.',
-      type: 'СТУДИЯ',
-      date: '2026-10-12T11:00:00Z',
-      duration: '05:15',
-      techSpecs: 'DEDOLIGHT // APUTURE 300D // 3200K TUNGSTEN // BLACKMAGIC 6K',
-      videoUrl: 'https://vk.com/video_ext.php?sample',
-      previewUrl: 'img/hero.jpg',
-      crew: [
-        { userId: 'u3', role: 'Гаффер-постановщик', name: 'Гусев Андрей', group: 'КТ-25', rank: 'Ассистент цеха', rating: 3.5 },
-        { userId: 'u2', role: 'Осветитель', name: 'Демидов Тимофей', group: 'ФВТ-22', rank: 'Специалист площадки', rating: 4.5 },
-        { userId: 'u1', role: 'Оператор', name: 'Ковалев Михаил', group: 'ФВТ-22', rank: 'Специалист площадки', rating: 4.7 }
-      ]
-    },
-    {
-      id: 'proj-4',
-      title: 'СПОРТИВНЫЙ РЕПОРТАЖ: ФИНАЛ КУБКА',
-      dept: 'EDIT',
-      description: 'Динамичный клиповый монтаж со спид-рампингом, синхронизацией ударов под музыкальный бит и грейдингом в стилистике Kodak Vision3.',
-      type: 'ВЫЕЗД',
-      date: '2026-10-09T18:00:00Z',
-      duration: '02:48',
-      techSpecs: 'SONY FX3 // S-LOG3 // SPEED-RAMPING // SOUND FX // 60 FPS',
-      videoUrl: 'https://vk.com/video_ext.php?sample',
-      previewUrl: 'img/hero.jpg',
-      crew: [
-        { userId: 'u1', role: 'Монтажер & Колорист', name: 'Ковалев Михаил', group: 'ФВТ-22', rank: 'Специалист площадки', rating: 4.7 },
-        { userId: 'u5', role: 'Оператор стедикама', name: 'Жемчужников Ярослав', group: 'КТ-25', rank: 'Бригадир цеха / 1-й номер', rating: 4.5 },
-        { userId: 'demo-user-1', role: 'Саунд-дизайнер', name: 'Бадиков Семён', group: 'КТ-26', rank: 'Бригадир цеха / 1-й номер', rating: 5.0 }
-      ]
-    }
-  ];
-}
-
-function loadMediaProjects() {
-  if (!globalMediaProjects || globalMediaProjects.length === 0) {
-    globalMediaProjects = getInitialMediaProjects();
-  }
-  renderMediaProjects(globalMediaProjects);
-}
-
-function setMediaFilter(dept) {
-  currentMediaFilter = dept;
-  const buttons = ['ALL', 'CAMERA', 'SOUND', 'LIGHT', 'EDIT'];
-  buttons.forEach(b => {
-    const btn = document.getElementById('mediaFilter_' + b);
-    if (btn) {
-      if (b === dept) {
-        btn.className = 'text-xs font-bold px-3 py-1 border transition uppercase tracking-wide bg-[var(--brand-red)] text-white border-[var(--brand-red)]';
-      } else {
-        btn.className = 'text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost';
-      }
-    }
-  });
-  filterMediaItems();
-}
-
-function filterMediaItems() {
-  const query = (document.getElementById('mediaSearch') ? document.getElementById('mediaSearch').value : '').toLowerCase();
-  let list = globalMediaProjects || [];
-  if (currentMediaFilter !== 'ALL') {
-    list = list.filter(p => p.dept === currentMediaFilter);
-  }
-  if (query) {
-    list = list.filter(p => 
-      p.title.toLowerCase().includes(query) ||
-      p.description.toLowerCase().includes(query) ||
-      p.crew.some(c => c.name.toLowerCase().includes(query) || c.role.toLowerCase().includes(query))
-    );
-  }
-  renderMediaProjects(list);
-}
-
-function renderMediaProjects(projects) {
-  const grid = document.getElementById('mediaGrid');
-  if (!grid) return;
-
-  if (!projects || projects.length === 0) {
-    grid.innerHTML = '<div class="col-span-full p-8 text-center text-xs font-mono font-bold uppercase" style="color: var(--text-muted);">Материалы по выбранным критериям не найдены.</div>';
-    return;
-  }
-
-  grid.innerHTML = projects.map(p => {
-    const formattedDate = new Date(p.date).toLocaleDateString('ru-RU');
-    
-    let deptBadge = '<span class="badge-neutral text-[9px] px-2 py-0.5 font-mono">ПРОЕКТ</span>';
-    if (p.dept === 'CAMERA') deptBadge = '<span class="crew-dept-tag dept-badge-cinema">' + SVG_ICONS.camera + 'ОПЕРАТОРСКИЙ</span>';
-    if (p.dept === 'SOUND') deptBadge = '<span class="crew-dept-tag dept-badge-sound">' + SVG_ICONS.mic + 'ЗВУКОВОЙ</span>';
-    if (p.dept === 'LIGHT') deptBadge = '<span class="crew-dept-tag dept-badge-light">' + SVG_ICONS.light + 'ГАФФЕР & СВЕТ</span>';
-    if (p.dept === 'EDIT') deptBadge = '<span class="crew-dept-tag dept-badge-edit">' + SVG_ICONS.scissors + 'МОНТАЖ & ЦВЕТ</span>';
-
-    const crewHtml = p.crew.map(c => 
-      '<li class="flex items-center justify-between text-[11px] py-1 border-b" style="border-color: var(--border-subtle);">' +
-        '<div class="flex items-center gap-1.5 truncate">' +
-          '<span class="font-bold cursor-pointer hover:text-[var(--brand-red)] hover:underline truncate" onclick="openShowreelModal(\'' + c.userId + '\')" title="Открыть портфолио">' + c.name + '</span>' +
-          '<span class="font-mono text-[10px]" style="color: var(--text-muted);">[' + c.group + ']</span>' +
-        '</div>' +
-        '<span class="text-[10px] font-mono font-semibold" style="color: var(--text-muted);">' + c.role + '</span>' +
-      '</li>'
-    ).join('');
-
-    return '<div class="showreel-card viewfinder-corners flex flex-col justify-between">' +
-      '<div>' +
-        '<div class="video-aspect-16-9 group relative">' +
-          '<img src="' + (p.previewUrl || 'img/hero.jpg') + '" alt="' + p.title + '" class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition duration-500">' +
-          '<div class="video-play-btn" onclick="openVideoPlayerModal(\'' + p.id + '\')" title="Смотреть проект">' +
-            '<div class="video-play-icon">' +
-              '<svg class="w-5 h-5 ml-0.5" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
-            '</div>' +
-          '</div>' +
-          '<span class="absolute bottom-2 right-2 bg-black/80 font-mono text-[10px] text-white px-2 py-0.5 font-bold">' + p.duration + '</span>' +
-        '</div>' +
-        
-        '<div class="p-4 space-y-3">' +
-          '<div class="flex items-center justify-between gap-2">' +
-            deptBadge +
-            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">' + formattedDate + '</span>' +
-          '</div>' +
-          
-          '<div>' +
-            '<h4 class="text-sm font-extrabold uppercase tracking-tight" style="color: var(--text-primary);">' + p.title + '</h4>' +
-            '<p class="text-xs leading-relaxed mt-1 font-medium line-clamp-2" style="color: var(--text-secondary);">' + p.description + '</p>' +
-          '</div>' +
-
-          '<div class="text-[10px] font-mono px-2 py-1 border uppercase opacity-75 truncate" style="border-color: var(--border-subtle); color: var(--text-muted);">' +
-            p.techSpecs +
-          '</div>' +
-
-          '<div class="space-y-1 pt-1">' +
-            '<span class="text-[10px] font-mono uppercase tracking-wider font-extrabold" style="color: var(--brand-red);">Кредиты цехов:</span>' +
-            '<ul class="space-y-0.5">' + crewHtml + '</ul>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="p-4 pt-0">' +
-        '<button onclick="openVideoPlayerModal(\'' + p.id + '\')" class="w-full py-2 text-xs font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-1.5">' +
-          '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
-          '<span>Смотреть проект</span>' +
-        '</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-function openVideoPlayerModal(projectIdOrShootId) {
-  const modal = document.getElementById('videoPlayerModal');
-  const container = document.getElementById('videoPlayerContainer');
-  if (!modal || !container) return;
-
-  const project = (globalMediaProjects || []).find(p => p.id === projectIdOrShootId) || 
-                  (globalShoots || []).find(s => s.id === projectIdOrShootId) ||
-                  (getInitialMediaProjects())[0];
-
-  const title = project.title || 'Производственный проект';
-  const desc = project.description || '';
-  const tech = project.techSpecs || 'ARRI MASTER PRIME • LOG-C • 2.39:1 • RAW';
-  const duration = project.duration || '04:12';
-  const crewList = project.crew || [];
-
-  container.innerHTML = 
-    '<div class="video-aspect-16-9 border" style="border-color: var(--border-color);">' +
-      '<div class="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-[#0C0B0A] relative">' +
-        '<img src="' + (project.previewUrl || 'img/hero.jpg') + '" class="absolute inset-0 w-full h-full object-cover opacity-25">' +
-        '<div class="relative z-10 space-y-3">' +
-          '<div class="w-16 h-16 rounded-full bg-[var(--brand-red)] text-white flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(252,44,44,0.6)] cursor-pointer hover:scale-110 transition" onclick="showToast(\'Воспроизведение медиапотока...\')">' +
-            '<svg class="w-7 h-7 ml-1" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
-          '</div>' +
-          '<p class="text-xs font-mono font-bold uppercase tracking-wider text-white">ПРОИГРЫВАТЕЛЬ МЕДИАЦЕНТРА КП11</p>' +
-          '<p class="text-[11px] font-mono text-neutral-400">Источник: Полнокадровый мастер 4K RAW • Таймкод: 00:00:00 / ' + duration + '</p>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
-    
-    '<div class="space-y-3">' +
-      '<div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3" style="border-color: var(--border-color);">' +
-        '<div>' +
-          '<span class="text-[10px] font-mono uppercase tracking-widest text-[var(--brand-red)] font-extrabold">ВЕРИФИЦИРОВАННЫЙ РЕЛИЗ</span>' +
-          '<h3 class="text-base sm:text-lg font-extrabold uppercase" style="color: var(--text-primary);">' + title + '</h3>' +
-        '</div>' +
-        '<span class="text-[10px] font-mono px-2 py-1 border" style="border-color: var(--border-subtle); color: var(--text-muted);">' + tech + '</span>' +
-      '</div>' +
-      
-      '<p class="text-xs font-medium leading-relaxed" style="color: var(--text-secondary);">' + desc + '</p>' +
-
-      '<div class="pt-2">' +
-        '<span class="text-xs font-mono uppercase tracking-wider font-extrabold block mb-2" style="color: var(--brand-red);">Участники съёмочной группы:</span>' +
-        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
-          crewList.map(c => 
-            '<div class="p-2 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
-              '<span class="font-bold uppercase truncate" style="color: var(--text-primary);">' + (c.name || (c.user ? c.user.fullName : 'Участник')) + '</span>' +
-              '<span class="font-mono text-[10px] font-semibold" style="color: var(--text-muted);">' + (c.role || c.roleInShoot || 'Цех') + '</span>' +
-            '</div>'
-          ).join('') +
-        '</div>' +
-      '</div>' +
-    '</div>';
-
-  modal.classList.remove('hidden');
-}
-
-function closeVideoPlayerModal() {
-  const modal = document.getElementById('videoPlayerModal');
-  if (modal) modal.classList.add('hidden');
-}
-
-// ================= МОДУЛЬ 6: МАТРИЦА КОМПЕТЕНЦИЙ И ЦИФРОВОЙ ШОУРИЛ =================
+// ================= МОДУЛЬ 6: МАТРИЦА КОМПЕТЕНЦИЙ И ЦИФРОВОЙ ПРОФИЛЬ =================
 function getStudentDirectory() {
   return [
     {
@@ -797,7 +535,7 @@ function openShowreelModal(userId) {
       '</div>' +
       '<div class="min-w-0 flex-grow">' +
         '<div class="flex items-center justify-between mb-1">' +
-          '<span class="gaffer-tape-sticker">ЦИФРОВОЙ ШОУРИЛ // ПОРТФОЛИО</span>' +
+          '<span class="gaffer-tape-sticker">ПАСПОРТ КОМПЕТЕНЦИЙ // ПОРТФОЛИО</span>' +
           '<span class="text-[10px] font-mono text-[#229ED9] font-bold">' + student.telegram + '</span>' +
         '</div>' +
         '<h3 class="text-sm sm:text-base font-extrabold uppercase leading-tight truncate" style="color: var(--text-primary);">' + student.fullName + '</h3>' +
@@ -855,14 +593,14 @@ function openShowreelModal(userId) {
         student.projects.map(pName => 
           '<div class="p-2.5 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
             '<span class="font-bold uppercase" style="color: var(--text-primary);">' + pName + '</span>' +
-            '<button onclick="closeShowreelModal(); openVideoPlayerModal(\'proj-1\')" class="text-[10px] font-extrabold uppercase btn-brand-primary px-2.5 py-1">Смотреть фрагмент</button>' +
+            '<span class="font-mono text-[9px] px-2 py-0.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">ВЕРИФИЦИРОВАНО</span>' +
           '</div>'
         ).join('') +
       '</div>' +
     '</div>' +
 
     '<div class="pt-2 border-t flex flex-col sm:flex-row gap-2" style="border-color: var(--border-color);">' +
-      '<button onclick="showToast(\'Ссылка на цифровой шоурил скопирована!\')" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-ghost">' +
+      '<button onclick="showToast(\'Ссылка на цифровой профиль скопирована!\')" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-ghost">' +
         'Скопировать ссылку на портфолио' +
       '</button>' +
       '<button onclick="closeShowreelModal()" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-primary">' +
@@ -1466,8 +1204,6 @@ async function handleCreateShoot(e) {
   const location = document.getElementById('shootLocation').value;
   const latitude = parseFloat(document.getElementById('selectedLat').value) || 55.751244;
   const longitude = parseFloat(document.getElementById('selectedLon').value) || 37.618423;
-  const videoUrl = document.getElementById('shootVideoUrl') ? document.getElementById('shootVideoUrl').value : '';
-  const previewUrl = document.getElementById('shootPreviewUrl') ? document.getElementById('shootPreviewUrl').value : '';
 
   const body = {
     title,
@@ -1477,8 +1213,6 @@ async function handleCreateShoot(e) {
     location,
     latitude,
     longitude,
-    videoUrl,
-    previewUrl,
     crewAssignments
   };
 
@@ -1506,8 +1240,6 @@ async function handleCreateShoot(e) {
     location,
     latitude,
     longitude,
-    videoUrl,
-    previewUrl: previewUrl || 'img/hero.jpg',
     isCompleted: false,
     creator: { fullName: currentUser ? currentUser.fullName : 'Бадиков Семён Станиславович' },
     crew: crewAssignments.map((ca, idx) => {
@@ -1825,9 +1557,6 @@ async function loadShoots() {
             '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
             '<div style="margin-top:8px; display:flex; gap:4px;">' +
               '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
-          if (s.videoUrl) {
-            balloonHTML += '<button onclick="openVideoPlayerModal(\'' + s.id + '\')" style="background:#FC2C2C;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Видео</button>';
-          }
           if (isAdmin) {
             balloonHTML += '<button onclick="deleteShoot(\'' + s.id + '\')" style="background:#333;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
           }
@@ -1944,7 +1673,7 @@ async function loadShoots() {
           return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">' +
             '<div class="flex items-center flex-wrap gap-2">' +
               '<span class="crew-dept-tag ' + roleClass + '"><span class="inline-flex items-center">' + roleSvg + c.roleInShoot + '</span></span>' +
-              '<span onclick="openShowreelModal(\'' + cUserId + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" style="color: var(--text-primary);" title="Открыть цифровой шоурил и портфолио">' + cUserName + '</span>' +
+              '<span onclick="openShowreelModal(\'' + cUserId + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" style="color: var(--text-primary);" title="Открыть цифровой паспорт компетенций и портфолио">' + cUserName + '</span>' +
               '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
               '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
               '<span class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
@@ -1995,10 +1724,6 @@ async function loadShoots() {
               SVG_ICONS.telegram +
               '<span>Вызывной</span>' +
             '</button>' +
-            (s.videoUrl ? '<button onclick="openVideoPlayerModal(\'' + s.id + '\')" class="btn-brand-primary px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1" title="Смотреть смонтированное видео">' +
-              '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
-              '<span>Видео</span>' +
-            '</button>' : '') +
             '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">Развернуть ▾</button>' +
             deleteBtn +
           '</div>' +

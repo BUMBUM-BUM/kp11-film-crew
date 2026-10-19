@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const webpush = require('web-push');
+const telegramBot = require('./bot');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -508,42 +509,6 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   }
 });
 
-// МОДУЛЬ 3: ДИСПЕТЧЕР ВЫЗЫВНЫХ ЧЕРЕЗ TELEGRAM BOT
-app.post('/api/telegram/dispatch', authenticateToken, requireMasterOrAdmin, async (req, res) => {
-  try {
-    const { shootId, message } = req.body;
-    console.log(`[Telegram Bot @kp11_filmcrew_bot] Рассылка вызывного листа для смены ${shootId}:`);
-    console.log(message);
-    res.json({ 
-      success: true, 
-      message: 'Вызывной лист успешно отправлен ботом @kp11_filmcrew_bot в съёмочную группу.' 
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// МОДУЛЬ 4: МЕДИАТЕКА ПРОЕКТОВ И ШОУРИЛОВ
-app.get('/api/media/shoots', optionalAuthToken, async (req, res) => {
-  try {
-    const shoots = await prisma.shoot.findMany({
-      where: {
-        OR: [
-          { videoUrl: { not: null } },
-          { isCompleted: true }
-        ]
-      },
-      include: {
-        crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, craftRank: true } } } }
-      },
-      orderBy: { date: 'desc' }
-    });
-    res.json(shoots);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // МОДУЛЬ 6: ОЦЕНКА КОМПЕТЕНЦИЙ И ЦЕХОВОГО РАНГА
 app.patch('/api/users/:id/competency', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
@@ -765,10 +730,59 @@ app.get('/api/notifications', authenticateToken, async (req, res) => {
   }
 });
 
+// ================= TELEGRAM BOT API ИНТЕГРАЦИЯ =================
+app.post('/api/telegram/dispatch', optionalAuthToken, async (req, res) => {
+  try {
+    const { shootId } = req.body;
+    if (!shootId) return res.status(400).json({ error: 'Параметр shootId обязателен' });
+
+    console.log(`[API /api/telegram/dispatch] Запрос рассылки вызывного для смены ${shootId}`);
+    const report = await telegramBot.sendCallsheetToCrew(shootId);
+    res.json({ success: true, report });
+  } catch (err) {
+    console.error('Ошибка в /api/telegram/dispatch:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/telegram/webhook', async (req, res) => {
+  try {
+    await telegramBot.handleUpdate(req.body);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Ошибка обработки Telegram Webhook:', err.message);
+    res.sendStatus(500);
+  }
+});
+
+app.get('/api/telegram/status', (req, res) => {
+  res.json({
+    active: true,
+    botUsername: 'KP11_FilmCrew_Bot',
+    tokenConfigured: !!process.env.TELEGRAM_BOT_TOKEN
+  });
+});
+
+app.post('/api/telegram/link', optionalAuthToken, async (req, res) => {
+  try {
+    const { chatId, telegram } = req.body;
+    const userId = req.user ? req.user.id : 'demo-user-1';
+    const linked = await telegramBot.linkUserToTelegram(userId, chatId, telegram);
+    res.json({ success: true, user: linked });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`Production server running on port ${PORT}`);
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    telegramBot.startPolling();
+  } else {
+    console.log('[Telegram Bot] Токен не задан. Бот работает в режиме автономного эмулятора API.');
+  }
 });

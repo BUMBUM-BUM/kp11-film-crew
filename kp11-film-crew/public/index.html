@@ -183,12 +183,6 @@
         </span>
         <span>Статистика</span>
       </button>
-      <button onclick="switchTab('media')" id="tabMediaBtn" class="studio-tab text-xs font-extrabold uppercase" role="tab">
-        <span class="inline-flex items-center justify-center">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-        </span>
-        <span>Медиатека & Шоурилы</span>
-      </button>
       <!-- Вкладка администрирования (только Мастера и Администраторы) -->
       <button onclick="switchTab('admin')" id="tabAdminBtn" class="studio-tab text-xs font-extrabold uppercase hidden" role="tab">
         <span class="inline-flex items-center justify-center">
@@ -363,43 +357,7 @@
         </div>
       </section>
 
-      <!-- Вкладка 4: МЕДИАТЕКА & ШОУРИЛЫ (Модуль 4) -->
-      <section id="viewMedia" class="hidden space-y-6">
-        <div class="viewfinder-card p-5 sm:p-6 space-y-5">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4" style="border-color: var(--border-color);">
-            <div>
-              <div class="flex items-center space-x-2">
-                <span class="rec-dot"></span>
-                <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Медиатека готовых проектов и студенческих шоурилов</h3>
-              </div>
-              <p class="text-[11px] font-medium mt-0.5" style="color: var(--text-muted);">Цифровое видеохранилище, портфолио участников и верифицированные кредиты цехов.</p>
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <div class="relative flex-grow md:w-64">
-                <input type="text" id="mediaSearch" oninput="filterMediaItems()" placeholder="Поиск по проекту, студенту..." class="w-full studio-input text-xs font-bold px-3 py-1.5 pl-8 focus:outline-none">
-                <span class="absolute left-2.5 top-2 flex items-center pointer-events-none" style="color: var(--text-muted);"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Фильтры по цехам (Операторы, Звук, Свет, Монтаж) -->
-          <div class="flex flex-wrap gap-2 pb-1" id="mediaFilterBar">
-            <button onclick="setMediaFilter('ALL')" id="mediaFilter_ALL" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide bg-[var(--brand-red)] text-white border-[var(--brand-red)]">Все цеха</button>
-            <button onclick="setMediaFilter('CAMERA')" id="mediaFilter_CAMERA" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Операторский цех</button>
-            <button onclick="setMediaFilter('SOUND')" id="mediaFilter_SOUND" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Звуковой цех</button>
-            <button onclick="setMediaFilter('LIGHT')" id="mediaFilter_LIGHT" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Осветители / Гафферы</button>
-            <button onclick="setMediaFilter('EDIT')" id="mediaFilter_EDIT" class="text-xs font-bold px-3 py-1 border transition uppercase tracking-wide btn-brand-ghost">Монтаж & Цветокоррекция</button>
-          </div>
-
-          <!-- Сетка видеопроектов -->
-          <div id="mediaGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <!-- Загрузка проектов -->
-          </div>
-        </div>
-      </section>
-
-      <!-- Вкладка 5: АДМИНИСТРИРОВАНИЕ -->
+      <!-- Вкладка: АДМИНИСТРИРОВАНИЕ -->
       <section id="viewAdmin" class="hidden space-y-6">
         <div class="viewfinder-card p-5 sm:p-6 space-y-5">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4" style="border-color: var(--border-color);">
@@ -470,18 +428,6 @@
           <div id="pickerMap" class="w-full h-44 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
           <input type="hidden" id="selectedLat" value="55.751244">
           <input type="hidden" id="selectedLon" value="37.618423">
-        </div>
-
-        <!-- Медиаматериалы и видео ссылки (Модуль 4) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t" style="border-color: var(--border-subtle);">
-          <div>
-            <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Ссылка на видео (VK / RuTube / Диск / YouTube)</label>
-            <input type="url" id="shootVideoUrl" class="w-full studio-input px-3 py-1.5 text-xs font-mono" placeholder="https://vk.com/video... или rutube...">
-          </div>
-          <div>
-            <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Постер / кадр смены (URL опционально)</label>
-            <input type="url" id="shootPreviewUrl" class="w-full studio-input px-3 py-1.5 text-xs font-mono" placeholder="https://... или локальный путь">
-          </div>
         </div>
         
         <!-- Назначение съемочной группы -->
@@ -579,7 +525,7 @@
     </div>
   </div>
 
-  <!-- ================= МОДАЛЬНОЕ ОКНО: ШОУРИЛ И ПОРТФОЛИО СТУДЕНТА (МОДУЛИ 4 & 6) ================= -->
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ПАСПОРТ КОМПЕТЕНЦИЙ И ПОРТФОЛИО СТУДЕНТА (МОДУЛЬ 6) ================= -->
   <div id="showreelModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
     <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
       <button onclick="closeShowreelModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
@@ -606,19 +552,6 @@
 
       <div id="competencyModalContent" class="space-y-4">
         <!-- Формируется динамически в зависимости от цеха участника -->
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= МОДАЛЬНОЕ ОКНО: ВИДЕОПЛЕЕР ПРОЕКТА ================= -->
-  <div id="videoPlayerModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4 z-50 overflow-y-auto">
-    <div class="studio-modal-box p-4 sm:p-6 w-full max-w-4xl relative my-8">
-      <button onclick="closeVideoPlayerModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-
-      <div id="videoPlayerContainer" class="space-y-4">
-        <!-- Встраивание плеера и кредитов -->
       </div>
     </div>
   </div>

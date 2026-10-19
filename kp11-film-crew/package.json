@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "node server.js",
+    "bot": "node bot.js",
     "postinstall": "npx prisma db push --accept-data-loss && prisma generate"
   },
   "dependencies": {
