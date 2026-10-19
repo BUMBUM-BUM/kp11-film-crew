@@ -432,18 +432,53 @@ function copyCallsheetText() {
 }
 
 async function dispatchTelegramBot() {
+  const shoot = (globalShoots || []).find(s => s.id === activeCallsheetShootId) || globalShoots[0];
+  const callsheetText = generateCallSheetText(shoot);
   showToast('Отправка вызова в @KP11_FilmCrew_Bot...');
+
+  let report = null;
   try {
-    await fetch('/api/telegram/dispatch', {
+    const res = await fetch('/api/telegram/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ shootId: activeCallsheetShootId })
+      body: JSON.stringify({ shootId: activeCallsheetShootId, shoot: shoot })
     });
+    if (res.ok) {
+      const data = await res.json();
+      report = data.report;
+    }
   } catch (err) {}
-  setTimeout(() => {
-    showToast('Вызывной успешно разослан всем цехам через Telegram!');
-    closeCallsheetModal();
-  }, 500);
+
+  const deliveredCount = report && report.deliveredCount ? report.deliveredCount : 0;
+  if (deliveredCount > 0) {
+    showToast('Вызывной успешно разослан в Telegram (' + deliveredCount + ' получено)!');
+  } else {
+    showToast('Вызывной лист подготовлен для отправки в Telegram!');
+  }
+
+  const helperBox = document.getElementById('callsheetTgHelper');
+  if (helperBox) {
+    const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(callsheetText);
+    const openBotUrl = 'https://t.me/KP11_FilmCrew_Bot?start=call_' + (shoot.id || '001');
+
+    helperBox.classList.remove('hidden');
+    helperBox.innerHTML = 
+      '<div class="p-3 border mt-3 flex flex-col sm:flex-row items-center justify-between gap-3" style="background-color: var(--bg-primary); border-color: #229ED9;">' +
+        '<div class="text-[11px] font-mono leading-tight">' +
+          '<span class="text-[#229ED9] font-bold">СТАТУС TELEGRAM:</span> ' +
+          (deliveredCount > 0 ? 'Доставлено в ЛС (' + deliveredCount + ' чел.)' : 'Сформирован вызов для съёмочной группы') +
+          '<div class="text-[10px] text-[var(--text-muted)] mt-0.5">Студенты могут подтвердить явку по кнопке в боте</div>' +
+        '</div>' +
+        '<div class="flex items-center gap-2 flex-shrink-0">' +
+          '<a href="' + openBotUrl + '" target="_blank" class="px-3 py-1.5 text-[10px] font-extrabold uppercase bg-[#229ED9] text-white hover:bg-[#1b8ec5] transition flex items-center gap-1.5">' +
+            SVG_ICONS.telegram + '<span>Открыть в боте</span>' +
+          '</a>' +
+          '<a href="' + shareUrl + '" target="_blank" class="px-3 py-1.5 text-[10px] font-extrabold uppercase btn-brand-ghost flex items-center gap-1.5">' +
+            '<span>Переслать в чат</span>' +
+          '</a>' +
+        '</div>' +
+      '</div>';
+  }
 }
 
 // ================= МОДУЛЬ 6: МАТРИЦА КОМПЕТЕНЦИЙ И ЦИФРОВОЙ ПРОФИЛЬ =================
@@ -853,20 +888,38 @@ async function loadAdminPanel() {
       const data = await res.json();
       globalAdminUsers = data.users || [];
       renderAdminUsers(globalAdminUsers);
+
+      if (data.settings) {
+        if (document.getElementById('adminBotToken') && data.settings.telegramBotToken) {
+          document.getElementById('adminBotToken').value = data.settings.telegramBotToken;
+        }
+        if (document.getElementById('adminDefaultChatId') && data.settings.defaultChatId) {
+          document.getElementById('adminDefaultChatId').value = data.settings.defaultChatId;
+        }
+      }
       return;
     }
   } catch (err) {}
 
   if (!globalAdminUsers || globalAdminUsers.length === 0) {
     globalAdminUsers = [
-      { id: 'u1', fullName: 'Ковалев Михаил Алексеевич', email: 'mikhail.kovalev@kp11.ru', groupName: 'ФВТ-22', rating: 4.7, isSuspended: false, role: { name: 'Студент' } },
-      { id: 'u2', fullName: 'Демидов Тимофей Дмитриевич', email: 'timofey.demidov@kp11.ru', groupName: 'ФВТ-22', rating: 4.5, isSuspended: false, role: { name: 'Студент' } },
-      { id: 'u3', fullName: 'Гусев Андрей Алексеевич', email: 'andrey.gusev@kp11.ru', groupName: 'КТ-25', rating: 3.5, isSuspended: false, role: { name: 'Студент' } },
-      { id: 'u4', fullName: 'Соколова Анна Алексеевна', email: 'anna.sokolova@kp11.ru', groupName: 'КТ-15', rating: 4.0, isSuspended: false, role: { name: 'Студент' } },
-      { id: 'u5', fullName: 'Жемчужников Ярослав Станиславович', email: 'yaroslav.zhemch@kp11.ru', groupName: 'КТ-25', rating: 4.5, isSuspended: false, role: { name: 'Студент' } },
-      { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович', email: 'semyon.badikov@kp11.ru', groupName: 'КТ-26', rating: 4.8, isSuspended: false, role: { name: 'Мастер / Преподаватель' } }
+      { id: 'u1', fullName: 'Ковалев Михаил Алексеевич', email: 'mikhail.kovalev@kp11.ru', groupName: 'ФВТ-22', rating: 4.7, telegram: '@mikhail_cam', isSuspended: false, role: { name: 'Студент' } },
+      { id: 'u2', fullName: 'Демидов Тимофей Дмитриевич', email: 'timofey.demidov@kp11.ru', groupName: 'ФВТ-22', rating: 4.5, telegram: '@timofey_light', isSuspended: false, role: { name: 'Студент' } },
+      { id: 'u3', fullName: 'Гусев Андрей Алексеевич', email: 'andrey.gusev@kp11.ru', groupName: 'КТ-25', rating: 3.5, telegram: '@andrey_gaffer', isSuspended: false, role: { name: 'Студент' } },
+      { id: 'u4', fullName: 'Соколова Анна Алексеевна', email: 'anna.sokolova@kp11.ru', groupName: 'КТ-15', rating: 4.0, telegram: '@anna_sound', isSuspended: false, role: { name: 'Студент' } },
+      { id: 'u5', fullName: 'Жемчужников Ярослав Станиславович', email: 'yaroslav.zhemch@kp11.ru', groupName: 'КТ-25', rating: 4.5, telegram: '@yaroslav_dop', isSuspended: false, role: { name: 'Студент' } },
+      { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович', email: 'semyon.badikov@kp11.ru', groupName: 'КТ-26', rating: 4.8, telegram: '@badikov_dop', isSuspended: false, role: { name: 'Мастер / Преподаватель' } }
     ];
   }
+
+  // Загрузка настроек бота из localStorage при оффлайн-режиме
+  if (document.getElementById('adminBotToken') && localStorage.getItem('kp11_tg_token')) {
+    document.getElementById('adminBotToken').value = localStorage.getItem('kp11_tg_token');
+  }
+  if (document.getElementById('adminDefaultChatId') && localStorage.getItem('kp11_tg_chat')) {
+    document.getElementById('adminDefaultChatId').value = localStorage.getItem('kp11_tg_chat');
+  }
+
   renderAdminUsers(globalAdminUsers);
 }
 
@@ -888,6 +941,11 @@ function renderAdminUsers(users) {
     const borderClass = u.isSuspended ? 'border-red-600/60 bg-red-950/20' : 'border';
     const rowBg = u.isSuspended ? '' : 'style="background-color: var(--bg-card); border-color: var(--border-color);"';
     
+    const cleanTg = u.telegram ? (u.telegram.startsWith('@') ? u.telegram : '@' + u.telegram) : '';
+    const tgBadge = cleanTg 
+      ? '<span class="font-mono text-[11px] font-bold px-1.5 py-0.5 border border-[#229ED9]/50 bg-[#229ED9]/10 text-[#229ED9] inline-flex items-center gap-1" title="Привязанный Telegram">' + SVG_ICONS.telegram + '<span id="display_tg_' + u.id + '">' + cleanTg + '</span></span>'
+      : '<span class="font-mono text-[10px] text-amber-400 border border-amber-500/30 px-1 py-0.5" id="display_tg_' + u.id + '">[TG не указан]</span>';
+
     let deleteBtn = '';
     if (!isAdminUser) {
       deleteBtn = '<button onclick="deleteUser(\'' + u.id + '\')" class="px-3 py-1 text-xs font-extrabold uppercase bg-red-700/80 hover:bg-red-600 text-white transition">Удалить</button>';
@@ -895,9 +953,10 @@ function renderAdminUsers(users) {
 
     return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3.5 gap-3 border ' + borderClass + ' transition" ' + rowBg + '>' +
       '<div id="user_info_' + u.id + '" class="flex-grow">' +
-        '<div class="flex items-center flex-wrap gap-x-2">' +
+        '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
           '<span id="display_name_' + u.id + '" class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + u.fullName + '</span> ' +
           '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span id="display_group_' + u.id + '" style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
+          tgBadge + ' ' +
           '<span class="' + colorClass + ' font-mono text-xs inline-flex items-center gap-1">' + SVG_ICONS.star + '<span id="display_rating_' + u.id + '">' + (ratingText !== '' ? ratingText : 'Нет') + '</span></span> ' +
           suspendedText +
         '</div>' +
@@ -906,6 +965,10 @@ function renderAdminUsers(users) {
       '<div id="user_edit_form_' + u.id + '" class="hidden flex items-center space-x-2 flex-grow flex-wrap gap-y-2">' +
         '<input type="text" id="edit_name_' + u.id + '" value="' + u.fullName.replace(/"/g, '&quot;') + '" class="studio-input px-2 py-1 text-xs" placeholder="ФИО">' +
         '<input type="text" id="edit_group_' + u.id + '" value="' + (u.groupName || '') + '" class="studio-input px-2 py-1 text-xs w-24" placeholder="Группа">' +
+        '<div class="flex items-center gap-1">' +
+          '<span class="text-[#229ED9] text-xs font-mono font-bold">@</span>' +
+          '<input type="text" id="edit_tg_' + u.id + '" value="' + (cleanTg.replace(/^@/, '')) + '" class="studio-input px-2 py-1 text-xs w-36 font-mono text-[#229ED9]" placeholder="username">' +
+        '</div>' +
         '<input type="number" min="0" max="5" step="0.1" id="edit_rating_' + u.id + '" value="' + (ratingText !== '' ? ratingText : '') + '" class="studio-input px-2 py-1 text-xs w-20 font-mono" placeholder="Рейтинг">' +
         '<button onclick="saveUserProfile(\'' + u.id + '\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 text-xs font-extrabold uppercase transition">Сохранить</button>' +
         '<button onclick="toggleUserEdit(\'' + u.id + '\', false)" class="btn-brand-ghost px-2 py-1 text-xs font-extrabold uppercase">Отмена</button>' +
@@ -941,6 +1004,8 @@ async function saveUserProfile(userId) {
   const newName = document.getElementById('edit_name_' + userId).value;
   const newGroup = document.getElementById('edit_group_' + userId).value;
   const newRating = document.getElementById('edit_rating_' + userId).value;
+  const tgInput = document.getElementById('edit_tg_' + userId) ? document.getElementById('edit_tg_' + userId).value.trim() : '';
+  const newTg = tgInput ? (tgInput.startsWith('@') ? tgInput : '@' + tgInput) : '';
 
   try {
     await fetch('/api/admin/users/' + userId, {
@@ -949,7 +1014,8 @@ async function saveUserProfile(userId) {
       body: JSON.stringify({ 
         fullName: newName, 
         groupName: newGroup, 
-        rating: newRating !== '' ? parseFloat(newRating) : null 
+        rating: newRating !== '' ? parseFloat(newRating) : null,
+        telegram: newTg
       })
     });
   } catch (err) {}
@@ -959,9 +1025,114 @@ async function saveUserProfile(userId) {
     user.fullName = newName;
     user.groupName = newGroup;
     user.rating = newRating !== '' ? parseFloat(newRating) : null;
+    user.telegram = newTg;
   }
-  showToast('Профиль ' + newName + ' успешно обновлен!');
+  const student = (globalStudents || []).find(s => s.id === userId);
+  if (student) {
+    student.telegram = newTg;
+    student.fullName = newName;
+    student.groupName = newGroup;
+  }
+  localStorage.setItem('kp11_admin_users', JSON.stringify(globalAdminUsers));
+  showToast('Профиль ' + newName + ' успешно обновлен (Telegram: ' + (newTg || 'не указан') + ')!');
   renderAdminUsers(globalAdminUsers);
+}
+
+async function saveTelegramSettings() {
+  const tokenInput = document.getElementById('adminBotToken');
+  const chatInput = document.getElementById('adminDefaultChatId');
+  const botToken = tokenInput ? tokenInput.value.trim() : '';
+  const defaultChatId = chatInput ? chatInput.value.trim() : '';
+
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ telegramBotToken: botToken, defaultChatId })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Настройки Telegram-бота успешно сохранены!');
+      localStorage.setItem('kp11_tg_token', botToken);
+      localStorage.setItem('kp11_tg_chat', defaultChatId);
+    } else {
+      showToast('Ошибка: ' + (data.error || 'Сбой сохранения'));
+    }
+  } catch (err) {
+    localStorage.setItem('kp11_tg_token', botToken);
+    localStorage.setItem('kp11_tg_chat', defaultChatId);
+    showToast('Настройки сохранены локально!');
+  }
+}
+
+async function testTelegramConnection() {
+  const statusEl = document.getElementById('tgTestStatus');
+  const tokenInput = document.getElementById('adminBotToken');
+  const chatInput = document.getElementById('adminDefaultChatId');
+  const botToken = tokenInput ? tokenInput.value.trim() : '';
+  const chatId = chatInput ? chatInput.value.trim() : '';
+
+  const effectiveToken = botToken || localStorage.getItem('kp11_tg_token');
+  const effectiveChat = chatId || localStorage.getItem('kp11_tg_chat');
+
+  if (!effectiveToken) {
+    alert('Пожалуйста, введите токен бота перед тестированием!');
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.classList.remove('hidden');
+    statusEl.className = 'text-xs font-mono font-bold text-amber-400';
+    statusEl.innerText = 'Отправка тестового вызова...';
+  }
+
+  try {
+    const res = await fetch('/api/telegram/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ chatId: effectiveChat })
+    });
+    const data = await res.json();
+    if (data.success) {
+      statusEl.className = 'text-xs font-mono font-bold text-emerald-400';
+      statusEl.innerText = 'Связь установлена! Сообщение доставлено в Telegram.';
+      showToast('Связь с Telegram установлена!');
+    } else {
+      statusEl.className = 'text-xs font-mono font-bold text-red-400';
+      statusEl.innerText = 'Ошибка: ' + (data.error || 'Сбой отправки');
+      showToast('Ошибка Telegram: ' + (data.error || 'Сбой'));
+    }
+  } catch (e) {
+    // Резервная прямая отправка в Telegram API из браузера при локальном предпросмотре!
+    if (effectiveToken && effectiveChat) {
+      try {
+        const tgRes = await fetch('https://api.telegram.org/bot' + effectiveToken + '/sendMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: effectiveChat,
+            text: '<b>МЕДИАЦЕНТР КП11 // ТЕСТ СВЯЗИ</b>\n════════════════════════════════════\nТестовое сообщение успешно получено из панели управления киноцеха!',
+            parse_mode: 'HTML'
+          })
+        });
+        const tgData = await tgRes.json();
+        if (tgData.ok) {
+          statusEl.className = 'text-xs font-mono font-bold text-emerald-400';
+          statusEl.innerText = 'Успешно доставлено в ' + effectiveChat + '!';
+          showToast('Тестовое сообщение доставлено в Telegram!');
+        } else {
+          statusEl.className = 'text-xs font-mono font-bold text-red-400';
+          statusEl.innerText = 'Ошибка: ' + (tgData.description || 'Не удалось отправить');
+        }
+      } catch (clientErr) {
+        statusEl.className = 'text-xs font-mono font-bold text-red-400';
+        statusEl.innerText = 'Ошибка сети при обращении к api.telegram.org';
+      }
+    } else {
+      statusEl.className = 'text-xs font-mono font-bold text-amber-400';
+      statusEl.innerText = 'Укажите ID чата или юзернейм для тестовой отправки.';
+    }
+  }
 }
 
 async function resetAllRatings() {

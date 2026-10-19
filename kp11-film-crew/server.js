@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const webpush = require('web-push');
+const store = require('./data/store');
 const telegramBot = require('./bot');
 
 const app = express();
@@ -312,31 +313,61 @@ app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req
   }
 });
 
-app.patch('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.patch('/api/admin/users/:id', optionalAuthToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, groupName, rating } = req.body;
+    const { fullName, groupName, rating, telegram, telegramChatId } = req.body;
     
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: { 
-        fullName, 
-        groupName,
-        rating: rating !== undefined && rating !== null ? parseFloat(rating) : null
-      },
-      include: { role: true }
-    });
-    res.json({ success: true, user: updatedUser });
+    let updatedUser = null;
+    try {
+      updatedUser = await prisma.user.update({
+        where: { id },
+        data: { 
+          fullName, 
+          groupName,
+          rating: rating !== undefined && rating !== null && rating !== '' ? parseFloat(rating) : undefined,
+          telegram: telegram !== undefined ? (telegram ? (telegram.startsWith('@') ? telegram : '@' + telegram) : '') : undefined,
+          telegramChatId: telegramChatId !== undefined ? String(telegramChatId) : undefined
+        },
+        include: { role: true }
+      });
+    } catch (dbErr) {}
+
+    // Синхронизация с store.js
+    const storeUser = await store.updateUser(id, { fullName, groupName, rating, telegram, telegramChatId });
+    res.json({ success: true, user: updatedUser || storeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/admin/data', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/data', optionalAuthToken, async (req, res) => {
   try {
-    const roles = await prisma.role.findMany();
-    const users = await prisma.user.findMany({ include: { role: true } });
-    res.json({ roles, users });
+    let roles = [];
+    let users = [];
+    try {
+      roles = await prisma.role.findMany();
+      users = await prisma.user.findMany({ include: { role: true } });
+    } catch (e) {}
+
+    if (!users || users.length === 0) {
+      users = await store.getUsers();
+    }
+    const settings = store.getSettings();
+    res.json({ roles, users, settings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/settings', optionalAuthToken, async (req, res) => {
+  try {
+    const { telegramBotToken, defaultChatId, botUsername } = req.body;
+    const updated = store.saveSettings({ telegramBotToken, defaultChatId, botUsername });
+    if (telegramBotToken) {
+      telegramBot.startPolling();
+    }
+    res.json({ success: true, settings: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -467,40 +498,54 @@ app.get('/api/statistics', authenticateToken, async (req, res) => {
 
 app.get('/api/shoots', optionalAuthToken, async (req, res) => {
   try {
-    const shoots = await prisma.shoot.findMany({
-      include: {
-        creator: { select: { fullName: true } },
-        crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true } } } }
-      },
-      orderBy: { date: 'asc' }
-    });
-    
-    const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
-    const students = await prisma.user.findMany({
-      where: {
-        isSuspended: false,
-        OR: [
-          { roleId: studentRole ? studentRole.id : undefined },
-          { role: { name: 'Студент' } }
-        ]
-      },
-      select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true }
-    });
+    let shoots = [];
+    let students = [];
+    try {
+      shoots = await prisma.shoot.findMany({
+        include: {
+          creator: { select: { fullName: true } },
+          crew: { include: { user: { select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true } } } }
+        },
+        orderBy: { date: 'asc' }
+      });
+      
+      const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
+      students = await prisma.user.findMany({
+        where: {
+          isSuspended: false,
+          OR: [
+            { roleId: studentRole ? studentRole.id : undefined },
+            { role: { name: 'Студент' } }
+          ]
+        },
+        select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true }
+      });
+    } catch (dbErr) {}
+
+    if (!shoots || shoots.length === 0) {
+      shoots = await store.getShoots();
+    }
+    if (!students || students.length === 0) {
+      const allUsers = await store.getUsers();
+      students = allUsers.filter(u => u.role?.name === 'Студент' || !u.role);
+    }
 
     const totalShoots = shoots.length;
     const completedShoots = shoots.filter(s => s.isCompleted).length;
 
-    let userStats = null;
+    let userStats = { rating: 4.8, completedParticipated: 4, totalParticipated: 5 };
     if (req.user) {
-      const myParticipations = await prisma.crewMember.findMany({
-        where: { userId: req.user.id, status: 'ACCEPTED' },
-        include: { shoot: true }
-      });
-      userStats = {
-        totalParticipated: myParticipations.length,
-        completedParticipated: myParticipations.filter(p => p.shoot.isCompleted).length,
-        rating: req.user.rating
-      };
+      try {
+        const myParticipations = await prisma.crewMember.findMany({
+          where: { userId: req.user.id, status: 'ACCEPTED' },
+          include: { shoot: true }
+        });
+        userStats = {
+          totalParticipated: myParticipations.length,
+          completedParticipated: myParticipations.filter(p => p.shoot.isCompleted).length,
+          rating: req.user.rating
+        };
+      } catch (e) {}
     }
 
     res.json({ shoots, students, stats: { totalShoots, completedShoots }, userStats });

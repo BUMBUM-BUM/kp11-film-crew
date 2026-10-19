@@ -1,0 +1,157 @@
+[
+  {
+    "id": "demo-user-1",
+    "fullName": "Бадиков Семён Станиславович",
+    "email": "semyon.badikov@kp11.ru",
+    "groupName": "КТ-26",
+    "rating": 4.8,
+    "telegram": "@badikov_dop",
+    "telegramChatId": null,
+    "craftRank": "Оператор-постановщик // Master DOP",
+    "isSuspended": false,
+    "role": {
+      "name": "Мастер / Преподаватель"
+    },
+    "competencies": {
+      "camera": 96,
+      "sound": 98,
+      "light": 92,
+      "edit": 94
+    },
+    "skills": [
+      "Log-C",
+      "Shure SM7B",
+      "Aputure 300D",
+      "Sound Design",
+      "DaVinci Resolve"
+    ]
+  },
+  {
+    "id": "u1",
+    "fullName": "Ковалев Михаил Алексеевич",
+    "email": "mikhail.kovalev@kp11.ru",
+    "groupName": "ФВТ-22",
+    "rating": 4.7,
+    "telegram": "@mikhail_cam",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // 1st AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 95,
+      "sound": 82,
+      "light": 88,
+      "edit": 96
+    },
+    "skills": [
+      "ARRI Master Prime",
+      "Цветокоррекция",
+      "Стедикам",
+      "LUT Pipeline"
+    ]
+  },
+  {
+    "id": "u2",
+    "fullName": "Демидов Тимофей Дмитриевич",
+    "email": "timofey.demidov@kp11.ru",
+    "groupName": "ФВТ-22",
+    "rating": 4.5,
+    "telegram": "@timofey_light",
+    "telegramChatId": null,
+    "craftRank": "Гаффер смены // Chief Lighting",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 88,
+      "sound": 78,
+      "light": 94,
+      "edit": 80
+    },
+    "skills": [
+      "Dedolight",
+      "Светотеневой рисунок",
+      "Вольфрам 3200K",
+      "Электробезопасность"
+    ]
+  },
+  {
+    "id": "u3",
+    "fullName": "Гусев Андрей Алексеевич",
+    "email": "andrey.gusev@kp11.ru",
+    "groupName": "КТ-25",
+    "rating": 3.5,
+    "telegram": "@andrey_gaffer",
+    "telegramChatId": null,
+    "craftRank": "Ассистент осветителя // Best Boy",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 75,
+      "sound": 70,
+      "light": 85,
+      "edit": 68
+    },
+    "skills": [
+      "Гаффер-сетап",
+      "Рассеиватели",
+      "Штативы C-Stand"
+    ]
+  },
+  {
+    "id": "u4",
+    "fullName": "Соколова Анна Алексеевна",
+    "email": "anna.sokolova@kp11.ru",
+    "groupName": "КТ-15",
+    "rating": 4.0,
+    "telegram": "@anna_sound",
+    "telegramChatId": null,
+    "craftRank": "Звукооператор // Boom Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 84,
+      "sound": 92,
+      "light": 75,
+      "edit": 86
+    },
+    "skills": [
+      "Радиопетлички Sennheiser",
+      "Микрофонный бум",
+      "Синхронизация"
+    ]
+  },
+  {
+    "id": "u5",
+    "fullName": "Жемчужников Ярослав Станиславович",
+    "email": "yaroslav.zhemch@kp11.ru",
+    "groupName": "КТ-25",
+    "rating": 4.5,
+    "telegram": "@yaroslav_dop",
+    "telegramChatId": null,
+    "craftRank": "Оператор-постановщик // Master DOP",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 97,
+      "sound": 85,
+      "light": 90,
+      "edit": 92
+    },
+    "skills": [
+      "Оператор-постановщик",
+      "Фокус-пуллинг",
+      "ARRI RAW",
+      "Стедикам"
+    ]
+  }
+]

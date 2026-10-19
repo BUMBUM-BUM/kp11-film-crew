@@ -375,6 +375,46 @@
             <div class="text-xs font-medium" style="color: var(--text-muted);">Загрузка реестра пользователей...</div>
           </div>
         </div>
+
+        <!-- ================= БЛОК НАСТРОЕК TELEGRAM-БОТА И ТЕСТИРОВАНИЯ СВЯЗИ ================= -->
+        <div class="viewfinder-card p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b pb-3" style="border-color: var(--border-color);">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 bg-[#229ED9] rounded-full inline-block animate-pulse"></span>
+              <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#229ED9]">Интеграция с Telegram-ботом (@KP11_FilmCrew_Bot)</h3>
+            </div>
+            <a href="https://t.me/KP11_FilmCrew_Bot" target="_blank" class="text-[11px] font-mono text-[#229ED9] hover:underline inline-flex items-center gap-1 font-bold">
+              <span>Открыть бота в Telegram</span>
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Токен бота (Telegram Bot Token):</label>
+              <input type="password" id="adminBotToken" placeholder="123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ" class="w-full studio-input text-xs font-mono px-3 py-2">
+              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Получите в @BotFather через команду /newbot</span>
+            </div>
+            <div>
+              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ID чата или канала для вызывных:</label>
+              <input type="text" id="adminDefaultChatId" placeholder="@kp11_channel или ID чата (напр. 123456789)" class="w-full studio-input text-xs font-mono px-3 py-2">
+              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Сюда будут автоматически отправляться все вызывные листы</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button onclick="saveTelegramSettings()" class="px-4 py-2 text-xs font-extrabold uppercase bg-[#229ED9] hover:bg-[#1b8ec5] text-white transition">
+              Сохранить настройки бота
+            </button>
+            <button onclick="testTelegramConnection()" class="px-4 py-2 text-xs font-extrabold uppercase btn-brand-ghost">
+              Протестировать отправку в Telegram
+            </button>
+            <span id="tgTestStatus" class="text-xs font-mono font-bold hidden"></span>
+          </div>
+          <p class="text-[11px] font-medium pt-1 border-t" style="color: var(--text-muted); border-color: var(--border-subtle);">
+            Примечание: Чтобы студент получал вызывные листы персонально в Telegram, укажите его <span class="text-[#229ED9] font-mono font-bold">@юзернейм</span> в таблице пользователей выше, либо студент может нажать <span class="font-mono font-bold">/start</span> в боте.
+          </p>
+        </div>
       </section>
 
     </div>
@@ -522,6 +562,8 @@
           <span>Отправить в @KP11_FilmCrew_Bot</span>
         </button>
       </div>
+
+      <div id="callsheetTgHelper" class="hidden"></div>
     </div>
   </div>
 
