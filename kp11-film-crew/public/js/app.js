@@ -713,106 +713,311 @@ function copyDismissalOrderText() {
   });
 }
 
-function openEquipmentModal(shootId) {
+let globalInventory = [];
+let activeEquipmentTab = 'checkout'; // 'checkout' | 'registry'
+
+async function loadInventoryData() {
+  try {
+    const res = await fetch('/api/inventory');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.inventory)) {
+        globalInventory = data.inventory;
+      }
+    }
+  } catch (err) {
+    console.warn('Inventory fetch offline, using fallback:', err.message);
+  }
+  if (!globalInventory || globalInventory.length === 0) {
+    globalInventory = [
+      { id: 'eq-1', name: 'Кинокамера Canon Cinema EOS C200 EF', category: 'Камеры', serialNumber: 'CN-C200-742019', status: 'AVAILABLE', location: 'Павильон №1 ЦКТ', notes: '4K Cinema RAW Light, 2x CFast 256GB' },
+      { id: 'eq-2', name: 'Камера Canon EOS R5 C Mirrorless', category: 'Камеры', serialNumber: 'CN-R5C-881023', status: 'AVAILABLE', location: 'Студия звукозаписи и подкастов', notes: '8K ProRes, клетка Tilta' },
+      { id: 'eq-3', name: 'Комплект кинооптики Canon Cinema Prime (24, 35, 50, 85mm T1.5)', category: 'Оптика', serialNumber: 'SET-CP-44091', status: 'AVAILABLE', location: 'Склад техники ЦКТ', notes: 'Кейс Peli 1510, EF байонет' },
+      { id: 'eq-4', name: 'Осветительный прибор Aputure Light Storm LS 300D II', category: 'Свет', serialNumber: 'AP-300D-55102', status: 'AVAILABLE', location: 'Павильон №1 ЦКТ', notes: 'Софтбокс Light Dome II, C-Stand' },
+      { id: 'eq-5', name: 'Комплект фокусного света Dedolight DLED4-BI (3 прибора)', category: 'Свет', serialNumber: 'DEDO-KIT-309', status: 'AVAILABLE', location: 'Павильон №1 ЦКТ', notes: 'Биколор 2800-6500K, диммеры' },
+      { id: 'eq-6', name: 'Радиосистемы петличные Sennheiser EW-DP ME2 Set (2 канала)', category: 'Звук', serialNumber: 'SENN-EWDP-882', status: 'AVAILABLE', location: 'Аппаратная ЦКТ', notes: 'Цифровая передача, петлички ME2' },
+      { id: 'eq-7', name: 'Портативный аудиорекордер Zoom H6 Black Edition', category: 'Звук', serialNumber: 'ZOOM-H6-4419', status: 'AVAILABLE', location: 'Аппаратная ЦКТ', notes: 'Поканальная запись, SDXC 128GB' },
+      { id: 'eq-8', name: 'Электронный стедикам DJI RS 3 Pro Combo', category: 'Стабилизация', serialNumber: 'DJI-RS3P-9914', status: 'AVAILABLE', location: 'Склад техники ЦКТ', notes: 'Мотор фокуса, ручка Briefcase' }
+    ];
+  }
+}
+
+async function openEquipmentModal(shootId) {
   activeEquipmentShootId = shootId;
   const shoot = (globalShoots || []).find(s => s.id === shootId);
-  const container = document.getElementById('equipmentCheckoutContent');
   const modal = document.getElementById('equipmentCheckoutModal');
-  if (!modal || !container || !shoot) return;
+  if (!modal || !shoot) return;
 
-  const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+  await loadInventoryData();
+  renderEquipmentModalTabs(shootId);
+  modal.classList.remove('hidden');
+}
+
+function switchEquipmentTab(tabName) {
+  activeEquipmentTab = tabName;
+  if (activeEquipmentShootId) {
+    renderEquipmentModalTabs(activeEquipmentShootId);
+  }
+}
+
+function renderEquipmentModalTabs(shootId) {
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+  const container = document.getElementById('equipmentCheckoutContent');
+  if (!container || !shoot) return;
+
+  const canManageGear = isMasterUser(currentUser) || isAdminUser(currentUser);
   const masterName = (shoot.creator && shoot.creator.fullName) ? shoot.creator.fullName : 'Бадиков Семён Станиславович';
   const dDate = new Date(shoot.date).toLocaleDateString('ru-RU');
 
-  let studentOptions = crewList.map(c => {
-    const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
-    return '<option value="' + (u.fullName || 'Студент') + '">' + (u.fullName || 'Студент') + ' [' + (u.groupName || 'Группа') + '] — ' + c.roleInShoot + '</option>';
-  }).join('');
+  // Вкладка 1: Акт вывоза
+  let contentHtml = '';
+  if (activeEquipmentTab === 'checkout') {
+    const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+    let studentOptions = crewList.map(c => {
+      const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
+      return '<option value="' + (u.fullName || 'Студент') + '">' + (u.fullName || 'Студент') + ' [' + (u.groupName || 'Группа') + '] — ' + c.roleInShoot + '</option>';
+    }).join('');
 
-  if (!studentOptions) {
-    studentOptions = '<option value="Демидов Тимофей Дмитриевич">Демидов Тимофей Дмитриевич [ФВТ-22] — Бригадир цеха</option>';
+    if (!studentOptions) {
+      studentOptions = '<option value="Демидов Тимофей Дмитриевич">Демидов Тимофей Дмитриевич [ФВТ-22] — Бригадир смены</option>';
+    }
+
+    const itemsCheckboxes = globalInventory.map((eq, idx) => {
+      const isChecked = idx < 6 ? 'checked' : '';
+      return '<label class="flex items-start space-x-2.5 p-2.5 border cursor-pointer select-none transition hover:border-[var(--brand-red)]" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+        '<input type="checkbox" ' + isChecked + ' data-eq-id="' + eq.id + '" class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+        '<div class="min-w-0 flex-1">' +
+          '<div class="flex items-center justify-between gap-1">' +
+            '<b class="text-xs truncate" style="color: var(--text-primary);">' + eq.name + '</b>' +
+            '<span class="text-[9px] font-mono px-1.5 py-0.2 bg-neutral-900 border text-amber-400 font-bold border-neutral-700 flex-shrink-0">S/N: ' + (eq.serialNumber || '—') + '</span>' +
+          '</div>' +
+          '<div class="text-[10px] font-mono mt-0.5" style="color: var(--text-muted);">' + (eq.category || 'Техника') + ' • ' + (eq.location || 'ЦКТ КП11') + (eq.notes ? ' • ' + eq.notes : '') + '</div>' +
+        '</div>' +
+      '</label>';
+    }).join('');
+
+    contentHtml = 
+      '<div class="p-5 border space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+        '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3" style="border-color: var(--border-color);">' +
+          '<div>' +
+            '<div class="text-[10px] font-mono tracking-widest uppercase font-bold" style="color: var(--brand-red);">ТЕХПАРК ЦЕНТРА КРЕАТИВНЫХ ТЕХНОЛОГИЙ КП11</div>' +
+            '<h4 class="text-sm font-extrabold uppercase tracking-wide" style="color: var(--text-primary);">АКТ ВЫДАЧИ И ВЫВОЗА СЪЁМОЧНОГО ОБОРУДОВАНИЯ</h4>' +
+          '</div>' +
+          '<span class="text-[10px] font-mono font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--brand-beige-text); border-color: var(--border-color);">АКТ № ' + (shoot.id || 'EQ-101') + '</span>' +
+        '</div>' +
+
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
+          '<div><b>Проект:</b> ' + (shoot.title || 'Смена') + '</div>' +
+          '<div><b>Дата выезда:</b> ' + dDate + '</div>' +
+          '<div><b>Локация площадки:</b> ' + (shoot.location || 'Павильон КП11') + '</div>' +
+          '<div><b>Ответственный мастер:</b> ' + masterName + '</div>' +
+        '</div>' +
+
+        '<div class="space-y-2">' +
+          '<label class="text-xs font-bold uppercase tracking-wider block" style="color: var(--text-primary);">Материально ответственный студент (получатель комплекта техники):</label>' +
+          '<select id="equipResponsibleStudent" class="studio-input w-full text-xs font-bold px-3 py-2">' +
+            studentOptions +
+          '</select>' +
+        '</div>' +
+
+        '<div class="space-y-2.5">' +
+          '<div class="flex items-center justify-between border-b pb-1 text-xs font-bold uppercase" style="border-color: var(--border-subtle); color: var(--brand-beige-text);">' +
+            '<span>Спецификация техники ЦКТ КП11 с серийными номерами</span>' +
+            '<span class="text-[10px] font-mono">ОТМЕТКА ВЫДАЧИ</span>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs max-h-64 overflow-y-auto pr-1">' +
+            itemsCheckboxes +
+          '</div>' +
+        '</div>' +
+
+        '<div class="p-3 border text-[11px] font-mono leading-relaxed" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">' +
+          'Оборудование выдано в исправном состоянии, оптика и матрицы проверены. Студент-получатель обязуется бережно эксплуатировать технику согласно регламенту ЦКТ КП11 и вернуть её на склад сразу по завершении смены.' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="flex items-center justify-end gap-2 pt-2">' +
+        '<button onclick="closeEquipmentModal()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отмена</button>' +
+        '<button onclick="saveEquipmentCheckout()" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">' +
+          '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
+          '<span>Распечатать и утвердить акт вывоза</span>' +
+        '</button>' +
+      '</div>';
+  } else {
+    // Вкладка 2: Реестр техники и создание оборудования (Модуль 3)
+    let addFormHtml = '';
+    if (canManageGear) {
+      addFormHtml = 
+        '<div class="p-4 border space-y-3" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
+          '<div class="flex items-center space-x-2 border-b pb-2" style="border-color: var(--border-subtle);">' +
+            '<span class="rec-dot"></span>' +
+            '<h5 class="text-xs font-extrabold uppercase tracking-wide" style="color: var(--brand-red);">Принять на баланс ЦКТ новую единицу техники</h5>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">' +
+            '<div>' +
+              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Наименование техники *</label>' +
+              '<input id="newEqName" type="text" placeholder="Напр. Кинокамера RED Komodo 6K" class="studio-input w-full px-2.5 py-1.5 text-xs font-bold">' +
+            '</div>' +
+            '<div>' +
+              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Цеховая категория *</label>' +
+              '<select id="newEqCategory" class="studio-input w-full px-2.5 py-1.5 text-xs font-bold">' +
+                '<option value="Камеры">Камеры и сенсоры</option>' +
+                '<option value="Оптика">Кинооптика / Prime</option>' +
+                '<option value="Свет">Световое оборудование</option>' +
+                '<option value="Звук">Звукозапись и радиосистемы</option>' +
+                '<option value="Стабилизация">Стедикамы и штативы</option>' +
+                '<option value="Коммутация">Коммутация и питание</option>' +
+              '</select>' +
+            '</div>' +
+            '<div>' +
+              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Серийный номер (S/N) *</label>' +
+              '<input id="newEqSerial" type="text" placeholder="Напр. CN-KOMODO-9901" class="studio-input w-full px-2.5 py-1.5 text-xs font-mono font-bold">' +
+            '</div>' +
+            '<div>' +
+              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Локация / Павильон</label>' +
+              '<input id="newEqLocation" type="text" placeholder="Павильон №1 ЦКТ" value="Павильон №1 ЦКТ" class="studio-input w-full px-2.5 py-1.5 text-xs font-bold">' +
+            '</div>' +
+            '<div class="sm:col-span-2">' +
+              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Комплектация и примечания</label>' +
+              '<input id="newEqNotes" type="text" placeholder="Кейс, 2 аккумулятора, кабель D-Tap" class="studio-input w-full px-2.5 py-1.5 text-xs font-medium">' +
+            '</div>' +
+          '</div>' +
+          '<div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--border-subtle);">' +
+            '<span class="text-[10px] font-mono text-[var(--text-muted)]">Подписывает мастер: <b class="text-[var(--text-primary)]">' + (currentUser ? currentUser.fullName : 'Бадиков Семён Станиславович') + '</b></span>' +
+            '<button onclick="addNewInventoryItem()" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase shadow inline-flex items-center gap-1">' +
+              SVG_ICONS.check +
+              '<span>Принять на баланс и подписать</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+    } else {
+      addFormHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed text-[var(--text-muted)]">Создание и подписание единиц техники доступно Мастерам и Администраторам ЦКТ</div>';
+    }
+
+    const tableRows = globalInventory.map((eq, idx) => {
+      let deleteBtn = canManageGear ? '<button onclick="deleteInventoryItem(\'' + eq.id + '\')" class="text-red-400 hover:text-red-300 font-extrabold text-[10px] uppercase p-1">Удалить</button>' : '—';
+      return '<tr class="border-b transition hover:bg-white/5" style="border-color: var(--border-subtle);">' +
+        '<td class="p-2.5 font-bold text-xs" style="color: var(--text-primary);">' + eq.name + '</td>' +
+        '<td class="p-2.5 font-mono text-xs text-amber-400 font-bold">' + (eq.serialNumber || '—') + '</td>' +
+        '<td class="p-2.5 text-xs font-mono" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</td>' +
+        '<td class="p-2.5 text-xs" style="color: var(--text-muted);">' + (eq.location || 'ЦКТ КП11') + '</td>' +
+        '<td class="p-2.5 text-[11px] font-mono text-emerald-400 font-bold">' + (eq.signedBy ? '✓ ' + eq.signedBy : 'Утверждено ЦКТ') + '</td>' +
+        '<td class="p-2.5 text-right">' + deleteBtn + '</td>' +
+      '</tr>';
+    }).join('');
+
+    contentHtml = 
+      '<div class="space-y-4">' +
+        addFormHtml +
+        '<div class="border overflow-x-auto" style="border-color: var(--border-color); background-color: var(--bg-card);">' +
+          '<table class="w-full text-left border-collapse">' +
+            '<thead>' +
+              '<tr class="border-b text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
+                '<th class="p-2.5">Наименование оборудования</th>' +
+                '<th class="p-2.5">Серийный номер (S/N)</th>' +
+                '<th class="p-2.5">Категория</th>' +
+                '<th class="p-2.5">Склад / Павильон</th>' +
+                '<th class="p-2.5">ЭЦП Мастера / Приемка</th>' +
+                '<th class="p-2.5 text-right">Действие</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' + tableRows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
   }
 
+  // Общий каркас с переключателем табов
   container.innerHTML = 
-    '<div class="p-5 border space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
-      '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3" style="border-color: var(--border-color);">' +
-        '<div>' +
-          '<div class="text-[10px] font-mono tracking-widest uppercase font-bold" style="color: var(--brand-red);">ТЕХПАРК ЦЕНТРА КРЕАТИВНЫХ ТЕХНОЛОГИЙ КП11</div>' +
-          '<h4 class="text-sm font-extrabold uppercase tracking-wide" style="color: var(--text-primary);">АКТ ВЫДАЧИ И ВЫВОЗА СЪЁМОЧНОГО ОБОРУДОВАНИЯ</h4>' +
-        '</div>' +
-        '<span class="text-[10px] font-mono font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--brand-beige-text); border-color: var(--border-color);">АКТ № ' + (shoot.id || 'EQ-101') + '</span>' +
+    '<div class="space-y-4">' +
+      '<div class="flex items-center space-x-2 border-b pb-2" style="border-color: var(--border-color);">' +
+        '<button onclick="switchEquipmentTab(\'checkout\')" class="px-3 py-1.5 text-xs font-extrabold uppercase transition border ' + (activeEquipmentTab === 'checkout' ? 'bg-[var(--brand-red)] text-white border-[var(--brand-red)]' : 'btn-brand-ghost text-[var(--text-muted)]') + '">1. Акт вывоза на смену</button>' +
+        '<button onclick="switchEquipmentTab(\'registry\')" class="px-3 py-1.5 text-xs font-extrabold uppercase transition border ' + (activeEquipmentTab === 'registry' ? 'bg-[var(--brand-red)] text-white border-[var(--brand-red)]' : 'btn-brand-ghost text-[var(--text-muted)]') + '">2. Реестр техники и создание оборудования (' + globalInventory.length + ')</button>' +
       '</div>' +
-
-      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
-        '<div><b>Съёмка:</b> ' + (shoot.title || 'Смена') + '</div>' +
-        '<div><b>Дата выезда:</b> ' + dDate + '</div>' +
-        '<div><b>Локация выезда:</b> ' + (shoot.location || 'Полевая площадка') + '</div>' +
-        '<div><b>Ответственный преподаватель:</b> ' + masterName + '</div>' +
-      '</div>' +
-
-      '<div class="space-y-2">' +
-        '<label class="text-xs font-bold uppercase tracking-wider block" style="color: var(--text-primary);">Материально ответственный студент (получатель комплекта):</label>' +
-        '<select id="equipResponsibleStudent" class="studio-input w-full text-xs font-bold px-3 py-2">' +
-          studentOptions +
-        '</select>' +
-      '</div>' +
-
-      '<div class="space-y-2.5">' +
-        '<div class="flex items-center justify-between border-b pb-1 text-xs font-bold uppercase" style="border-color: var(--border-subtle); color: var(--brand-beige-text);">' +
-          '<span>Спецификация техники ЦКТ КП11</span>' +
-          '<span class="text-[10px] font-mono">ОТМЕТКА ВЫДАЧИ</span>' +
-        '</div>' +
-
-        '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Кинокамера Canon EOS C200</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Cinema RAW Light, 4K 50p, видоискатель, ручка</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Камера Canon EOS R5 + RF 24-70mm f/2.8L</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">8K RAW, 4K 120p, светосильный зум IS USM</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Видеоштатив Manfrotto 504HD</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Гидроголовка, распорка, быстросъёмная площадка</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Стедикам / Электронный стабилизатор</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">3-осевой подвес с балансировкой и аккумуляторами</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Аудиорекордер Zoom H6</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Поканальная чистовая запись, 6 входов XLR/TRS</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Радиосистема Sennheiser EW-D</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">2 петлички, 2 передатчика, накамерный приёмник</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Выездной свет Dedolight (3 прибора)</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">Шторки, диммеры 150W, сетевые кабели, стойки</div></div>' +
-          '</label>' +
-          '<label class="flex items-start space-x-2 p-2 border cursor-pointer select-none" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-            '<input type="checkbox" checked class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
-            '<div><b style="color: var(--text-primary);">Аккумуляторы и носители данных</b><div class="text-[10px] font-mono" style="color: var(--text-muted);">BP-A30 (x2), LP-E6NH (x4), CFast 256GB, SDXC V90</div></div>' +
-          '</label>' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="p-3 border text-[11px] font-mono leading-relaxed" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">' +
-        'Оборудование выдано в исправном состоянии, проверено на включение, отсутствие механических повреждений оптики и матриц. Получатель обязуется соблюдать правила бережливости ЦКТ КП11 и вернуть комплект сразу после окончания выездной смены.' +
-      '</div>' +
-    '</div>' +
-
-    '<div class="flex items-center justify-end gap-2 pt-2">' +
-      '<button onclick="closeEquipmentModal()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отмена</button>' +
-      '<button onclick="saveEquipmentCheckout()" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">' +
-        '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
-        '<span>Распечатать и утвердить акт вывоза</span>' +
-      '</button>' +
+      contentHtml +
     '</div>';
+}
 
-  modal.classList.remove('hidden');
+async function addNewInventoryItem() {
+  const nameEl = document.getElementById('newEqName');
+  const catEl = document.getElementById('newEqCategory');
+  const snEl = document.getElementById('newEqSerial');
+  const locEl = document.getElementById('newEqLocation');
+  const notesEl = document.getElementById('newEqNotes');
+
+  const name = nameEl ? nameEl.value.trim() : '';
+  const category = catEl ? catEl.value : 'Камеры';
+  const serialNumber = snEl ? snEl.value.trim() : '';
+  const location = locEl ? locEl.value.trim() : 'Павильон №1 ЦКТ';
+  const notes = notesEl ? notesEl.value.trim() : '';
+
+  if (!name || !serialNumber) {
+    alert('Укажите наименование оборудования и его серийный номер (S/N)');
+    return;
+  }
+
+  const signer = (currentUser && currentUser.fullName) ? currentUser.fullName : 'Бадиков Семён Станиславович';
+  const newItem = {
+    name,
+    category,
+    serialNumber,
+    location,
+    notes,
+    status: 'AVAILABLE',
+    signedBy: signer
+  };
+
+  try {
+    const res = await fetch('/api/inventory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || 'demo-token')
+      },
+      body: JSON.stringify(newItem)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.inventory)) {
+        globalInventory = data.inventory;
+      } else if (data.item) {
+        globalInventory.unshift(data.item);
+      }
+    } else {
+      newItem.id = 'eq-' + Date.now();
+      globalInventory.unshift(newItem);
+    }
+  } catch (err) {
+    newItem.id = 'eq-' + Date.now();
+    globalInventory.unshift(newItem);
+  }
+
+  showToast('Оборудование ' + name + ' (S/N: ' + serialNumber + ') принято на баланс и подписано!');
+  renderEquipmentModalTabs(activeEquipmentShootId);
+}
+
+async function deleteInventoryItem(eqId) {
+  if (!confirm('Вы уверены, что хотите списать единицу оборудования из техпарка?')) return;
+  try {
+    const res = await fetch('/api/inventory/' + eqId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.inventory)) {
+        globalInventory = data.inventory;
+      } else {
+        globalInventory = globalInventory.filter(e => e.id !== eqId);
+      }
+    } else {
+      globalInventory = globalInventory.filter(e => e.id !== eqId);
+    }
+  } catch (err) {
+    globalInventory = globalInventory.filter(e => e.id !== eqId);
+  }
+
+  showToast('Единица оборудования списана из техпарка ЦКТ.');
+  renderEquipmentModalTabs(activeEquipmentShootId);
 }
 
 function closeEquipmentModal() {
@@ -821,7 +1026,7 @@ function closeEquipmentModal() {
 }
 
 function saveEquipmentCheckout() {
-  showToast('Акт вывоза съёмочного оборудования утверждён и занесён в техпарк ЦКТ!');
+  showToast('Акт вывоза съёмочного оборудования с серийными номерами утверждён!');
   window.print();
   closeEquipmentModal();
 }
@@ -2312,12 +2517,14 @@ async function handleCreateShoot(e) {
 function setStarRating(memberId, starValue) {
   const container = document.getElementById('stars_container_' + memberId);
   const hiddenInput = document.getElementById('grade_input_' + memberId);
+  const numValue = Number(starValue) || 5;
+
   if (container && hiddenInput) {
-    hiddenInput.value = starValue;
+    hiddenInput.value = numValue;
     const stars = container.querySelectorAll('.rating-star-btn');
     stars.forEach((star) => {
       const idx = parseInt(star.getAttribute('data-star-idx'));
-      if (idx <= starValue) {
+      if (idx <= numValue) {
         star.classList.remove('opacity-40');
         star.classList.add('opacity-100', 'star-pop-animate');
         star.innerHTML = SVG_ICONS.star;
@@ -2329,6 +2536,64 @@ function setStarRating(memberId, starValue) {
       }
     });
   }
+
+  // Мгновенное сохранение в локальном состоянии смены
+  let foundShoot = null;
+  let foundMember = null;
+  (globalShoots || []).forEach(sh => {
+    if (Array.isArray(sh.crew)) {
+      const cm = sh.crew.find(c => c.id === memberId || c.userId === memberId);
+      if (cm) {
+        foundShoot = sh;
+        foundMember = cm;
+        cm.grade = numValue;
+        if (cm.user) cm.user.rating = numValue;
+      }
+    }
+  });
+
+  // Мгновенное обновление бейджа рейтинга в строке участника на экране
+  const ratingBadgeEl = document.getElementById('member_rating_' + memberId);
+  if (ratingBadgeEl) {
+    const colorClass = getRatingBadgeColor(numValue);
+    ratingBadgeEl.className = colorClass + ' font-mono text-xs font-bold inline-flex items-center gap-1';
+    ratingBadgeEl.innerHTML = SVG_ICONS.star + ' ' + numValue.toFixed(1);
+  }
+
+  // Пересчет рейтингов всех студентов
+  if (typeof recalculateAllStudentRatings === 'function') {
+    recalculateAllStudentRatings();
+  }
+
+  // Немедленная отправка на бэкенд
+  if (foundShoot) {
+    fetch('/api/shoots/' + foundShoot.id + '/grade', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || 'demo-token')
+      },
+      body: JSON.stringify({
+        memberId: memberId,
+        userId: foundMember ? foundMember.userId : memberId,
+        grade: numValue
+      })
+    }).then(res => res.json()).then(data => {
+      if (data && data.users) {
+        globalStudents = data.users;
+        if (typeof recalculateAllStudentRatings === 'function') recalculateAllStudentRatings();
+      }
+    }).catch(err => {
+      console.warn('Grade autosave notice:', err.message);
+    });
+  }
+
+  // Мгновенное обновление данных на вкладке «Статистика»
+  if (typeof loadStatisticsData === 'function') {
+    loadStatisticsData();
+  }
+
+  showToast('Оценка ★ ' + numValue + ' утверждена в журнал!');
 }
 
 function applyGlobalGrade(shootId, starValue) {
@@ -2399,15 +2664,18 @@ function recalculateAllStudentRatings() {
 }
 
 async function saveShootGrades(shootId, crewMemberIds) {
+  const target = (globalShoots || []).find(s => s.id === shootId);
+  const targetCrew = (target && Array.isArray(target.crew)) ? target.crew : [];
+  const memberList = (Array.isArray(crewMemberIds) && crewMemberIds.length > 0) ? crewMemberIds : targetCrew.map(c => c.id);
+
   const grades = {};
-  for (const memberId of crewMemberIds) {
+  for (const memberId of memberList) {
     const inputEl = document.getElementById('grade_input_' + memberId);
     if (inputEl) {
       grades[memberId] = parseFloat(inputEl.value) || 5;
     }
   }
 
-  const target = (globalShoots || []).find(s => s.id === shootId);
   if (target) {
     target.isCompleted = true;
     if (target.crew) {
@@ -2424,20 +2692,30 @@ async function saveShootGrades(shootId, crewMemberIds) {
   }
 
   try {
-    await fetch('/api/shoots/complete', {
+    const res = await fetch('/api/shoots/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify({ shootId, grades, shoot: target })
     });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.users) {
+        globalStudents = data.users;
+      }
+    }
   } catch (err) {
     console.warn('API /api/shoots/complete error, using local fallback:', err.message);
   }
 
-  recalculateAllStudentRatings();
+  if (typeof recalculateAllStudentRatings === 'function') {
+    recalculateAllStudentRatings();
+  }
 
-  showToast('Смена завершена! Оценки выставлены в производственный журнал.');
+  showToast('Смена завершена! Все оценки утверждены в производственный журнал.');
   await loadShoots();
-  loadStatisticsData();
+  if (typeof loadStatisticsData === 'function') {
+    loadStatisticsData();
+  }
 }
 
 async function updateAttendance(crewMemberId, attendance) {
@@ -2959,7 +3237,7 @@ function renderShootsList(shoots = globalShoots) {
               '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
               myBadge +
               '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
-              '<span class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
+              '<span id="member_rating_' + c.id + '" class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
               statusBadgeCrew +
               manualAcceptBtn +
               competencyMatrixBtn +
@@ -2985,27 +3263,20 @@ function renderShootsList(shoots = globalShoots) {
           '<div class="flex space-x-1">' + globalStarsHTML + '</div>' +
         '</div>';
         
+        const allMemberIds = crewList.map(c => '\'' + c.id + '\'').join(', ');
         saveGradesBtn = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">' +
           '<button onclick="openCktGradingModal(\'' + s.id + '\')" class="btn-brand-primary py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5">' +
             '<span>⭐ Оценить по 4 стандартам ЦКТ</span>' +
           '</button>' +
-          '<button onclick="saveShootGrades(\'' + s.id + '\', [' + acceptedMemberIds + '])" class="btn-brand-beige py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md">' +
+          '<button onclick="saveShootGrades(\'' + s.id + '\', [' + allMemberIds + '])" class="btn-brand-beige py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md">' +
             'Быстро завершить смену' +
           '</button>' +
         '</div>';
       }
 
-      const isOutdoor = (s.type || '').toUpperCase() === 'ВЫЕЗД';
-      const equipmentBtn = isOutdoor 
-        ? '<button onclick="openEquipmentModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-emerald-400" title="Акт выдачи и вывоза съёмочного оборудования ЦКТ КП11">' +
-            '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
-            '<span>Акт вывоза</span>' +
-          '</button>'
-        : '<span class="hidden lg:inline-flex text-[9px] font-mono px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--text-muted); border-color: var(--border-subtle);">Студия ЦКТ</span>';
-
-      const dismissalBtn = '<button onclick="openDismissalModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-[var(--brand-beige-text)]" title="Служебная записка / приказ на освобождение от учебных занятий">' +
-        '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
-        '<span>Приказ</span>' +
+      const equipmentBtn = '<button onclick="openEquipmentModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-emerald-400" title="Техпарк и спецификация оборудования ЦКТ КП11">' +
+        '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
+        '<span>Оборудование</span>' +
       '</button>';
 
       const isShootOpen = (window._openedShootIds ? window._openedShootIds.has(s.id) : (idx === 0));
@@ -3024,7 +3295,6 @@ function renderShootsList(shoots = globalShoots) {
               SVG_ICONS.telegram +
               '<span>Вызывной</span>' +
             '</button>' +
-            dismissalBtn +
             equipmentBtn +
             '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
             deleteBtn +

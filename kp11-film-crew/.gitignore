@@ -9,3 +9,6 @@ node_modules/
 live_*.png
 theme_*.png
 screenshot.png
+mobile_*.png
+scratch/
+
