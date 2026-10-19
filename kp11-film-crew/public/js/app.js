@@ -1225,6 +1225,7 @@ async function submitCktGrading() {
       const avg = Math.round(((o.frames + o.gear + o.time + o.ethics) / 4) * 10) / 10;
       grades[m.id] = avg;
       m.grade = avg;
+      m.cktCriteria = { frames: o.frames, gear: o.gear, time: o.time, ethics: o.ethics };
     } else {
       grades[m.id] = m.grade || 5;
     }
@@ -1362,6 +1363,55 @@ function openShowreelModal(userId) {
   const student = directory.find(s => s.id === userId) || directory[0];
   const rank = getCraftRankBadge(student.completedShoots, student.rating);
 
+  let totalFrames = 0, totalGear = 0, totalTime = 0, totalEthics = 0, critCount = 0;
+  (globalShoots || []).forEach(sh => {
+    if (sh.isCompleted && Array.isArray(sh.crew)) {
+      const cm = sh.crew.find(c => c.userId === student.id || c.id === student.id || (c.user && c.user.id === student.id));
+      if (cm && cm.cktCriteria) {
+        totalFrames += Number(cm.cktCriteria.frames || 5);
+        totalGear += Number(cm.cktCriteria.gear || 5);
+        totalTime += Number(cm.cktCriteria.time || 5);
+        totalEthics += Number(cm.cktCriteria.ethics || 5);
+        critCount++;
+      }
+    }
+  });
+
+  const framesAvg = critCount > 0 ? (totalFrames / critCount).toFixed(1) : (student.rating || '5.0');
+  const gearAvg = critCount > 0 ? (totalGear / critCount).toFixed(1) : (student.rating || '5.0');
+  const timeAvg = critCount > 0 ? (totalTime / critCount).toFixed(1) : (student.rating || '5.0');
+  const ethicsAvg = critCount > 0 ? (totalEthics / critCount).toFixed(1) : (student.rating || '5.0');
+
+  const verifiedProjects = (globalShoots || []).filter(s => 
+    Array.isArray(s.crew) && s.crew.some(c => c.userId === student.id || c.id === student.id || (c.user && c.user.id === student.id))
+  );
+
+  let projectsListHtml = '';
+  if (verifiedProjects.length > 0) {
+    projectsListHtml = verifiedProjects.map(sh => {
+      const cm = sh.crew.find(c => c.userId === student.id || c.id === student.id || (c.user && c.user.id === student.id));
+      const rName = cm ? cm.roleInShoot : 'Участник';
+      const statusLabel = sh.isCompleted ? 'ЗАВЕРШЕНО' : 'В ПРОИЗВОДСТВЕ';
+      const statusClass = sh.isCompleted ? 'text-emerald-400 border-emerald-900/60' : 'text-amber-400 border-amber-900/60';
+      return '<div class="p-2.5 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+        '<div>' +
+          '<span class="font-bold uppercase" style="color: var(--text-primary);">' + sh.title + '</span>' +
+          '<div class="text-[10px] font-mono text-[var(--text-muted)]">' + rName + ' // ' + (sh.type || 'СТУДИЯ') + '</div>' +
+        '</div>' +
+        '<span class="font-mono text-[9px] px-2 py-0.5 border ' + statusClass + '">' + statusLabel + '</span>' +
+      '</div>';
+    }).join('');
+  } else if (Array.isArray(student.projects) && student.projects.length > 0) {
+    projectsListHtml = student.projects.map(pName => 
+      '<div class="p-2.5 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+        '<span class="font-bold uppercase" style="color: var(--text-primary);">' + pName + '</span>' +
+        '<span class="font-mono text-[9px] px-2 py-0.5 border text-emerald-400 border-emerald-900/60">ВЕРИФИЦИРОВАНО</span>' +
+      '</div>'
+    ).join('');
+  } else {
+    projectsListHtml = '<div class="p-3 text-center text-xs font-mono text-[var(--text-muted)] border border-dashed">Пока нет завершённых проектов</div>';
+  }
+
   container.innerHTML = 
     '<div class="flex items-center space-x-3.5 border-b pb-4" style="border-color: var(--border-color);">' +
       '<div class="w-16 h-16 border-2 border-[var(--brand-red)] overflow-hidden flex-shrink-0 shadow-md relative">' +
@@ -1420,17 +1470,22 @@ function openShowreelModal(userId) {
           '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + student.competencies.edit + '%;"></div></div>' +
         '</div>' +
       '</div>' +
+
+      '<div class="space-y-1.5 p-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+        '<div class="text-[10px] font-mono font-bold uppercase text-[var(--brand-red)] mb-1">Показатели по 4 стандартам ЦКТ:</div>' +
+        '<div class="grid grid-cols-2 gap-2 text-[11px] font-mono">' +
+          '<div>🎞️ Кадры: <b class="text-amber-400">' + framesAvg + '</b></div>' +
+          '<div>🛡️ Техника: <b class="text-amber-400">' + gearAvg + '</b></div>' +
+          '<div>⏱️ Время: <b class="text-amber-400">' + timeAvg + '</b></div>' +
+          '<div>🤝 Этика: <b class="text-amber-400">' + ethicsAvg + '</b></div>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
 
     '<div class="space-y-2">' +
       '<span class="text-xs font-extrabold uppercase font-mono" style="color: var(--brand-red);">Подтвержденные проекты в фильмографии:</span>' +
-      '<div class="space-y-1.5">' +
-        student.projects.map(pName => 
-          '<div class="p-2.5 border flex items-center justify-between text-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
-            '<span class="font-bold uppercase" style="color: var(--text-primary);">' + pName + '</span>' +
-            '<span class="font-mono text-[9px] px-2 py-0.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">ВЕРИФИЦИРОВАНО</span>' +
-          '</div>'
-        ).join('') +
+      '<div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">' +
+        projectsListHtml +
       '</div>' +
     '</div>' +
 
@@ -2952,78 +3007,180 @@ async function updateAttendance(crewMemberId, attendance) {
   }
 }
 
+function initShootMiniMap(shootId) {
+  const mapContainer = document.getElementById('mini_map_' + shootId);
+  if (!mapContainer || mapContainer.hasChildNodes()) return;
+
+  const lat = parseFloat(mapContainer.getAttribute('data-lat')) || 55.858244;
+  const lon = parseFloat(mapContainer.getAttribute('data-lon')) || 37.518423;
+  const title = mapContainer.getAttribute('data-title') || 'Локация смены';
+
+  if (typeof ymaps !== 'undefined' && ymaps.Map) {
+    ymaps.ready(() => {
+      if (mapContainer && !mapContainer.hasChildNodes()) {
+        const miniMap = new ymaps.Map(mapContainer, {
+          center: [lat, lon],
+          zoom: 14,
+          controls: ['zoomControl']
+        });
+        const placemark = new ymaps.Placemark([lat, lon], {
+          balloonContent: '<strong>' + title + '</strong>'
+        }, {
+          preset: 'islands#redDotIcon'
+        });
+        miniMap.geoObjects.add(placemark);
+      }
+    });
+  } else if (typeof L !== 'undefined') {
+    const miniMap = L.map(mapContainer, {
+      center: [lat, lon],
+      zoom: 14,
+      zoomControl: true,
+      attributionControl: false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(miniMap);
+    const icon = L.divIcon({
+      className: 'custom-cinema-pin',
+      html: '<div style="background:#E30613;width:26px;height:26px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 10px rgba(227,6,19,0.8);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:12px;font-weight:bold;">🎬</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    });
+    const marker = L.marker([lat, lon], { icon: icon }).addTo(miniMap);
+    const popupContent = '<div style="font-family:sans-serif;color:#141414;padding:4px;min-width:180px;">' +
+      '<b style="font-size:12px;color:#E30613;text-transform:uppercase;">' + title + '</b><br>' +
+      '<span style="font-size:10px;color:#555;">Координаты: ' + lat.toFixed(5) + ', ' + lon.toFixed(5) + '</span><br>' +
+      '<div style="margin-top:6px;display:flex;gap:6px;">' +
+        '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" style="background:#229ED9;color:#FFF;padding:4px 8px;font-size:10px;font-weight:bold;text-decoration:none;text-transform:uppercase;border-radius:2px;">Яндекс.Карты ↗</a>' +
+        '<a href="https://2gis.ru/geo/' + lon + '%2C' + lat + '" target="_blank" style="background:#2BA433;color:#FFF;padding:4px 8px;font-size:10px;font-weight:bold;text-decoration:none;text-transform:uppercase;border-radius:2px;">2ГИС ↗</a>' +
+      '</div></div>';
+    marker.bindPopup(popupContent);
+    setTimeout(() => { miniMap.invalidateSize(); }, 300);
+  } else {
+    mapContainer.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-primary);color:var(--text-primary);padding:12px;text-align:center;">' +
+      '<span style="font-size:12px;font-family:monospace;margin-bottom:8px;">📍 ' + title + ' (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')</span>' +
+      '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" class="btn-brand-primary" style="padding:6px 12px;font-size:10px;text-decoration:none;">Открыть карту в новой вкладке ↗</a>' +
+      '</div>';
+  }
+}
+window.initShootMiniMap = initShootMiniMap;
+
 function toggleShootExpand(shootId) {
-  window._openedShootIds = window._openedShootIds || new Set(['demo-shoot-1']);
+  window._openedShootIds = window._openedShootIds || new Set();
   const detailsBlock = document.getElementById('shoot_details_' + shootId);
   const btn = document.getElementById('expand_btn_' + shootId);
-  if (detailsBlock) {
-    const isOpen = detailsBlock.style.maxHeight && detailsBlock.style.maxHeight !== '0px';
-    if (isOpen) {
-      detailsBlock.style.maxHeight = '0px';
-      window._openedShootIds.delete(shootId);
-      if (btn) btn.innerText = 'Развернуть ▾';
-    } else {
-      detailsBlock.style.maxHeight = detailsBlock.scrollHeight + 'px';
-      window._openedShootIds.add(shootId);
-      if (btn) btn.innerText = 'Свернуть ▴';
+  if (!detailsBlock) return;
 
-      const mapContainer = document.getElementById('mini_map_' + shootId);
-      if (mapContainer && !mapContainer.hasChildNodes()) {
-        const lat = parseFloat(mapContainer.getAttribute('data-lat')) || 55.858244;
-        const lon = parseFloat(mapContainer.getAttribute('data-lon')) || 37.518423;
-        const title = mapContainer.getAttribute('data-title') || 'Локация смены';
+  const isCurrentlyOpen = window._openedShootIds.has(shootId);
+  if (isCurrentlyOpen) {
+    detailsBlock.classList.add('hidden');
+    window._openedShootIds.delete(shootId);
+    if (btn) btn.innerText = 'Развернуть ▾';
+  } else {
+    detailsBlock.classList.remove('hidden');
+    window._openedShootIds.add(shootId);
+    if (btn) btn.innerText = 'Свернуть ▴';
+    initShootMiniMap(shootId);
+  }
+}
+window.toggleShootExpand = toggleShootExpand;
 
-        if (typeof ymaps !== 'undefined' && ymaps.Map) {
-          ymaps.ready(() => {
-            const miniMap = new ymaps.Map(mapContainer, {
-              center: [lat, lon],
-              zoom: 14,
-              controls: ['zoomControl']
-            });
-            const placemark = new ymaps.Placemark([lat, lon], {
-              balloonContent: '<strong>' + title + '</strong>'
-            }, {
-              preset: 'islands#redDotIcon'
-            });
-            miniMap.geoObjects.add(placemark);
-          });
-        } else if (typeof L !== 'undefined') {
-          // Leaflet fallback - completely immune to adblockers (BLOCKED_BY_CLIENT)
-          const miniMap = L.map(mapContainer, {
-            center: [lat, lon],
-            zoom: 14,
-            zoomControl: true,
-            attributionControl: false
-          });
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19
-          }).addTo(miniMap);
-          const icon = L.divIcon({
-            className: 'custom-cinema-pin',
-            html: '<div style="background:#E30613;width:26px;height:26px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 10px rgba(227,6,19,0.8);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:12px;font-weight:bold;">🎬</div>',
-            iconSize: [26, 26],
-            iconAnchor: [13, 13]
-          });
-          const marker = L.marker([lat, lon], { icon: icon }).addTo(miniMap);
-          const popupContent = '<div style="font-family:sans-serif;color:#141414;padding:4px;min-width:180px;">' +
-            '<b style="font-size:12px;color:#E30613;text-transform:uppercase;">' + title + '</b><br>' +
-            '<span style="font-size:10px;color:#555;">Координаты: ' + lat.toFixed(5) + ', ' + lon.toFixed(5) + '</span><br>' +
-            '<div style="margin-top:6px;display:flex;gap:6px;">' +
-              '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" style="background:#229ED9;color:#FFF;padding:4px 8px;font-size:10px;font-weight:bold;text-decoration:none;text-transform:uppercase;border-radius:2px;">Яндекс.Карты ↗</a>' +
-              '<a href="https://2gis.ru/geo/' + lon + '%2C' + lat + '" target="_blank" style="background:#2BA433;color:#FFF;padding:4px 8px;font-size:10px;font-weight:bold;text-decoration:none;text-transform:uppercase;border-radius:2px;">2ГИС ↗</a>' +
-            '</div></div>';
-          marker.bindPopup(popupContent).openPopup();
-          setTimeout(() => { miniMap.invalidateSize(); }, 300);
-        } else {
-          mapContainer.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-primary);color:var(--text-primary);padding:12px;text-align:center;">' +
-            '<span style="font-size:12px;font-family:monospace;margin-bottom:8px;">📍 ' + title + ' (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')</span>' +
-            '<a href="https://yandex.ru/maps/?pt=' + lon + ',' + lat + '&z=16" target="_blank" class="btn-brand-primary" style="padding:6px 12px;font-size:10px;text-decoration:none;">Открыть карту в новой вкладке ↗</a>' +
-            '</div>';
-        }
+function selectLocationPreset(name, type, lat, lon) {
+  const locInput = document.getElementById('shootLocation');
+  const typeSelect = document.getElementById('shootType');
+  if (locInput && name) locInput.value = name;
+  if (typeSelect) {
+    typeSelect.value = type;
+    if (typeof toggleMapPicker === 'function') {
+      toggleMapPicker(type);
+    }
+  }
+  if (lat && lon) {
+    const latInput = document.getElementById('selectedLat');
+    const lonInput = document.getElementById('selectedLon');
+    if (latInput) latInput.value = lat;
+    if (lonInput) lonInput.value = lon;
+    if (typeof pickerMarker !== 'undefined' && pickerMarker && typeof pickerMarker.setLatLng === 'function') {
+      pickerMarker.setLatLng([lat, lon]);
+      if (typeof pickerMap !== 'undefined' && pickerMap && typeof pickerMap.setView === 'function') {
+        pickerMap.setView([lat, lon], 14);
       }
     }
   }
 }
+window.selectLocationPreset = selectLocationPreset;
+
+function exportStatisticsToCsv() {
+  const students = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+  const shoots = Array.isArray(globalShoots) ? globalShoots : [];
+
+  const headers = [
+    'ФИО',
+    'Учебная группа',
+    'Цеховой ранг',
+    'Текущий рейтинг',
+    'Завершённых смен',
+    'Качество кадров',
+    'Бережливость к технике',
+    'Пунктуальность',
+    'Командная этика',
+    'Telegram',
+    'Статус'
+  ];
+
+  const rows = students.map(st => {
+    let totalFrames = 0, totalGear = 0, totalTime = 0, totalEthics = 0, critCount = 0;
+    shoots.forEach(sh => {
+      if (sh.isCompleted && Array.isArray(sh.crew)) {
+        const cm = sh.crew.find(c => c.userId === st.id || c.id === st.id || (c.user && c.user.id === st.id));
+        if (cm && cm.cktCriteria) {
+          totalFrames += Number(cm.cktCriteria.frames || 5);
+          totalGear += Number(cm.cktCriteria.gear || 5);
+          totalTime += Number(cm.cktCriteria.time || 5);
+          totalEthics += Number(cm.cktCriteria.ethics || 5);
+          critCount++;
+        }
+      }
+    });
+
+    const framesAvg = critCount > 0 ? (totalFrames / critCount).toFixed(1) : (st.rating || '5.0');
+    const gearAvg = critCount > 0 ? (totalGear / critCount).toFixed(1) : (st.rating || '5.0');
+    const timeAvg = critCount > 0 ? (totalTime / critCount).toFixed(1) : (st.rating || '5.0');
+    const ethicsAvg = critCount > 0 ? (totalEthics / critCount).toFixed(1) : (st.rating || '5.0');
+
+    const rankObj = getCraftRankBadge(st.completedShoots || 0, parseFloat(st.rating) || 5.0);
+    const statusText = st.isSuspended ? 'Приостановлен' : 'Активен';
+
+    return [
+      `"${(st.fullName || '').replace(/"/g, '""')}"`,
+      `"${st.groupName || 'КТ-26'}"`,
+      `"${rankObj.title}"`,
+      (st.rating !== null && st.rating !== undefined) ? st.rating : '5.0',
+      st.completedShoots || 0,
+      framesAvg,
+      gearAvg,
+      timeAvg,
+      ethicsAvg,
+      `"${st.telegram || ''}"`,
+      statusText
+    ].join(';');
+  });
+
+  const csvContent = '\uFEFF' + headers.join(';') + '\r\n' + rows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const nowStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `Otchet_TsKT_KP11_${nowStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Сводка ЦКТ успешно выгружена в CSV!');
+}
+window.exportStatisticsToCsv = exportStatisticsToCsv;
 
 function logout() {
   localStorage.removeItem('token');
@@ -3259,6 +3416,9 @@ async function loadShoots() {
     }
 
     renderShootsList(shoots);
+    if (urlParams.get('expand') === '1' && shoots.length > 0 && (!window._openedShootIds || window._openedShootIds.size === 0)) {
+      setTimeout(() => toggleShootExpand(shoots[0].id), 50);
+    }
   } catch (err) {
     console.error(err);
   }
@@ -3517,9 +3677,9 @@ function renderShootsList(shoots = globalShoots) {
         '<span>Оборудование</span>' +
       '</button>';
 
-      const isShootOpen = (window._openedShootIds ? window._openedShootIds.has(s.id) : (idx === 0));
+      const isShootOpen = window._openedShootIds ? window._openedShootIds.has(s.id) : false;
       const expandBtnText = isShootOpen ? 'Свернуть ▴' : 'Развернуть ▾';
-      const detailsStyle = isShootOpen ? 'transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);' : 'max-height: 0px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);';
+      const hiddenClass = isShootOpen ? '' : 'hidden';
 
       return '<div class="viewfinder-card viewfinder-corners shoot-card ' + cardStateClass + ' p-5 sm:p-6 space-y-4">' +
         '<div class="flex flex-wrap justify-between items-center gap-2">' +
@@ -3549,7 +3709,7 @@ function renderShootsList(shoots = globalShoots) {
           '<span class="flex items-center gap-1.5">' + SVG_ICONS.slate + ' Мастер: <span style="color: var(--text-primary);">' + masterText + '</span></span>' +
         '</div>' +
         
-        '<div id="shoot_details_' + s.id + '" style="' + detailsStyle + '" class="border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">' +
+        '<div id="shoot_details_' + s.id + '" class="' + hiddenClass + ' border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">' +
           '<div class="space-y-2 pt-1">' +
             '<div class="flex items-center justify-between">' +
               '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +
@@ -3568,14 +3728,22 @@ function renderShootsList(shoots = globalShoots) {
 
       '</div>';
     }).join('');
+
+    if (window._openedShootIds && window._openedShootIds.size > 0) {
+      shoots.forEach(s => {
+        if (window._openedShootIds.has(s.id)) {
+          initShootMiniMap(s.id);
+        }
+      });
+    }
 }
 
 window.renderShootsList = renderShootsList;
 
 updateNav();
 
-if (urlParams.get('expand') === '1') {
-  setTimeout(() => toggleShootExpand('demo-shoot-1'), 300);
+if (urlParams.get('expand') === '1' && globalShoots && globalShoots[0]) {
+  setTimeout(() => toggleShootExpand(globalShoots[0].id), 300);
 }
 if (urlParams.get('tab')) {
   setTimeout(() => switchTab(urlParams.get('tab')), 300);

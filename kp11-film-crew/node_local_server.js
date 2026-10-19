@@ -66,15 +66,19 @@ function recalculateRatings() {
   return users;
 }
 
-// Отправка вызывного в Telegram
-function sendTelegramMessage(botToken, chatId, text) {
+// Отправка вызывного в Telegram с поддержкой интерактивных кнопок
+function sendTelegramMessage(botToken, chatId, text, replyMarkup = null) {
   return new Promise((resolve) => {
     if (!botToken || !chatId) return resolve(false);
-    const postData = JSON.stringify({
+    const bodyObj = {
       chat_id: chatId.trim(),
       text,
       parse_mode: 'HTML'
-    });
+    };
+    if (replyMarkup) {
+      bodyObj.reply_markup = replyMarkup;
+    }
+    const postData = JSON.stringify(bodyObj);
 
     const req = https.request({
       hostname: 'api.telegram.org',
@@ -114,7 +118,7 @@ async function dispatchTelegramCallsheet(shoot) {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
-  // Персональные сообщения участникам
+  // Персональные сообщения участникам с интерактивными кнопками
   if (Array.isArray(shoot.crew)) {
     for (const cm of shoot.crew) {
       const u = users.find(usr => usr.id === cm.userId || usr.id === cm.id);
@@ -130,8 +134,18 @@ async function dispatchTelegramCallsheet(shoot) {
           `Локация: <b>${loc}</b>\n` +
           `Мастер смены: <b>${master}</b>\n` +
           `════════════════════════════════════\n` +
-          `<i>Подтвердите явку в веб-интерфейсе платформы КП11.</i>`;
-        const ok = await sendTelegramMessage(botToken, u.telegramChatId, msg);
+          `<i>Подтвердите участие с помощью кнопок ниже:</i>`;
+
+        const replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: '✅ Подтверждаю явку', callback_data: `accept:${shoot.id}` },
+              { text: '❌ Не могу (отклонить)', callback_data: `decline:${shoot.id}` }
+            ]
+          ]
+        };
+
+        const ok = await sendTelegramMessage(botToken, u.telegramChatId, msg, replyMarkup);
         if (ok) delivered++;
       }
     }
@@ -316,7 +330,6 @@ const server = http.createServer(async (req, res) => {
         if (sh.id === targetShootId) {
           sh.isCompleted = true;
           completedShoot = sh;
-          if (Array.isArray(sh.crew)) {
             sh.crew.forEach(cm => {
               if (grades[cm.id] !== undefined) {
                 cm.grade = Number(grades[cm.id]);
@@ -325,8 +338,14 @@ const server = http.createServer(async (req, res) => {
               } else if (!cm.grade) {
                 cm.grade = 5.0;
               }
+
+              if (jsonBody.shoot && Array.isArray(jsonBody.shoot.crew)) {
+                const incomingCm = jsonBody.shoot.crew.find(c => c.id === cm.id || c.userId === cm.userId);
+                if (incomingCm && incomingCm.cktCriteria) {
+                  cm.cktCriteria = incomingCm.cktCriteria;
+                }
+              }
             });
-          }
         }
       });
 
