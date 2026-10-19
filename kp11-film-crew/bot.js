@@ -676,19 +676,35 @@ function parseChatIds(raw) {
 // ФУНКЦИЯ РАССЫЛКИ ВЫЗЫВНОГО ЛИСТА С САЙТА В TELEGRAM
 // ------------------------------------------------------------------------------
 async function sendCallsheetToCrew(shootId, clientShootData = null) {
-  let shoot = await store.getShootById(shootId);
+  let shoot = null;
+  if (shootId) {
+    shoot = await store.getShootById(shootId);
+  }
   if (!shoot && clientShootData) {
     shoot = await store.saveShoot(clientShootData);
   }
+  if (!shoot && clientShootData) {
+    shoot = clientShootData;
+  }
+
+  const token = getBotToken();
+  const settings = store.getSettings();
 
   if (!shoot) {
-    throw new Error(`Смена с ID ${shootId} не найдена в базе сайта`);
+    console.warn(`[KP11 Bot Dispatch] Смена с ID ${shootId} не найдена в базе сайта`);
+    return {
+      shootId: shootId || 'unknown',
+      shootTitle: clientShootData?.title || 'Без названия',
+      totalCrew: 0,
+      deliveredCount: 0,
+      recipients: [],
+      botTokenConfigured: Boolean(token),
+      error: `Смена с ID ${shootId} не найдена в базе сайта`
+    };
   }
 
   const allUsers = await store.getUsers();
   const crew = shoot.crew || [];
-  const token = getBotToken();
-  const settings = store.getSettings();
 
   const results = {
     shootId,

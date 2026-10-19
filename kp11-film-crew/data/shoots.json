@@ -1,5 +1,73 @@
 [
   {
+    "id": "shoot-1792450290828",
+    "title": "Тестовая смена",
+    "description": "Тест",
+    "type": "СТУДИЯ",
+    "date": "2026-10-25T10:00:00",
+    "callTime": "10:00",
+    "startTime": "11:30",
+    "endTime": "18:00",
+    "timeline": [
+      {
+        "time": "10:00",
+        "label": "Сбор съёмочной группы"
+      },
+      {
+        "time": "11:30",
+        "label": "Мотор! Начало съёмки"
+      },
+      {
+        "time": "18:00",
+        "label": "Окончание смены"
+      }
+    ],
+    "location": "Онежская 3",
+    "latitude": 55.858244,
+    "longitude": 37.518423,
+    "isCompleted": false,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "equipment": [],
+    "crew": [
+      {
+        "id": "c-shoot-1792450290828-1",
+        "roleInShoot": "Оператор",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "userId": "u1",
+        "user": {
+          "id": "u1",
+          "fullName": "Ковалев Михаил Алексеевич",
+          "email": "mikhail.kovalev@kp11.ru",
+          "groupName": "ФВТ-22",
+          "rating": 5,
+          "telegram": "@mikhail_cam",
+          "telegramChatId": null,
+          "craftRank": "Камерный оператор // 1st AC",
+          "isSuspended": false,
+          "role": {
+            "name": "Студент"
+          },
+          "competencies": {
+            "camera": 95,
+            "sound": 82,
+            "light": 88,
+            "edit": 96
+          },
+          "skills": [
+            "ARRI Master Prime",
+            "Цветокоррекция",
+            "Стедикам",
+            "LUT Pipeline"
+          ],
+          "completedShoots": 1
+        }
+      }
+    ]
+  },
+  {
     "id": "shoot-prod-1",
     "title": "ПРОИЗВОДСТВЕННАЯ СМЕНА: ИНТЕРВЬЮ В СТУДИИ ПОДКАСТОВ",
     "description": "Многокамерная запись интервью с экспертом индустрии. Настройка микрофонов Shure SM7B, световой схемы и поканального аудиотракта.",

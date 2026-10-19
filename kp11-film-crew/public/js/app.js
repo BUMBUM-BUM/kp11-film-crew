@@ -4272,7 +4272,17 @@ async function loadShoots() {
     if (res.ok) {
       const data = await res.json();
       const rawShoots = data.shoots;
-      shoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
+      let fetchedShoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
+      
+      // Preserve any local shoots not yet reflected in fetchedShoots
+      if (Array.isArray(globalShoots) && globalShoots.length > 0) {
+        const fetchedIds = new Set(fetchedShoots.map(s => String(s.id)));
+        const missingShoots = globalShoots.filter(s => s && s.id && !fetchedIds.has(String(s.id)));
+        if (missingShoots.length > 0) {
+          fetchedShoots = [...missingShoots, ...fetchedShoots];
+        }
+      }
+      shoots = fetchedShoots;
       
       if (data.students) {
         const rawStudents = data.students;

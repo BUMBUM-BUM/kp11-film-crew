@@ -372,10 +372,10 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/cinemaboard', authenticateToken, async (req, res) => {
+app.get('/api/cinemaboard', optionalAuthToken, async (req, res) => {
   try {
-    const user = req.user;
-    const rating = user.rating !== null && user.rating !== undefined ? user.rating : 5.0;
+    const user = req.user || {};
+    const rating = (user && user.rating !== null && user.rating !== undefined) ? user.rating : 5.0;
     const currentHour = new Date().getHours();
     const timeBlock = Math.floor(currentHour / 3);
 
@@ -861,10 +861,14 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       });
     } catch (dbErr) {}
 
-    if (!shoots || shoots.length === 0) {
-      const fileShoots = await store.getShoots();
-      if (fileShoots && fileShoots.length > 0) {
+    const fileShoots = await store.getShoots();
+    if (fileShoots && fileShoots.length > 0) {
+      if (!shoots || shoots.length === 0) {
         shoots = fileShoots;
+      } else {
+        const dbIds = new Set(shoots.map(s => String(s.id)));
+        const extraShoots = fileShoots.filter(s => !dbIds.has(String(s.id)));
+        shoots = [...shoots, ...extraShoots];
       }
     }
     if (!students || students.length === 0) {
@@ -932,46 +936,49 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
     let shoot = null;
     if (prisma) {
       try {
-        let dbCreator = await prisma.user.findUnique({ where: { id: creatorUser.id } });
+        let dbCreator = null;
+        if (creatorUser && creatorUser.id) {
+          dbCreator = await prisma.user.findUnique({ where: { id: creatorUser.id } }).catch(() => null);
+        }
         if (!dbCreator) {
-          const firstAdmin = await prisma.user.findFirst();
-          if (firstAdmin) {
-            creatorUser = { ...creatorUser, id: firstAdmin.id };
+          dbCreator = await prisma.user.findFirst().catch(() => null);
+          if (dbCreator) {
+            creatorUser = { ...creatorUser, id: dbCreator.id, fullName: dbCreator.fullName };
           }
         }
 
-        const validUsers = await prisma.user.findMany({ select: { id: true } });
-        const validUserIds = new Set(validUsers.map(u => u.id));
-        const filteredCrew = (crewAssignments || []).filter(item => validUserIds.has(item.userId));
+        if (dbCreator) {
+          const validUsers = await prisma.user.findMany({ select: { id: true } });
+          const validUserIds = new Set(validUsers.map(u => u.id));
+          const filteredCrew = (crewAssignments || []).filter(item => validUserIds.has(item.userId));
 
-        shoot = await prisma.shoot.create({
-          data: {
-            title,
-            description,
-            type: type || 'СТУДИЯ',
-            date: new Date(date),
-            location,
-            latitude: latitude ? parseFloat(latitude) : 55.751244,
-            longitude: longitude ? parseFloat(longitude) : 37.618423,
-            videoUrl: videoUrl || null,
-            previewUrl: previewUrl || null,
-            creatorId: creatorUser.id,
-            crew: {
-              create: filteredCrew.map(item => ({
-                userId: item.userId,
-                roleInShoot: item.craftRole || 'Участник',
-                status: 'PENDING',
-                attendance: 'PRESENT'
-              }))
+          shoot = await prisma.shoot.create({
+            data: {
+              title,
+              description: description || '',
+              type: type || 'СТУДИЯ',
+              date: new Date(date),
+              location: location || 'Студия КП11',
+              latitude: latitude ? parseFloat(latitude) : 55.751244,
+              longitude: longitude ? parseFloat(longitude) : 37.618423,
+              creatorId: dbCreator.id,
+              crew: {
+                create: filteredCrew.map(item => ({
+                  userId: item.userId,
+                  roleInShoot: item.craftRole || 'Участник',
+                  status: 'PENDING',
+                  attendance: 'PRESENT'
+                }))
+              }
+            },
+            include: { 
+              creator: { select: { fullName: true } },
+              crew: {
+                include: { user: true }
+              }
             }
-          },
-          include: { 
-            creator: { select: { fullName: true } },
-            crew: {
-              include: { user: true }
-            }
-          }
-        });
+          });
+        }
       } catch (dbErr) {
         console.warn('[Prisma DB] shoot.create fallback to store:', dbErr.message);
       }
@@ -1212,11 +1219,14 @@ app.get('/api/notifications', authenticateToken, async (req, res) => {
 // ================= TELEGRAM BOT API ИНТЕГРАЦИЯ =================
 app.post('/api/telegram/dispatch', optionalAuthToken, async (req, res) => {
   try {
-    const { shootId } = req.body;
-    if (!shootId) return res.status(400).json({ error: 'Параметр shootId обязателен' });
+    const { shootId, shoot: clientShoot } = req.body;
+    const targetId = shootId || (clientShoot && clientShoot.id);
+    if (!targetId && !clientShoot) {
+      return res.status(400).json({ error: 'Параметр shootId обязателен' });
+    }
 
-    console.log(`[API /api/telegram/dispatch] Запрос рассылки вызывного для смены ${shootId}`);
-    const report = await telegramBot.sendCallsheetToCrew(shootId);
+    console.log(`[API /api/telegram/dispatch] Запрос рассылки вызывного для смены ${targetId}`);
+    const report = await telegramBot.sendCallsheetToCrew(targetId, clientShoot);
     res.json({ success: true, report });
   } catch (err) {
     console.error('Ошибка в /api/telegram/dispatch:', err.message);

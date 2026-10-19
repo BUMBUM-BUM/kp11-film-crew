@@ -200,9 +200,10 @@ function writeJsonFile(filePath, data) {
 // РАБОТА СО СМЕНАМИ
 // ------------------------------------------------------------------------------
 async function getShoots() {
+  let dbShoots = [];
   if (prisma) {
     try {
-      const dbShoots = await prisma.shoot.findMany({
+      dbShoots = await prisma.shoot.findMany({
         include: {
           creator: { select: { fullName: true } },
           crew: {
@@ -215,26 +216,62 @@ async function getShoots() {
         },
         orderBy: { date: 'asc' }
       });
-      if (Array.isArray(dbShoots)) return dbShoots;
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[store.js] prisma.shoot.findMany error:', e.message);
+    }
   }
-  return readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
+
+  const fileShoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS) || [];
+  if (Array.isArray(dbShoots) && dbShoots.length > 0) {
+    const dbIds = new Set(dbShoots.map(s => String(s.id)));
+    const uniqueFileShoots = fileShoots.filter(s => !dbIds.has(String(s.id)));
+    return [...dbShoots, ...uniqueFileShoots];
+  }
+
+  return fileShoots;
 }
 
 async function getShootById(id) {
+  if (!id) return null;
   const shoots = await getShoots();
-  return shoots.find(s => s.id === id) || null;
+  let found = shoots.find(s => String(s.id) === String(id));
+  if (found) return found;
+
+  const fileShoots = readJsonFile(SHOOTS_FILE, []);
+  found = fileShoots.find(s => String(s.id) === String(id));
+  if (found) return found;
+
+  if (prisma) {
+    try {
+      const dbShoot = await prisma.shoot.findUnique({
+        where: { id: String(id) },
+        include: {
+          creator: { select: { fullName: true } },
+          crew: {
+            include: {
+              user: {
+                select: { id: true, fullName: true, groupName: true, rating: true, skills: true, telegram: true, craftRank: true }
+              }
+            }
+          }
+        }
+      });
+      if (dbShoot) return dbShoot;
+    } catch (e) {}
+  }
+  return null;
 }
 
 async function saveShoot(shootData) {
+  if (!shootData) return null;
   if (prisma) {
     try {
       // Prisma создание при наличии БД
     } catch (e) {}
   }
 
-  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
-  const existingIdx = shoots.findIndex(s => s.id === shootData.id);
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS) || [];
+  const existingIdx = shoots.findIndex(s => String(s.id) === String(shootData.id));
   if (existingIdx >= 0) {
     shoots[existingIdx] = { ...shoots[existingIdx], ...shootData };
   } else {
@@ -251,8 +288,8 @@ async function deleteShoot(id) {
     } catch (e) {}
   }
 
-  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
-  const filtered = shoots.filter(s => s.id !== id);
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS) || [];
+  const filtered = shoots.filter(s => String(s.id) !== String(id));
   writeJsonFile(SHOOTS_FILE, filtered);
   return true;
 }
