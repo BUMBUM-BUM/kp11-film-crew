@@ -412,6 +412,51 @@ function updateNav() {
   }
 }
 
+function quickLogin(role) {
+  let user = null;
+  let tokenStr = 'demo-token';
+  if (role === 'student') {
+    user = {
+      id: 'u1',
+      fullName: 'Ковалев Михаил Алексеевич',
+      email: 'mikhail.kovalev@kp11.ru',
+      groupName: 'ФВТ-22',
+      role: 'Студент',
+      telegram: '@mikhail_cam'
+    };
+    tokenStr = 'token-u1';
+  } else if (role === 'admin') {
+    user = {
+      id: 'admin-1',
+      fullName: 'Смирнов Алексей Викторович',
+      email: 'admin@kp11.ru',
+      groupName: 'ЦКТ',
+      role: 'Администратор',
+      telegram: '@kp11_admin'
+    };
+    tokenStr = 'token-admin-1';
+  } else {
+    user = {
+      id: 'demo-user-1',
+      fullName: 'Бадиков Семён Станиславович',
+      email: 'semyon.badikov@kp11.ru',
+      groupName: 'КТ-26',
+      role: 'Мастер / Преподаватель',
+      telegram: '@badikov_dop'
+    };
+    tokenStr = 'token-demo-user-1';
+  }
+  localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem('token', tokenStr);
+  currentUser = user;
+  token = tokenStr;
+  closeModal();
+  updateNav();
+  loadShoots();
+  showToast('Вход выполнен: ' + user.fullName + ' (' + user.role + ')');
+}
+window.quickLogin = quickLogin;
+
 function renderGuestSidebar() {
   const sidebar = document.getElementById('sidebarProfile');
   if (!sidebar) return;
@@ -433,6 +478,14 @@ function renderGuestSidebar() {
       '<div class="pt-1 flex gap-2">' +
         '<button onclick="openModal(\'login\')" class="w-1/2 py-2 text-xs font-extrabold uppercase btn-brand-primary">Войти</button>' +
         '<button onclick="openModal(\'register\')" class="w-1/2 py-2 text-xs font-extrabold uppercase btn-brand-ghost" style="color:#141414; border-color:#999;">Регистрация</button>' +
+      '</div>' +
+      '<div class="pt-2 border-t space-y-1.5" style="border-color: rgba(0,0,0,0.1);">' +
+        '<span class="text-[9px] font-mono uppercase font-bold text-neutral-600 block">Быстрое переключение ролей:</span>' +
+        '<div class="grid grid-cols-3 gap-1">' +
+          '<button onclick="quickLogin(\'student\')" class="py-1 px-1 text-[9px] font-bold uppercase btn-brand-ghost text-center truncate" style="border-color: rgba(0,0,0,0.2); color:#141414;" title="Войти как студент">🎓 Студент</button>' +
+          '<button onclick="quickLogin(\'master\')" class="py-1 px-1 text-[9px] font-bold uppercase btn-brand-ghost text-center truncate" style="border-color: rgba(0,0,0,0.2); color:#141414;" title="Войти как мастер">🎬 Мастер</button>' +
+          '<button onclick="quickLogin(\'admin\')" class="py-1 px-1 text-[9px] font-bold uppercase btn-brand-ghost text-center truncate" style="border-color: rgba(0,0,0,0.2); color:#141414;" title="Войти как администратор">⚙️ Админ</button>' +
+        '</div>' +
       '</div>' +
       '<div class="pt-2 border-t flex flex-col items-center justify-center space-y-1" style="border-color: rgba(0,0,0,0.1);">' +
         '<span class="text-[8px] font-mono tracking-widest text-black/60 font-extrabold">MEDIA-CREW-KP11-GUEST</span>' +
@@ -4359,46 +4412,27 @@ async function loadShoots() {
       const rawShoots = data.shoots;
       shoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
       
-      const stored = JSON.parse(localStorage.getItem('kp11_shoots') || '[]');
-      if (Array.isArray(stored) && stored.length > 0) {
-        const serverIds = new Set(shoots.map(s => s.id));
-        const localOnly = stored.filter(s => !serverIds.has(s.id) && s.id && s.id.startsWith('shoot-'));
-        if (localOnly.length > 0) {
-          shoots = [...localOnly, ...shoots];
-        }
-      }
       if (data.students) {
         const rawStudents = data.students;
         globalStudents = Array.isArray(rawStudents) ? rawStudents : (rawStudents && Array.isArray(rawStudents.value) ? rawStudents.value : []);
       }
       stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
       userStats = data.userStats || null;
-      if (shoots.length > 0) {
+      try {
         localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
-      }
+      } catch (e) {}
     } else {
       throw new Error('API fetch status ' + res.status);
     }
   } catch (err) {
     userStats = { rating: 4.8, completedParticipated: 4, totalParticipated: 5 };
-    const stored = JSON.parse(localStorage.getItem('kp11_shoots') || '[]');
-    if (Array.isArray(stored) && stored.length > 0) {
+    const stored = JSON.parse(localStorage.getItem('kp11_shoots') || 'null');
+    if (Array.isArray(stored)) {
       shoots = stored;
     } else {
-      shoots = getDefaultShoots();
-      try {
-        localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
-      } catch (e) {}
+      shoots = [];
     }
     stats = { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
-  }
-
-  // Гарантия непустого каталога: на мобильных устройствах или при первом посещении
-  if (!Array.isArray(shoots) || shoots.length === 0) {
-    shoots = getDefaultShoots();
-    try {
-      localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
-    } catch (e) {}
   }
 
   globalShoots = shoots;

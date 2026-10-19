@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -8,6 +9,27 @@ const nodemailer = require('nodemailer');
 const webpush = require('web-push');
 const store = require('./data/store');
 const telegramBot = require('./bot');
+
+const DATA_DIR = path.join(__dirname, 'data');
+const LOCATIONS_FILE = path.join(DATA_DIR, 'locations.json');
+const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
+
+function readJsonSafe(file, fallback = []) {
+  try {
+    if (fs.existsSync(file)) {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    }
+  } catch (e) {}
+  return fallback;
+}
+
+function writeJsonSafe(file, data) {
+  try {
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {}
+}
 
 const app = express();
 const prisma = new PrismaClient();
@@ -81,7 +103,13 @@ async function sendWebPushNotification(userId, title, body, url = '/') {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 async function optionalAuthToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -519,6 +547,231 @@ app.delete(['/api/admin/shoots/:id', '/api/shoots/:id'], optionalAuthToken, asyn
   }
 });
 
+// ----------------- РЕЕСТР ПРЕСЕТОВ ЛОКАЦИЙ -----------------
+app.get('/api/locations', (req, res) => {
+  const locations = readJsonSafe(LOCATIONS_FILE, []);
+  res.json({ success: true, locations });
+});
+
+app.post('/api/locations', optionalAuthToken, (req, res) => {
+  const { name, badge, type, latitude, longitude } = req.body;
+  if (!name) return res.status(400).json({ error: 'Укажите название локации' });
+
+  const locations = readJsonSafe(LOCATIONS_FILE, []);
+  const newLoc = {
+    id: `loc-${Date.now().toString(36)}`,
+    name: name.trim(),
+    badge: badge ? badge.trim() : (type === 'ВЫЕЗД' ? '🚗 ' : '🎬 ') + name.trim(),
+    type: type || 'СТУДИЯ',
+    latitude: parseFloat(latitude) || 55.751244,
+    longitude: parseFloat(longitude) || 37.618423
+  };
+
+  locations.push(newLoc);
+  writeJsonSafe(LOCATIONS_FILE, locations);
+  res.json({ success: true, location: newLoc, locations });
+});
+
+app.put('/api/locations/:id', optionalAuthToken, (req, res) => {
+  const { id } = req.params;
+  const { name, badge, type, latitude, longitude } = req.body;
+  const locations = readJsonSafe(LOCATIONS_FILE, []);
+  let updatedLoc = null;
+
+  const updated = locations.map(l => {
+    if (l.id === id) {
+      updatedLoc = {
+        ...l,
+        name: name ? name.trim() : l.name,
+        badge: badge ? badge.trim() : l.badge,
+        type: type || l.type,
+        latitude: latitude !== undefined ? parseFloat(latitude) : l.latitude,
+        longitude: longitude !== undefined ? parseFloat(longitude) : l.longitude
+      };
+      return updatedLoc;
+    }
+    return l;
+  });
+
+  writeJsonSafe(LOCATIONS_FILE, updated);
+  res.json({ success: true, location: updatedLoc, locations: updated });
+});
+
+app.delete('/api/locations/:id', optionalAuthToken, (req, res) => {
+  const { id } = req.params;
+  const locations = readJsonSafe(LOCATIONS_FILE, []);
+  const updated = locations.filter(l => l.id !== id);
+  writeJsonSafe(LOCATIONS_FILE, updated);
+  res.json({ success: true, locations: updated, message: 'Локация удалена' });
+});
+
+// ----------------- ПАРК ТЕХНИКИ И ОБОРУДОВАНИЯ -----------------
+app.get('/api/inventory', (req, res) => {
+  const inventory = readJsonSafe(INVENTORY_FILE, []);
+  res.json({ success: true, inventory });
+});
+
+app.post('/api/inventory', optionalAuthToken, (req, res) => {
+  const { name, serialNumber, category, notes, status } = req.body;
+  if (!name) return res.status(400).json({ error: 'Укажите название оборудования' });
+
+  const inventory = readJsonSafe(INVENTORY_FILE, []);
+  const newItem = {
+    id: `eq-${Date.now().toString(36)}`,
+    name: name.trim(),
+    serialNumber: serialNumber ? serialNumber.trim() : 'Б/Н',
+    category: category || 'Камеры',
+    notes: notes || 'В рабочем состоянии',
+    status: status || 'AVAILABLE'
+  };
+
+  inventory.push(newItem);
+  writeJsonSafe(INVENTORY_FILE, inventory);
+  res.json({ success: true, item: newItem, inventory });
+});
+
+app.put('/api/inventory/:id', optionalAuthToken, (req, res) => {
+  const { id } = req.params;
+  const { name, serialNumber, category, notes, status } = req.body;
+  const inventory = readJsonSafe(INVENTORY_FILE, []);
+  let updatedItem = null;
+
+  const updated = inventory.map(item => {
+    if (item.id === id) {
+      updatedItem = {
+        ...item,
+        name: name ? name.trim() : item.name,
+        serialNumber: serialNumber ? serialNumber.trim() : item.serialNumber,
+        category: category || item.category,
+        notes: notes !== undefined ? notes : item.notes,
+        status: status || item.status
+      };
+      return updatedItem;
+    }
+    return item;
+  });
+
+  writeJsonSafe(INVENTORY_FILE, updated);
+  res.json({ success: true, item: updatedItem, inventory: updated });
+});
+
+app.delete('/api/inventory/:id', optionalAuthToken, (req, res) => {
+  const { id } = req.params;
+  const inventory = readJsonSafe(INVENTORY_FILE, []);
+  const filtered = inventory.filter(item => item.id !== id);
+  writeJsonSafe(INVENTORY_FILE, filtered);
+  res.json({ success: true, message: 'Оборудование удалено', inventory: filtered });
+});
+
+// ----------------- ПОЛНОЕ РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЯ (АДМИН) -----------------
+app.put('/api/admin/users/:id/full', optionalAuthToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      fullName,
+      groupName,
+      email,
+      telegram,
+      telegramChatId,
+      role,
+      craftRank,
+      rating,
+      completedShoots,
+      isSuspended,
+      competencies
+    } = req.body;
+
+    const users = readJsonSafe(USERS_FILE, []);
+    let updatedUser = null;
+
+    const updated = users.map(u => {
+      if (u.id === id) {
+        updatedUser = {
+          ...u,
+          fullName: fullName || u.fullName,
+          groupName: groupName !== undefined ? groupName : u.groupName,
+          email: email || u.email,
+          telegram: telegram !== undefined ? telegram : u.telegram,
+          telegramChatId: telegramChatId !== undefined ? telegramChatId : u.telegramChatId,
+          role: role ? (typeof role === 'string' ? { name: role } : role) : u.role,
+          craftRank: craftRank !== undefined ? craftRank : u.craftRank,
+          rating: rating !== undefined ? parseFloat(rating) : u.rating,
+          completedShoots: completedShoots !== undefined ? parseInt(completedShoots, 10) : u.completedShoots,
+          isSuspended: isSuspended !== undefined ? !!isSuspended : u.isSuspended,
+          competencies: competencies ? { ...u.competencies, ...competencies } : u.competencies
+        };
+        return updatedUser;
+      }
+      return u;
+    });
+
+    writeJsonSafe(USERS_FILE, updated);
+
+    if (prisma && updatedUser) {
+      try {
+        await prisma.user.update({
+          where: { id },
+          data: {
+            fullName: updatedUser.fullName,
+            groupName: updatedUser.groupName,
+            email: updatedUser.email,
+            telegram: updatedUser.telegram,
+            craftRank: updatedUser.craftRank,
+            rating: updatedUser.rating,
+            isSuspended: updatedUser.isSuspended
+          }
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    res.json({ success: true, user: updatedUser, users: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------- QR ЧЕК-ИН НА СМЕНЕ -----------------
+app.post('/api/shoots/:id/qr-checkin', optionalAuthToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { studentId } = req.body;
+    if (!studentId) return res.status(400).json({ error: 'Укажите ID студента' });
+
+    const shoots = readJsonSafe(SHOOTS_FILE, []);
+    const users = readJsonSafe(USERS_FILE, []);
+    const student = users.find(u => u.id === studentId || u.email === studentId);
+    let updatedShoot = null;
+    let foundMember = null;
+
+    shoots.forEach(sh => {
+      if (sh.id === id && Array.isArray(sh.crew)) {
+        sh.crew.forEach(cm => {
+          if (cm.userId === studentId || cm.id === studentId || (student && cm.userId === student.id)) {
+            cm.attendance = 'PRESENT';
+            cm.status = 'ACCEPTED';
+            foundMember = cm;
+          }
+        });
+        if (foundMember) updatedShoot = sh;
+      }
+    });
+
+    if (updatedShoot) {
+      writeJsonSafe(SHOOTS_FILE, shoots);
+      return res.json({
+        success: true,
+        message: `Студент ${student ? student.fullName : studentId} успешно отмечен на площадке!`,
+        member: foundMember,
+        shoot: updatedShoot
+      });
+    }
+
+    res.status(404).json({ error: 'Участник не найден в составе этой смены' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put('/api/shoots/:id', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -673,7 +926,11 @@ app.patch('/api/users/:id/competency', authenticateToken, requireMasterOrAdmin, 
 // СОЗДАНИЕ СМЕНЫ + ОТПРАВКА EMAIL И ПУШ-УВЕДОМЛЕНИЙ
 app.post('/api/shoots', optionalAuthToken, async (req, res) => {
   try {
-    const { title, description, type, date, location, crewAssignments, latitude, longitude, videoUrl, previewUrl } = req.body;
+    const {
+      title, description, type, date, location, crewAssignments,
+      latitude, longitude, videoUrl, previewUrl,
+      callTime, startTime, endTime, timeline, equipment
+    } = req.body;
     
     let creatorUser = req.user;
     if (!creatorUser) {
@@ -735,7 +992,12 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
       title,
       description,
       type: type || 'СТУДИЯ',
-      date: new Date(date).toISOString(),
+      date: (date && date.includes('T')) ? date : (new Date(date).toISOString().split('T')[0]),
+      callTime: callTime || '10:00',
+      startTime: startTime || '11:30',
+      endTime: endTime || '18:00',
+      timeline: Array.isArray(timeline) ? timeline : [],
+      equipment: Array.isArray(equipment) ? equipment : [],
       location,
       latitude: latitude ? parseFloat(latitude) : 55.751244,
       longitude: longitude ? parseFloat(longitude) : 37.618423,
