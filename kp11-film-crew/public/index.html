@@ -151,21 +151,19 @@
   <!-- ================= ОСНОВНОЙ КОНТЕНТ ================= -->
   <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full space-y-6 relative z-10">
     
-    <!-- Студийный информер / Производственная сводка ЦКТ КП11 (Стиль Viewfinder Slate) -->
+    <!-- Студийный информер / Кинематографическая цитата смены -->
     <section class="cinema-banner p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
       <div class="space-y-2 max-w-3xl relative z-10">
         <div class="flex items-center space-x-2.5">
           <span class="rec-dot"></span>
-          <span class="text-[10px] font-extrabold uppercase tracking-widest font-mono" style="color: var(--brand-red);">ПРОИЗВОДСТВЕННЫЙ МОНИТОРИНГ // ЦКТ КП11</span>
-          <span class="hidden sm:inline-block text-[9px] font-bold px-1.5 py-0.5 border tracking-wider uppercase font-mono" style="background-color: var(--brand-beige-subtle); color: var(--brand-beige-text); border-color: var(--brand-beige-dark);">НЕДЕЛЬНЫЙ ПЛАН</span>
+          <span class="text-[10px] font-extrabold uppercase tracking-widest font-mono" style="color: var(--brand-red);">ЦИТАТА СМЕНЫ // ЦКТ КП11</span>
+          <span id="cinemaTimeBadge" class="text-[9px] font-bold px-1.5 py-0.5 border tracking-wider uppercase font-mono" style="background-color: var(--brand-beige-subtle); color: var(--brand-beige-text); border-color: var(--brand-beige-dark);">СМЕНА</span>
         </div>
         <h2 id="cinemaBoardText" class="text-base md:text-lg font-bold tracking-tight leading-relaxed cinema-banner-title">
-          План съёмок на неделю сформирован • Камеры Canon C200 / R5 готовы к выдаче • Документооборот ЦКТ активен
+          «Кино — это жизнь, с которой вывели пятна».
         </h2>
-        <div id="cinemaBoardDetails" class="flex flex-wrap items-center gap-3 text-[11px] font-mono text-[var(--text-muted)]">
-          <span class="inline-flex items-center gap-1">📍 Павильоны: Онежская, 3 / Студия ЦКТ</span>
-          <span class="inline-flex items-center gap-1">🎒 Парк техники: C200, R5, Zoom H6, Sennheiser</span>
-          <span class="inline-flex items-center gap-1 text-[var(--brand-beige-text)]">⏱️ Воскресный регламент ЦКТ</span>
+        <div id="cinemaBoardAuthor" class="text-xs font-mono font-bold tracking-wide" style="color: var(--brand-beige-text);">
+          — Альфред Хичкок
         </div>
       </div>
       <div id="actionButtonContainer" class="flex-shrink-0 relative z-10"></div>
@@ -427,6 +425,45 @@
           </div>
           <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр по ФИО или группе..." class="w-full studio-input px-3 py-1.5 text-xs font-medium">
           <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 p-2 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
+        </div>
+
+        <!-- Парк техники смены (для вызывных листов) -->
+        <div class="space-y-2 border-t pt-3" style="border-color: var(--border-color);">
+          <div class="flex items-center justify-between">
+            <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Парк техники смены (для вызывного):</label>
+            <button type="button" onclick="toggleInlineEquipmentForm()" class="text-[10px] font-bold font-mono px-2 py-0.5 border text-emerald-400 hover:bg-emerald-950/40 transition" style="border-color: rgba(16,185,129,0.4);">+ Добавить в парк</button>
+          </div>
+
+          <!-- Форма создания/редактирования единицы техники (инлайн) -->
+          <div id="inlineEquipmentForm" class="hidden p-3 border space-y-2.5" style="background-color: var(--bg-elevated); border-color: var(--border-color);">
+            <div class="flex items-center justify-between">
+              <span id="inlineEqFormTitle" class="text-[10px] font-mono font-bold uppercase text-emerald-400">Новая единица оборудования</span>
+              <button type="button" onclick="cancelInlineEquipmentForm()" class="text-[10px] text-[var(--text-muted)] hover:text-white">✕ Отмена</button>
+            </div>
+            <input type="hidden" id="inlineEqEditId" value="">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="inlineEqName" placeholder="Название (напр. Canon C200 EF)" class="w-full studio-input px-2.5 py-1.5 text-xs font-bold">
+              <input type="text" id="inlineEqSerial" placeholder="Серийный номер (S/N)" class="w-full studio-input px-2.5 py-1.5 text-xs font-mono">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select id="inlineEqCategory" class="w-full studio-input px-2.5 py-1.5 text-xs font-medium">
+                <option value="Камеры">Камеры</option>
+                <option value="Оптика">Оптика</option>
+                <option value="Свет">Свет</option>
+                <option value="Звук">Звук</option>
+                <option value="Стабилизация">Стабилизация</option>
+                <option value="Коммутация / Грип">Коммутация / Грип</option>
+              </select>
+              <input type="text" id="inlineEqNotes" placeholder="Комплектация / примечания (напр. 2x CFast, кейс)" class="w-full studio-input px-2.5 py-1.5 text-xs">
+            </div>
+            <button type="button" onclick="saveInlineEquipmentItem()" class="w-full py-1.5 text-xs font-extrabold uppercase bg-emerald-600 hover:bg-emerald-500 text-white transition">Сохранить единицу техники в базу</button>
+          </div>
+
+          <!-- Поиск и список чекбоксов доступной техники -->
+          <input type="text" id="equipmentSearchModal" oninput="filterModalEquipment()" placeholder="Поиск техники по названию или S/N..." class="w-full studio-input px-3 py-1.5 text-xs font-medium">
+          <div id="equipmentCheckboxes" class="max-h-44 overflow-y-auto space-y-1.5 p-2 border" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+            <div class="text-[11px] font-mono text-[var(--text-muted)] p-2 text-center">Парк техники пуст. Нажмите «+ Добавить в парк», чтобы внести оборудование.</div>
+          </div>
         </div>
 
         <div class="pt-2">

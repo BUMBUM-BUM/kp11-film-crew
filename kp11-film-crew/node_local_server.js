@@ -281,6 +281,7 @@ const server = http.createServer(async (req, res) => {
         longitude: parseFloat(jsonBody.longitude) || 37.518423,
         isCompleted: false,
         creator: { fullName: (jsonBody.creator && jsonBody.creator.fullName) || 'Бадиков Семён Станиславович' },
+        equipment: Array.isArray(jsonBody.equipment) ? jsonBody.equipment : [],
         crew: crewList
       };
 
@@ -492,6 +493,31 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, message: 'Оборудование удалено', inventory: filtered }));
     }
 
+    // PUT /api/inventory/:id (Редактирование единицы техники)
+    const invPutMatch = pathname.match(/^\/api\/inventory\/([^/]+)$/);
+    if (invPutMatch && req.method === 'PUT') {
+      const eqId = invPutMatch[1];
+      const inventory = readJsonFile(INVENTORY_FILE, []);
+      let updatedItem = null;
+      const updated = inventory.map(item => {
+        if (item.id === eqId) {
+          updatedItem = {
+            ...item,
+            name: jsonBody.name !== undefined ? jsonBody.name : item.name,
+            category: jsonBody.category !== undefined ? jsonBody.category : item.category,
+            serialNumber: jsonBody.serialNumber !== undefined ? jsonBody.serialNumber : item.serialNumber,
+            notes: jsonBody.notes !== undefined ? jsonBody.notes : item.notes,
+            location: jsonBody.location !== undefined ? jsonBody.location : item.location,
+            updatedAt: new Date().toISOString()
+          };
+          return updatedItem;
+        }
+        return item;
+      });
+      writeJsonFile(INVENTORY_FILE, updated);
+      return res.end(JSON.stringify({ success: true, item: updatedItem, inventory: updated }));
+    }
+
     // 9. АВТОРИЗАЦИЯ
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const users = readJsonFile(USERS_FILE, []);
@@ -648,17 +674,68 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: false, message: 'Смена не найдена' }));
     }
 
-    // 13. ЦИТАТЫ КИНОБОРДА
+    // 13. ЦИТАТЫ КИНОБОРДА (Интеллектуальный подбор по времени суток и мастерству)
     if (pathname === '/api/cinemaboard' && req.method === 'GET') {
-      const quotes = [
-        "«Кино — это жизнь, с которой вывели пятна». Продолжаем двигаться по сценарию! — Альфред Хичкок",
-        "«Кинематограф не должен быть куском жизни, он должен быть произведением искусства». — Стэнли Кубрик",
-        "«Великие фильмы рождаются из великих идей и безупречной работы команды». — Жан-Люк Годар",
-        "«Смонтировать фильм — значит заново вдохнуть в него ритм и жизнь». — Андрей Тарковский",
-        "«Свет на съёмочной площадке рисует историю задолго до того, как актёр скажет первую реплику». — Роджер Дикинс"
+      const CINEMA_QUOTES = [
+        // Утро (05:00 - 11:59)
+        { time: 'morning', tier: 'master', text: '«Утренний свет на съёмочной площадке невозможно сымитировать — его можно только поймать и запечатлеть».', author: 'Роджер Дикинс' },
+        { time: 'morning', tier: 'master', text: '«Каждое утро перед командой „Мотор!“ рождается новый кинематографический мир».', author: 'Федерико Феллини' },
+        { time: 'morning', tier: 'student', text: '«Хорошее начало смены — это половина успеха картины. Дисциплина рождает свободу творчества».', author: 'Акира Куросава' },
+        { time: 'morning', tier: 'master', text: '«Первый дубль задаёт ритм всему съёмочному дню. Будьте предельно точны с фокусом и звуком».', author: 'Стэнли Кубрик' },
+        { time: 'morning', tier: 'master', text: '«Утро — время чистых мыслей, собранности цехов и выверенной экспозиции».', author: 'Андрей Тарковский' },
+        { time: 'morning', tier: 'guest', text: '«Кино начинается задолго до команды „Мотор!“. Оно начинается с утреннего кофе и взгляда в видоискатель».', author: 'Дэвид Линч' },
+        { time: 'morning', tier: 'student', text: '«Подготовленный вызывной и план смены спасают съёмочную группу от любого утреннего хаоса».', author: 'Альфред Хичкок' },
+        { time: 'morning', tier: 'student', text: '«Свет — это кисть кинематографиста. Утренние тени рисуют подлинную драматургию кадра».', author: 'Витторио Стораро' },
+
+        // День (12:00 - 17:59)
+        { time: 'day', tier: 'master', text: '«Кинематограф — это не просто съёмка реальности. Это создание правды со скоростью 24 кадра в секунду».', author: 'Жан-Люк Годар' },
+        { time: 'day', tier: 'student', text: '«Режиссёр ведёт оркестр, но каждый цех группы — солист, отвечающий за чистоту звука и кадра».', author: 'Мартин Скорсезе' },
+        { time: 'day', tier: 'master', text: '«В кино нет мелочей: посторонний шорох в петличке или микросмаз разрушают иллюзию жизни».', author: 'Дэвид Финчер' },
+        { time: 'day', tier: 'student', text: '«Монтаж начинается уже на площадке — думайте о склейках во время каждого панорамирования».', author: 'Сергей Эйзенштейн' },
+        { time: 'day', tier: 'student', text: '«Снимайте каждый дубль так, будто он войдёт в историю кино. Вкладывайте всю энергию в объектив».', author: 'Квентин Тарантино' },
+        { time: 'day', tier: 'master', text: '«Кадр должен дышать вместе со зрителем. Следите за динамикой мизансцены и чистотой фокуса».', author: 'Кристофер Нолан' },
+        { time: 'day', tier: 'student', text: '«Звук в кино несёт ровно половину эмоционального веса сцены. Никогда не пренебрегайте чистовой дорожкой».', author: 'Джордж Лукас' },
+        { time: 'day', tier: 'guest', text: '«Кинокамера — это увеличительное стекло человеческой души и правды характера».', author: 'Ингмар Бергман' },
+        { time: 'day', tier: 'master', text: '«Высшее мастерство оператора — растворить камеру в атмосфере происходящего на площадке».', author: 'Эммануэль Любецки' },
+
+        // Вечер (18:00 - 22:59)
+        { time: 'evening', tier: 'master', text: '«Режимное время длится считанные минуты. Настоящий профессионализм — быть полностью готовым к нему заранее».', author: 'Роджер Дикинс' },
+        { time: 'evening', tier: 'student', text: '«Вечерний дубль подводит итог смены. Отснятый материал говорит громче любых слов».', author: 'Андрей Тарковский' },
+        { time: 'evening', tier: 'guest', text: '«Кино — это жизнь, с которой вывели пятна. Продолжаем двигаться точно по сценарию!»', author: 'Альфред Хичкок' },
+        { time: 'evening', tier: 'student', text: '«Фильм собирается по крупицам: то, что снято сегодня вечером, завтра станет историей на монтажном столе».', author: 'Стивен Спилберг' },
+        { time: 'evening', tier: 'master', text: '«Никогда не компрометируйте художественный замысел ради спешки к концу смены. Честность кадра превыше всего».', author: 'Дени Вильнёв' },
+        { time: 'evening', tier: 'master', text: '«Вечерний свет требует ювелирной работы со светотенью, плотностью теней и балансом белого».', author: 'Роберт Элсвит' },
+        { time: 'evening', tier: 'student', text: '«Дисциплинированная съёмочная группа завершает смену вовремя и со сданным парком техники».', author: 'Клинт Иствуд' },
+        { time: 'evening', tier: 'guest', text: '«Магия кинематографа — превратить вечернюю усталость команды в триумф финального кадра дня».', author: 'Фрэнсис Форд Коппола' },
+
+        // Ночь (23:00 - 04:59)
+        { time: 'night', tier: 'master', text: '«Ночная смена обнажает истинный нерв кинопроизводства. Свет во тьме становится главным драматургом».', author: 'Дэвид Финчер' },
+        { time: 'night', tier: 'guest', text: '«В темноте павильона оживает воображение. Кинематограф — это сновидение наяву».', author: 'Федерико Феллини' },
+        { time: 'night', tier: 'master', text: '«Снимать ночью — значит писать светом по чёрному холсту. Каждый контровой прибор меняет всё пространство».', author: 'Роджер Дикинс' },
+        { time: 'night', tier: 'student', text: '«Ночной монтаж — время, когда разрозненные дубли наконец обретают своё подлинное дыхание и ритм».', author: 'Уолтер Мёрч' },
+        { time: 'night', tier: 'master', text: '«Тишина ночной съёмочной площадки обостряет восприятие каждого шороха и каждого блика на линзе».', author: 'Андрей Тарковский' },
+        { time: 'night', tier: 'student', text: '«Ночь принадлежит тем, кто влюблён в магию кинокамеры сильнее сна».', author: 'Кристофер Нолан' }
       ];
-      const q = quotes[Math.floor(Math.random() * quotes.length)];
-      return res.end(JSON.stringify({ success: true, message: q }));
+
+      const hour = new Date().getHours();
+      let curTime = 'day';
+      let timeBadge = 'ДНЕВНАЯ СМЕНА';
+      if (hour >= 5 && hour < 12) { curTime = 'morning'; timeBadge = 'УТРЕННЯЯ СМЕНА'; }
+      else if (hour >= 12 && hour < 18) { curTime = 'day'; timeBadge = 'ДНЕВНАЯ СМЕНА'; }
+      else if (hour >= 18 && hour < 23) { curTime = 'evening'; timeBadge = 'ВЕЧЕРНЯЯ СМЕНА'; }
+      else { curTime = 'night'; timeBadge = 'НОЧНАЯ СМЕНА'; }
+
+      let matching = CINEMA_QUOTES.filter(q => q.time === curTime);
+      if (matching.length === 0) matching = CINEMA_QUOTES;
+      const q = matching[Math.floor(Math.random() * matching.length)];
+
+      return res.end(JSON.stringify({
+        success: true,
+        text: q.text,
+        author: q.author,
+        timeBadge: timeBadge,
+        message: `${q.text} — ${q.author}`
+      }));
     }
 
     // Fallback для остальных API

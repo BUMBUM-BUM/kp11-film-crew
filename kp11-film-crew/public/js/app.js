@@ -22,8 +22,23 @@ function pluralizeRu(n, one, few, many) {
   if (mod100 >= 11 && mod100 <= 19) return `${num} ${many}`;
   if (mod10 === 1) return `${num} ${one}`;
   if (mod10 >= 2 && mod10 <= 4) return `${num} ${few}`;
-  return `${num} ${many}`;
 }
+
+function safeFormatDate(dStr) {
+  if (!dStr) return 'Дата не указана';
+  try {
+    const s = typeof dStr === 'string' ? dStr.replace(' ', 'T') : dStr;
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return String(dStr);
+    return d.toLocaleString('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch (e) {
+    return String(dStr);
+  }
+}
+
 
 function getUserRoleName(user) {
   if (!user) return 'Гость';
@@ -470,9 +485,7 @@ function switchTab(tab) {
 
 // ================= МОДУЛЬ 3: ВЫЗЫВНЫЕ ЛИСТЫ И TELEGRAM BOT =================
 function generateCallSheetText(shoot) {
-  const formattedDate = new Date(shoot.date).toLocaleString('ru-RU', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
+  const formattedDate = safeFormatDate(shoot.date);
   const crewList = shoot.crew || [];
   
   let crewLines = [];
@@ -488,6 +501,20 @@ function generateCallSheetText(shoot) {
   const coords = (shoot.latitude && shoot.longitude) ? (parseFloat(shoot.latitude).toFixed(6) + ', ' + parseFloat(shoot.longitude).toFixed(6)) : '';
   const mapStr = coords ? ('\nГЕОТОЧКА: https://yandex.ru/maps/?pt=' + coords.split(', ')[1] + ',' + coords.split(', ')[0] + '&z=16') : '';
 
+  // Съёмочное оборудование смены
+  const eqList = Array.isArray(shoot.equipment) ? shoot.equipment : [];
+  let eqLines = [];
+  if (eqList.length > 0) {
+    eqList.forEach(eq => {
+      const eqItem = typeof eq === 'object' ? eq : (globalInventory || []).find(e => e.id === eq);
+      if (eqItem) {
+        const sn = eqItem.serialNumber ? ' [S/N: ' + eqItem.serialNumber + ']' : '';
+        const notes = eqItem.notes ? ' (' + eqItem.notes + ')' : '';
+        eqLines.push('  • ' + eqItem.name + sn + notes);
+      }
+    });
+  }
+
   let text = 'Вызывной\n' +
     '═══════════════════════════════════════════════════\n' +
     'ПРОЕКТ: ' + (shoot.title || 'СМЕНА') + '\n' +
@@ -498,6 +525,12 @@ function generateCallSheetText(shoot) {
     '═══════════════════════════════════════════════════\n' +
     'СЪЁМОЧНАЯ ГРУППА:\n' +
     (crewLines.length > 0 ? crewLines.join('\n') : '  Состав формируется') + '\n';
+
+  if (eqLines.length > 0) {
+    text += '═══════════════════════════════════════════════════\n' +
+      'СЪЁМОЧНАЯ ТЕХНИКА И ОБОРУДОВАНИЕ:\n' +
+      eqLines.join('\n') + '\n';
+  }
 
   if (shoot.description) {
     text += '═══════════════════════════════════════════════════\n' +
@@ -728,17 +761,13 @@ async function loadInventoryData() {
   } catch (err) {
     console.warn('Inventory fetch offline, using fallback:', err.message);
   }
-  if (!globalInventory || globalInventory.length === 0) {
-    globalInventory = [
-      { id: 'eq-1', name: 'Кинокамера Canon Cinema EOS C200 EF', category: 'Камеры', serialNumber: 'CN-C200-742019', status: 'AVAILABLE', location: 'Павильон №1 ЦКТ', notes: '4K Cinema RAW Light, 2x CFast 256GB' },
-      { id: 'eq-2', name: 'Камера Canon EOS R5 C Mirrorless', category: 'Камеры', serialNumber: 'CN-R5C-881023', status: 'AVAILABLE', location: 'Студия звукозаписи и подкастов', notes: '8K ProRes, клетка Tilta' },
-      { id: 'eq-3', name: 'Комплект кинооптики Canon Cinema Prime (24, 35, 50, 85mm T1.5)', category: 'Оптика', serialNumber: 'SET-CP-44091', status: 'AVAILABLE', location: 'Склад техники ЦКТ', notes: 'Кейс Peli 1510, EF байонет' },
-      { id: 'eq-4', name: 'Осветительный прибор Aputure Light Storm LS 300D II', category: 'Свет', serialNumber: 'AP-300D-55102', status: 'AVAILABLE', location: 'Павильон №1 ЦКТ', notes: 'Софтбокс Light Dome II, C-Stand' },
-      { id: 'eq-5', name: 'Комплект фокусного света Dedolight DLED4-BI (3 прибора)', category: 'Свет', serialNumber: 'DEDO-KIT-309', status: 'AVAILABLE', location: 'Павильон №1 ЦКТ', notes: 'Биколор 2800-6500K, диммеры' },
-      { id: 'eq-6', name: 'Радиосистемы петличные Sennheiser EW-DP ME2 Set (2 канала)', category: 'Звук', serialNumber: 'SENN-EWDP-882', status: 'AVAILABLE', location: 'Аппаратная ЦКТ', notes: 'Цифровая передача, петлички ME2' },
-      { id: 'eq-7', name: 'Портативный аудиорекордер Zoom H6 Black Edition', category: 'Звук', serialNumber: 'ZOOM-H6-4419', status: 'AVAILABLE', location: 'Аппаратная ЦКТ', notes: 'Поканальная запись, SDXC 128GB' },
-      { id: 'eq-8', name: 'Электронный стедикам DJI RS 3 Pro Combo', category: 'Стабилизация', serialNumber: 'DJI-RS3P-9914', status: 'AVAILABLE', location: 'Склад техники ЦКТ', notes: 'Мотор фокуса, ручка Briefcase' }
-    ];
+  if (!globalInventory || !Array.isArray(globalInventory) || globalInventory.length === 0) {
+    try {
+      const stored = JSON.parse(localStorage.getItem('kp11_inventory') || '[]');
+      globalInventory = Array.isArray(stored) ? stored : [];
+    } catch (e) {
+      globalInventory = [];
+    }
   }
 }
 
@@ -769,23 +798,30 @@ function renderEquipmentModalTabs(shootId) {
   const masterName = (shoot.creator && shoot.creator.fullName) ? shoot.creator.fullName : 'Бадиков Семён Станиславович';
   const dDate = new Date(shoot.date).toLocaleDateString('ru-RU');
 
-  // Вкладка 1: Акт вывоза
-  let contentHtml = '';
-  if (activeEquipmentTab === 'checkout') {
-    const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
-    let studentOptions = crewList.map(c => {
-      const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
-      return '<option value="' + (u.fullName || 'Студент') + '">' + (u.fullName || 'Студент') + ' [' + (u.groupName || 'Группа') + '] — ' + c.roleInShoot + '</option>';
-    }).join('');
+  const assignedEqList = Array.isArray(shoot.equipment) && shoot.equipment.length > 0
+    ? shoot.equipment.map(e => typeof e === 'object' ? e : (globalInventory || []).find(it => it.id === e)).filter(Boolean)
+    : globalInventory;
 
-    if (!studentOptions) {
-      studentOptions = '<option value="Демидов Тимофей Дмитриевич">Демидов Тимофей Дмитриевич [ФВТ-22] — Бригадир смены</option>';
-    }
+  const crewList = (shoot.crew || []).filter(c => c.status === 'ACCEPTED' || c.attendance === 'PRESENT');
+  let studentOptions = crewList.map(c => {
+    const u = c.user || (globalStudents || []).find(st => st.id === (c.userId || c.id)) || {};
+    return '<option value="' + (u.fullName || 'Студент') + '">' + (u.fullName || 'Студент') + ' [' + (u.groupName || 'Группа') + '] — ' + c.roleInShoot + '</option>';
+  }).join('');
 
-    const itemsCheckboxes = globalInventory.map((eq, idx) => {
-      const isChecked = idx < 6 ? 'checked' : '';
+  if (!studentOptions) {
+    studentOptions = '<option value="Демидов Тимофей Дмитриевич">Демидов Тимофей Дмитриевич [ФВТ-22] — Бригадир смены</option>';
+  }
+
+  let itemsCheckboxes = '';
+  if (assignedEqList.length === 0) {
+    itemsCheckboxes = '<div class="col-span-full p-4 text-center text-xs font-mono text-[var(--text-muted)] border border-dashed" style="border-color: var(--border-color);">' +
+      'В смене пока не назначено съёмочное оборудование.<br>' +
+      '<span class="text-[10px] text-amber-400 mt-1 inline-block">Технику можно выбрать или добавить при создании смены</span>' +
+      '</div>';
+  } else {
+    itemsCheckboxes = assignedEqList.map(eq => {
       return '<label class="flex items-start space-x-2.5 p-2.5 border cursor-pointer select-none transition hover:border-[var(--brand-red)]" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-        '<input type="checkbox" ' + isChecked + ' data-eq-id="' + eq.id + '" class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
+        '<input type="checkbox" checked data-eq-id="' + eq.id + '" class="accent-[var(--brand-red)] mt-0.5 w-4 h-4">' +
         '<div class="min-w-0 flex-1">' +
           '<div class="flex items-center justify-between gap-1">' +
             '<b class="text-xs truncate" style="color: var(--text-primary);">' + eq.name + '</b>' +
@@ -795,229 +831,266 @@ function renderEquipmentModalTabs(shootId) {
         '</div>' +
       '</label>';
     }).join('');
-
-    contentHtml = 
-      '<div class="p-5 border space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
-        '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3" style="border-color: var(--border-color);">' +
-          '<div>' +
-            '<div class="text-[10px] font-mono tracking-widest uppercase font-bold" style="color: var(--brand-red);">ТЕХПАРК ЦЕНТРА КРЕАТИВНЫХ ТЕХНОЛОГИЙ КП11</div>' +
-            '<h4 class="text-sm font-extrabold uppercase tracking-wide" style="color: var(--text-primary);">АКТ ВЫДАЧИ И ВЫВОЗА СЪЁМОЧНОГО ОБОРУДОВАНИЯ</h4>' +
-          '</div>' +
-          '<span class="text-[10px] font-mono font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--brand-beige-text); border-color: var(--border-color);">АКТ № ' + (shoot.id || 'EQ-101') + '</span>' +
-        '</div>' +
-
-        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
-          '<div><b>Проект:</b> ' + (shoot.title || 'Смена') + '</div>' +
-          '<div><b>Дата выезда:</b> ' + dDate + '</div>' +
-          '<div><b>Локация площадки:</b> ' + (shoot.location || 'Павильон КП11') + '</div>' +
-          '<div><b>Ответственный мастер:</b> ' + masterName + '</div>' +
-        '</div>' +
-
-        '<div class="space-y-2">' +
-          '<label class="text-xs font-bold uppercase tracking-wider block" style="color: var(--text-primary);">Материально ответственный студент (получатель комплекта техники):</label>' +
-          '<select id="equipResponsibleStudent" class="studio-input w-full text-xs font-bold px-3 py-2">' +
-            studentOptions +
-          '</select>' +
-        '</div>' +
-
-        '<div class="space-y-2.5">' +
-          '<div class="flex items-center justify-between border-b pb-1 text-xs font-bold uppercase" style="border-color: var(--border-subtle); color: var(--brand-beige-text);">' +
-            '<span>Спецификация техники ЦКТ КП11 с серийными номерами</span>' +
-            '<span class="text-[10px] font-mono">ОТМЕТКА ВЫДАЧИ</span>' +
-          '</div>' +
-          '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs max-h-64 overflow-y-auto pr-1">' +
-            itemsCheckboxes +
-          '</div>' +
-        '</div>' +
-
-        '<div class="p-3 border text-[11px] font-mono leading-relaxed" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">' +
-          'Оборудование выдано в исправном состоянии, оптика и матрицы проверены. Студент-получатель обязуется бережно эксплуатировать технику согласно регламенту ЦКТ КП11 и вернуть её на склад сразу по завершении смены.' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="flex items-center justify-end gap-2 pt-2">' +
-        '<button onclick="closeEquipmentModal()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отмена</button>' +
-        '<button onclick="saveEquipmentCheckout()" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">' +
-          '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
-          '<span>Распечатать и утвердить акт вывоза</span>' +
-        '</button>' +
-      '</div>';
-  } else {
-    // Вкладка 2: Реестр техники и создание оборудования (Модуль 3)
-    let addFormHtml = '';
-    if (canManageGear) {
-      addFormHtml = 
-        '<div class="p-4 border space-y-3" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
-          '<div class="flex items-center space-x-2 border-b pb-2" style="border-color: var(--border-subtle);">' +
-            '<span class="rec-dot"></span>' +
-            '<h5 class="text-xs font-extrabold uppercase tracking-wide" style="color: var(--brand-red);">Принять на баланс ЦКТ новую единицу техники</h5>' +
-          '</div>' +
-          '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">' +
-            '<div>' +
-              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Наименование техники *</label>' +
-              '<input id="newEqName" type="text" placeholder="Напр. Кинокамера RED Komodo 6K" class="studio-input w-full px-2.5 py-1.5 text-xs font-bold">' +
-            '</div>' +
-            '<div>' +
-              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Цеховая категория *</label>' +
-              '<select id="newEqCategory" class="studio-input w-full px-2.5 py-1.5 text-xs font-bold">' +
-                '<option value="Камеры">Камеры и сенсоры</option>' +
-                '<option value="Оптика">Кинооптика / Prime</option>' +
-                '<option value="Свет">Световое оборудование</option>' +
-                '<option value="Звук">Звукозапись и радиосистемы</option>' +
-                '<option value="Стабилизация">Стедикамы и штативы</option>' +
-                '<option value="Коммутация">Коммутация и питание</option>' +
-              '</select>' +
-            '</div>' +
-            '<div>' +
-              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Серийный номер (S/N) *</label>' +
-              '<input id="newEqSerial" type="text" placeholder="Напр. CN-KOMODO-9901" class="studio-input w-full px-2.5 py-1.5 text-xs font-mono font-bold">' +
-            '</div>' +
-            '<div>' +
-              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Локация / Павильон</label>' +
-              '<input id="newEqLocation" type="text" placeholder="Павильон №1 ЦКТ" value="Павильон №1 ЦКТ" class="studio-input w-full px-2.5 py-1.5 text-xs font-bold">' +
-            '</div>' +
-            '<div class="sm:col-span-2">' +
-              '<label class="block font-bold text-[10px] uppercase font-mono text-[var(--text-muted)] mb-1">Комплектация и примечания</label>' +
-              '<input id="newEqNotes" type="text" placeholder="Кейс, 2 аккумулятора, кабель D-Tap" class="studio-input w-full px-2.5 py-1.5 text-xs font-medium">' +
-            '</div>' +
-          '</div>' +
-          '<div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--border-subtle);">' +
-            '<span class="text-[10px] font-mono text-[var(--text-muted)]">Подписывает мастер: <b class="text-[var(--text-primary)]">' + (currentUser ? currentUser.fullName : 'Бадиков Семён Станиславович') + '</b></span>' +
-            '<button onclick="addNewInventoryItem()" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase shadow inline-flex items-center gap-1">' +
-              SVG_ICONS.check +
-              '<span>Принять на баланс и подписать</span>' +
-            '</button>' +
-          '</div>' +
-        '</div>';
-    } else {
-      addFormHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed text-[var(--text-muted)]">Создание и подписание единиц техники доступно Мастерам и Администраторам ЦКТ</div>';
-    }
-
-    const tableRows = globalInventory.map((eq, idx) => {
-      let deleteBtn = canManageGear ? '<button onclick="deleteInventoryItem(\'' + eq.id + '\')" class="text-red-400 hover:text-red-300 font-extrabold text-[10px] uppercase p-1">Удалить</button>' : '—';
-      return '<tr class="border-b transition hover:bg-white/5" style="border-color: var(--border-subtle);">' +
-        '<td class="p-2.5 font-bold text-xs" style="color: var(--text-primary);">' + eq.name + '</td>' +
-        '<td class="p-2.5 font-mono text-xs text-amber-400 font-bold">' + (eq.serialNumber || '—') + '</td>' +
-        '<td class="p-2.5 text-xs font-mono" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</td>' +
-        '<td class="p-2.5 text-xs" style="color: var(--text-muted);">' + (eq.location || 'ЦКТ КП11') + '</td>' +
-        '<td class="p-2.5 text-[11px] font-mono text-emerald-400 font-bold">' + (eq.signedBy ? '✓ ' + eq.signedBy : 'Утверждено ЦКТ') + '</td>' +
-        '<td class="p-2.5 text-right">' + deleteBtn + '</td>' +
-      '</tr>';
-    }).join('');
-
-    contentHtml = 
-      '<div class="space-y-4">' +
-        addFormHtml +
-        '<div class="border overflow-x-auto" style="border-color: var(--border-color); background-color: var(--bg-card);">' +
-          '<table class="w-full text-left border-collapse">' +
-            '<thead>' +
-              '<tr class="border-b text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
-                '<th class="p-2.5">Наименование оборудования</th>' +
-                '<th class="p-2.5">Серийный номер (S/N)</th>' +
-                '<th class="p-2.5">Категория</th>' +
-                '<th class="p-2.5">Склад / Павильон</th>' +
-                '<th class="p-2.5">ЭЦП Мастера / Приемка</th>' +
-                '<th class="p-2.5 text-right">Действие</th>' +
-              '</tr>' +
-            '</thead>' +
-            '<tbody>' + tableRows + '</tbody>' +
-          '</table>' +
-        '</div>' +
-      '</div>';
   }
 
-  // Общий каркас с переключателем табов
   container.innerHTML = 
-    '<div class="space-y-4">' +
-      '<div class="flex items-center space-x-2 border-b pb-2" style="border-color: var(--border-color);">' +
-        '<button onclick="switchEquipmentTab(\'checkout\')" class="px-3 py-1.5 text-xs font-extrabold uppercase transition border ' + (activeEquipmentTab === 'checkout' ? 'bg-[var(--brand-red)] text-white border-[var(--brand-red)]' : 'btn-brand-ghost text-[var(--text-muted)]') + '">1. Акт вывоза на смену</button>' +
-        '<button onclick="switchEquipmentTab(\'registry\')" class="px-3 py-1.5 text-xs font-extrabold uppercase transition border ' + (activeEquipmentTab === 'registry' ? 'bg-[var(--brand-red)] text-white border-[var(--brand-red)]' : 'btn-brand-ghost text-[var(--text-muted)]') + '">2. Реестр техники и создание оборудования (' + globalInventory.length + ')</button>' +
+    '<div class="p-5 border space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+      '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3" style="border-color: var(--border-color);">' +
+        '<div>' +
+          '<div class="text-[10px] font-mono tracking-widest uppercase font-bold" style="color: var(--brand-red);">ТЕХПАРК ЦЕНТРА КРЕАТИВНЫХ ТЕХНОЛОГИЙ КП11</div>' +
+          '<h4 class="text-sm font-extrabold uppercase tracking-wide" style="color: var(--text-primary);">АКТ ВЫДАЧИ И ВЫВОЗА СЪЁМОЧНОГО ОБОРУДОВАНИЯ</h4>' +
+        '</div>' +
+        '<span class="text-[10px] font-mono font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); color: var(--brand-beige-text); border-color: var(--border-color);">АКТ № ' + (shoot.id || 'EQ-101') + '</span>' +
       '</div>' +
-      contentHtml +
+
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
+        '<div><b>Проект:</b> ' + (shoot.title || 'Смена') + '</div>' +
+        '<div><b>Дата выезда:</b> ' + dDate + '</div>' +
+        '<div><b>Локация площадки:</b> ' + (shoot.location || 'Павильон КП11') + '</div>' +
+        '<div><b>Ответственный мастер:</b> ' + masterName + '</div>' +
+      '</div>' +
+
+      '<div class="space-y-2">' +
+        '<label class="text-xs font-bold uppercase tracking-wider block" style="color: var(--text-primary);">Материально ответственный студент (получатель комплекта техники):</label>' +
+        '<select id="equipResponsibleStudent" class="studio-input w-full text-xs font-bold px-3 py-2">' +
+          studentOptions +
+        '</select>' +
+      '</div>' +
+
+      '<div class="space-y-2.5">' +
+        '<div class="flex items-center justify-between border-b pb-1 text-xs font-bold uppercase" style="border-color: var(--border-subtle); color: var(--brand-beige-text);">' +
+          '<span>Спецификация техники ЦКТ КП11 с серийными номерами</span>' +
+          '<span class="text-[10px] font-mono">ОТМЕТКА ВЫДАЧИ</span>' +
+        '</div>' +
+        '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs max-h-64 overflow-y-auto pr-1">' +
+          itemsCheckboxes +
+        '</div>' +
+      '</div>' +
+
+      '<div class="p-3 border text-[11px] font-mono leading-relaxed" style="background-color: var(--bg-elevated); border-color: var(--border-subtle); color: var(--text-muted);">' +
+        'Оборудование выдано в исправном состоянии, оптика и матрицы проверены. Студент-получатель обязуется бережно эксплуатировать технику согласно регламенту ЦКТ КП11 и вернуть её на склад сразу по завершении смены.' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="flex items-center justify-end gap-2 pt-2">' +
+      '<button onclick="closeEquipmentModal()" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отмена</button>' +
+      '<button onclick="saveEquipmentCheckout()" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">' +
+        '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
+        '<span>Распечатать и утвердить акт вывоза</span>' +
+      '</button>' +
     '</div>';
 }
 
-async function addNewInventoryItem() {
-  const nameEl = document.getElementById('newEqName');
-  const catEl = document.getElementById('newEqCategory');
-  const snEl = document.getElementById('newEqSerial');
-  const locEl = document.getElementById('newEqLocation');
-  const notesEl = document.getElementById('newEqNotes');
+// ----------------- УПРАВЛЕНИЕ ТЕХНИКОЙ В МОДАЛЬНОМ ОКНЕ СОЗДАНИЯ СМЕНЫ -----------------
+function renderModalEquipment(items = globalInventory, preserveChecks = true) {
+  const container = document.getElementById('equipmentCheckboxes');
+  if (!container) return;
 
+  const currentChecked = new Set();
+  if (preserveChecks) {
+    container.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      const id = cb.getAttribute('data-eq-id');
+      if (id) currentChecked.add(id);
+    });
+  }
+
+  if (!items || items.length === 0) {
+    container.innerHTML = '<div class="text-[11px] font-mono text-[var(--text-muted)] p-3 text-center border border-dashed" style="border-color: var(--border-subtle);">' +
+      'Парк техники пуст.<br>' +
+      '<button type="button" onclick="toggleInlineEquipmentForm()" class="mt-1.5 text-emerald-400 hover:underline font-bold text-xs inline-flex items-center gap-1">+ Добавить технику в парк</button>' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = items.map(eq => {
+    const isChecked = currentChecked.has(eq.id) ? 'checked' : '';
+    const safeName = (eq.name || 'Оборудование').replace(/"/g, '&quot;');
+    const safeSerial = (eq.serialNumber || '—').replace(/"/g, '&quot;');
+    return '<div class="flex items-center justify-between p-2 border transition hover:border-[var(--brand-red)]" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+      '<label class="flex items-center space-x-2.5 cursor-pointer flex-1 min-w-0 select-none">' +
+        '<input type="checkbox" ' + isChecked + ' data-eq-id="' + eq.id + '" class="accent-[var(--brand-red)] w-4 h-4 flex-shrink-0">' +
+        '<div class="min-w-0 flex-1 truncate">' +
+          '<span class="text-xs font-bold" style="color: var(--text-primary);">' + eq.name + '</span>' +
+          '<span class="text-[9px] font-mono px-1 py-0.2 bg-neutral-900 border text-amber-400 font-bold border-neutral-700 ml-1.5 flex-shrink-0">S/N: ' + (eq.serialNumber || '—') + '</span>' +
+          '<span class="text-[10px] font-mono ml-1.5" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</span>' +
+          (eq.notes ? '<span class="text-[10px] font-mono text-[var(--text-muted)] ml-1 opacity-75 truncate hidden sm:inline">• ' + eq.notes + '</span>' : '') +
+        '</div>' +
+      '</label>' +
+      '<div class="flex items-center space-x-1.5 ml-2 flex-shrink-0">' +
+        '<button type="button" onclick="editInlineEquipmentItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-800/40 bg-cyan-950/20" title="Редактировать единицу техники">✎ Ред.</button>' +
+        '<button type="button" onclick="deleteInventoryItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-red-400 hover:text-red-300 border border-red-800/40 bg-red-950/20" title="Удалить из парка">✕</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function filterModalEquipment() {
+  const searchInput = document.getElementById('equipmentSearchModal');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  if (!query) {
+    renderModalEquipment(globalInventory, true);
+    return;
+  }
+  const filtered = (globalInventory || []).filter(eq =>
+    (eq.name && eq.name.toLowerCase().includes(query)) ||
+    (eq.serialNumber && eq.serialNumber.toLowerCase().includes(query)) ||
+    (eq.category && eq.category.toLowerCase().includes(query)) ||
+    (eq.notes && eq.notes.toLowerCase().includes(query))
+  );
+  renderModalEquipment(filtered, true);
+}
+
+function toggleInlineEquipmentForm() {
+  const form = document.getElementById('inlineEquipmentForm');
+  if (!form) return;
+  const isHidden = form.classList.contains('hidden');
+  if (isHidden) {
+    cancelInlineEquipmentForm();
+    form.classList.remove('hidden');
+    const nameEl = document.getElementById('inlineEqName');
+    if (nameEl) nameEl.focus();
+  } else {
+    form.classList.add('hidden');
+  }
+}
+
+function cancelInlineEquipmentForm() {
+  const form = document.getElementById('inlineEquipmentForm');
+  if (form) form.classList.add('hidden');
+  const titleEl = document.getElementById('inlineEqFormTitle');
+  if (titleEl) titleEl.innerText = 'Новая единица оборудования';
+  const editIdEl = document.getElementById('inlineEqEditId');
+  if (editIdEl) editIdEl.value = '';
+  const nameEl = document.getElementById('inlineEqName');
+  if (nameEl) nameEl.value = '';
+  const snEl = document.getElementById('inlineEqSerial');
+  if (snEl) snEl.value = '';
+  const notesEl = document.getElementById('inlineEqNotes');
+  if (notesEl) notesEl.value = '';
+}
+
+function editInlineEquipmentItem(id) {
+  const item = (globalInventory || []).find(e => e.id === id);
+  if (!item) return;
+
+  const form = document.getElementById('inlineEquipmentForm');
+  if (!form) return;
+  form.classList.remove('hidden');
+
+  const titleEl = document.getElementById('inlineEqFormTitle');
+  if (titleEl) titleEl.innerText = 'Редактирование: ' + item.name;
+
+  const editIdEl = document.getElementById('inlineEqEditId');
+  if (editIdEl) editIdEl.value = item.id;
+
+  const nameEl = document.getElementById('inlineEqName');
+  if (nameEl) nameEl.value = item.name || '';
+
+  const snEl = document.getElementById('inlineEqSerial');
+  if (snEl) snEl.value = item.serialNumber || '';
+
+  const catEl = document.getElementById('inlineEqCategory');
+  if (catEl && item.category) catEl.value = item.category;
+
+  const notesEl = document.getElementById('inlineEqNotes');
+  if (notesEl) notesEl.value = item.notes || '';
+
+  if (nameEl) nameEl.focus();
+}
+
+async function saveInlineEquipmentItem() {
+  const editIdEl = document.getElementById('inlineEqEditId');
+  const nameEl = document.getElementById('inlineEqName');
+  const snEl = document.getElementById('inlineEqSerial');
+  const catEl = document.getElementById('inlineEqCategory');
+  const notesEl = document.getElementById('inlineEqNotes');
+
+  const editId = editIdEl ? editIdEl.value.trim() : '';
   const name = nameEl ? nameEl.value.trim() : '';
-  const category = catEl ? catEl.value : 'Камеры';
   const serialNumber = snEl ? snEl.value.trim() : '';
-  const location = locEl ? locEl.value.trim() : 'Павильон №1 ЦКТ';
+  const category = catEl ? catEl.value : 'Камеры';
   const notes = notesEl ? notesEl.value.trim() : '';
 
-  if (!name || !serialNumber) {
-    alert('Укажите наименование оборудования и его серийный номер (S/N)');
+  if (!name) {
+    showToast('Укажите наименование техники');
     return;
   }
 
   const signer = (currentUser && currentUser.fullName) ? currentUser.fullName : 'Бадиков Семён Станиславович';
-  const newItem = {
-    name,
-    category,
-    serialNumber,
-    location,
-    notes,
-    status: 'AVAILABLE',
-    signedBy: signer
-  };
 
-  try {
-    const res = await fetch('/api/inventory', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (token || 'demo-token')
-      },
-      body: JSON.stringify(newItem)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.inventory)) {
-        globalInventory = data.inventory;
-      } else if (data.item) {
-        globalInventory.unshift(data.item);
-      }
-    } else {
-      newItem.id = 'eq-' + Date.now();
-      globalInventory.unshift(newItem);
+  if (editId) {
+    // Обновление существующей единицы
+    const existing = (globalInventory || []).find(e => e.id === editId);
+    if (existing) {
+      existing.name = name;
+      existing.serialNumber = serialNumber;
+      existing.category = category;
+      existing.notes = notes;
     }
-  } catch (err) {
-    newItem.id = 'eq-' + Date.now();
-    globalInventory.unshift(newItem);
+    try {
+      await fetch('/api/inventory/' + editId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({ name, serialNumber, category, notes })
+      });
+    } catch (e) {}
+    showToast('Единица техники «' + name + '» обновлена!');
+  } else {
+    // Создание новой единицы
+    const newId = 'eq-' + Date.now();
+    const newItem = {
+      id: newId,
+      name,
+      category,
+      serialNumber: serialNumber || ('SN-' + Math.floor(100000 + Math.random() * 900000)),
+      location: 'Склад техники ЦКТ КП11',
+      notes,
+      status: 'AVAILABLE',
+      signedBy: signer
+    };
+    globalInventory = [newItem, ...(globalInventory || [])];
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify(newItem)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.inventory)) globalInventory = data.inventory;
+      }
+    } catch (e) {}
+    showToast('Единица техники «' + name + '» добавлена в парк!');
   }
 
-  showToast('Оборудование ' + name + ' (S/N: ' + serialNumber + ') принято на баланс и подписано!');
-  renderEquipmentModalTabs(activeEquipmentShootId);
+  try {
+    localStorage.setItem('kp11_inventory', JSON.stringify(globalInventory));
+  } catch (e) {}
+
+  cancelInlineEquipmentForm();
+  renderModalEquipment(globalInventory, true);
 }
 
 async function deleteInventoryItem(eqId) {
-  if (!confirm('Вы уверены, что хотите списать единицу оборудования из техпарка?')) return;
+  if (!confirm('Вы уверены, что хотите удалить эту единицу техники из базы?')) return;
+
+  globalInventory = (globalInventory || []).filter(e => e.id !== eqId);
   try {
-    const res = await fetch('/api/inventory/' + eqId, {
+    localStorage.setItem('kp11_inventory', JSON.stringify(globalInventory));
+  } catch (e) {}
+
+  try {
+    await fetch('/api/inventory/' + eqId, {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.inventory)) {
-        globalInventory = data.inventory;
-      } else {
-        globalInventory = globalInventory.filter(e => e.id !== eqId);
-      }
-    } else {
-      globalInventory = globalInventory.filter(e => e.id !== eqId);
-    }
-  } catch (err) {
-    globalInventory = globalInventory.filter(e => e.id !== eqId);
-  }
+  } catch (e) {}
 
-  showToast('Единица оборудования списана из техпарка ЦКТ.');
-  renderEquipmentModalTabs(activeEquipmentShootId);
+  showToast('Оборудование удалено из базы.');
+  renderModalEquipment(globalInventory, true);
+  if (activeEquipmentShootId) {
+    renderEquipmentModalTabs(activeEquipmentShootId);
+  }
 }
 
 function closeEquipmentModal() {
@@ -1482,25 +1555,156 @@ function closeCompetencyModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-async function loadCinemaBoard() {
-  const textEl = document.getElementById('cinemaBoardText');
-  if (token) {
-    try {
-      const res = await fetch('/api/cinemaboard', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      const data = await res.json();
-      if (res.ok && data.message) {
-        if (textEl) textEl.innerText = data.message;
-        return;
-      }
-    } catch (err) {
-      console.warn('Кино-информер:', err.message);
+// ================= КИНЕМАТОГРАФИЧЕСКИЕ ЦИТАТЫ (ПОДБОР ПО ВРЕМЕНИ И РЕЙТИНГУ) =================
+const CINEMA_QUOTES_CLIENT = [
+  // Утро (05:00 - 11:59)
+  { time: 'morning', tier: 'master', text: '«Утренний свет на съёмочной площадке невозможно сымитировать — его можно только поймать и запечатлеть».', author: 'Роджер Дикинс' },
+  { time: 'morning', tier: 'master', text: '«Каждое утро перед командой „Мотор!“ рождается новый кинематографический мир».', author: 'Федерико Феллини' },
+  { time: 'morning', tier: 'student', text: '«Хорошее начало смены — это половина успеха картины. Дисциплина рождает свободу творчества».', author: 'Акира Куросава' },
+  { time: 'morning', tier: 'master', text: '«Первый дубль задаёт ритм всему съёмочному дню. Будьте предельно точны с фокусом и звуком».', author: 'Стэнли Кубрик' },
+  { time: 'morning', tier: 'master', text: '«Утро — время чистых мыслей, собранности цехов и выверенной экспозиции».', author: 'Андрей Тарковский' },
+  { time: 'morning', tier: 'guest', text: '«Кино начинается задолго до команды „Мотор!“. Оно начинается с утреннего кофе и взгляда в видоискатель».', author: 'Дэвид Линч' },
+  { time: 'morning', tier: 'student', text: '«Подготовленный вызывной и план смены спасают съёмочную группу от любого утреннего хаоса».', author: 'Альфред Хичкок' },
+  { time: 'morning', tier: 'student', text: '«Свет — это кисть кинематографиста. Утренние тени рисуют подлинную драматургию кадра».', author: 'Витторио Стораро' },
+
+  // День (12:00 - 17:59)
+  { time: 'day', tier: 'master', text: '«Кинематограф — это не просто съёмка реальности. Это создание правды со скоростью 24 кадра в секунду».', author: 'Жан-Люк Годар' },
+  { time: 'day', tier: 'student', text: '«Режиссёр ведёт оркестр, но каждый цех группы — солист, отвечающий за чистоту звука и кадра».', author: 'Мартин Скорсезе' },
+  { time: 'day', tier: 'master', text: '«В кино нет мелочей: посторонний шорох в петличке или микросмаз разрушают иллюзию жизни».', author: 'Дэвид Финчер' },
+  { time: 'day', tier: 'student', text: '«Монтаж начинается уже на площадке — думайте о склейках во время каждого панорамирования».', author: 'Сергей Эйзенштейн' },
+  { time: 'day', tier: 'student', text: '«Снимайте каждый дубль так, будто он войдёт в историю кино. Вкладывайте всю энергию в объектив».', author: 'Квентин Тарантино' },
+  { time: 'day', tier: 'master', text: '«Кадр должен дышать вместе со зрителем. Следите за динамикой мизансцены и чистотой фокуса».', author: 'Кристофер Нолан' },
+  { time: 'day', tier: 'student', text: '«Звук в кино несёт ровно половину эмоционального веса сцены. Никогда не пренебрегайте чистовой дорожкой».', author: 'Джордж Лукас' },
+  { time: 'day', tier: 'guest', text: '«Кинокамера — это увеличительное стекло человеческой души и правды характера».', author: 'Ингмар Бергман' },
+  { time: 'day', tier: 'master', text: '«Высшее мастерство оператора — растворить камеру в атмосфере происходящего на площадке».', author: 'Эммануэль Любецки' },
+
+  // Вечер (18:00 - 22:59)
+  { time: 'evening', tier: 'master', text: '«Режимное время длится считанные минуты. Настоящий профессионализм — быть полностью готовым к нему заранее».', author: 'Роджер Дикинс' },
+  { time: 'evening', tier: 'student', text: '«Вечерний дубль подводит итог смены. Отснятый материал говорит громче любых слов».', author: 'Андрей Тарковский' },
+  { time: 'evening', tier: 'guest', text: '«Кино — это жизнь, с которой вывели пятна. Продолжаем двигаться точно по сценарию!»', author: 'Альфред Хичкок' },
+  { time: 'evening', tier: 'student', text: '«Фильм собирается по крупицам: то, что снято сегодня вечером, завтра станет историей на монтажном столе».', author: 'Стивен Спилберг' },
+  { time: 'evening', tier: 'master', text: '«Никогда не компрометируйте художественный замысел ради спешки к концу смены. Честность кадра превыше всего».', author: 'Дени Вильнёв' },
+  { time: 'evening', tier: 'master', text: '«Вечерний свет требует ювелирной работы со светотенью, плотностью теней и балансом белого».', author: 'Роберт Элсвит' },
+  { time: 'evening', tier: 'student', text: '«Дисциплинированная съёмочная группа завершает смену вовремя и со сданным парком техники».', author: 'Клинт Иствуд' },
+  { time: 'evening', tier: 'guest', text: '«Магия кинематографа — превратить вечернюю усталость команды в триумф финального кадра дня».', author: 'Фрэнсис Форд Коппола' },
+
+  // Ночь (23:00 - 04:59)
+  { time: 'night', tier: 'master', text: '«Ночная смена обнажает истинный нерв кинопроизводства. Свет во тьме становится главным драматургом».', author: 'Дэвид Финчер' },
+  { time: 'night', tier: 'guest', text: '«В темноте павильона оживает воображение. Кинематограф — это сновидение наяву».', author: 'Федерико Феллини' },
+  { time: 'night', tier: 'master', text: '«Снимать ночью — значит писать светом по чёрному холсту. Каждый контровой прибор меняет всё пространство».', author: 'Роджер Дикинс' },
+  { time: 'night', tier: 'student', text: '«Ночной монтаж — время, когда разрозненные дубли наконец обретают своё подлинное дыхание и ритм».', author: 'Уолтер Мёрч' },
+  { time: 'night', tier: 'master', text: '«Тишина ночной съёмочной площадки обостряет восприятие каждого шороха и каждого блика на линзе».', author: 'Андрей Тарковский' },
+  { time: 'night', tier: 'student', text: '«Ночь принадлежит тем, кто влюблён в магию кинокамеры сильнее сна».', author: 'Кристофер Нолан' }
+];
+
+let lastQuoteHour = -1;
+
+function updateCinemaQuote(force = false) {
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  if (!force && lastQuoteHour === currentHour) {
+    return;
+  }
+
+  let timeCategory = 'day';
+  let timeBadgeText = 'ДНЕВНАЯ СМЕНА';
+  if (currentHour >= 5 && currentHour < 12) {
+    timeCategory = 'morning';
+    timeBadgeText = 'УТРЕННЯЯ СМЕНА';
+  } else if (currentHour >= 12 && currentHour < 18) {
+    timeCategory = 'day';
+    timeBadgeText = 'ДНЕВНАЯ СМЕНА';
+  } else if (currentHour >= 18 && currentHour < 23) {
+    timeCategory = 'evening';
+    timeBadgeText = 'ВЕЧЕРНЯЯ СМЕНА';
+  } else {
+    timeCategory = 'night';
+    timeBadgeText = 'НОЧНАЯ СМЕНА';
+  }
+
+  let userTier = 'guest';
+  if (currentUser) {
+    if (isMasterUser(currentUser) || (parseFloat(currentUser.rating) || 0) >= 4.8) {
+      userTier = 'master';
+    } else {
+      userTier = 'student';
     }
   }
-  if (textEl) {
-    textEl.innerText = '«Кино — это жизнь, с которой вывели пятна». Продолжаем двигаться по сценарию! — Альфред Хичкок';
+
+  const cachedKey = 'kp11_hourly_quote';
+  let chosen = null;
+
+  try {
+    const cached = JSON.parse(localStorage.getItem(cachedKey) || 'null');
+    if (!force && cached && cached.hour === currentHour && cached.date === now.toDateString() && cached.tier === userTier) {
+      chosen = cached;
+    }
+  } catch (e) {}
+
+  if (!chosen) {
+    let pool = CINEMA_QUOTES_CLIENT.filter(q => q.time === timeCategory && q.tier === userTier);
+    if (pool.length === 0) {
+      pool = CINEMA_QUOTES_CLIENT.filter(q => q.time === timeCategory);
+    }
+    if (pool.length === 0) pool = CINEMA_QUOTES_CLIENT;
+
+    const quoteIndex = (currentHour * 7 + now.getDate()) % pool.length;
+    const selected = pool[quoteIndex] || pool[0];
+    chosen = {
+      text: selected.text,
+      author: selected.author,
+      timeBadge: timeBadgeText,
+      hour: currentHour,
+      date: now.toDateString(),
+      tier: userTier
+    };
+    try {
+      localStorage.setItem(cachedKey, JSON.stringify(chosen));
+    } catch (e) {}
   }
+
+  lastQuoteHour = currentHour;
+
+  const textEl = document.getElementById('cinemaBoardText');
+  const authorEl = document.getElementById('cinemaBoardAuthor');
+  const badgeEl = document.getElementById('cinemaTimeBadge');
+
+  if (textEl) {
+    textEl.style.transition = 'opacity 0.25s ease';
+    textEl.style.opacity = '0';
+    setTimeout(() => {
+      textEl.innerText = chosen.text;
+      textEl.style.opacity = '1';
+    }, 120);
+  }
+  if (authorEl) {
+    authorEl.innerText = '— ' + chosen.author;
+  }
+  if (badgeEl) {
+    badgeEl.innerText = chosen.timeBadge;
+  }
+}
+
+async function loadCinemaBoard() {
+  updateCinemaQuote();
+  try {
+    const res = await fetch('/api/cinemaboard');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.text && data.author) {
+        // Сервер подтвердил актуальность
+      }
+    }
+  } catch (err) {}
+}
+
+if (!window._cinemaQuoteInterval) {
+  window._cinemaQuoteInterval = setInterval(() => {
+    if (new Date().getHours() !== lastQuoteHour) {
+      updateCinemaQuote();
+    }
+  }, 30000);
 }
 
 async function loadStatisticsData() {
@@ -2249,9 +2453,15 @@ async function openShootModal() {
 
   const searchInput = document.getElementById('studentSearchModal');
   if (searchInput) searchInput.value = '';
+  const eqSearch = document.getElementById('equipmentSearchModal');
+  if (eqSearch) eqSearch.value = '';
+
+  await loadInventoryData();
+  renderModalEquipment(globalInventory, false);
+  cancelInlineEquipmentForm();
 
   try {
-    const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') } });
     if (res.ok) {
       const data = await res.json();
       const rawStudents = data.students;
@@ -2433,6 +2643,13 @@ async function handleCreateShoot(e) {
     return;
   }
 
+  const selectedEqIds = Array.from(document.querySelectorAll('#equipmentCheckboxes input[type="checkbox"]:checked'))
+    .map(cb => cb.getAttribute('data-eq-id'))
+    .filter(Boolean);
+  const selectedEquipment = selectedEqIds
+    .map(id => (globalInventory || []).find(e => e.id === id))
+    .filter(Boolean);
+
   const body = {
     title,
     description,
@@ -2441,7 +2658,8 @@ async function handleCreateShoot(e) {
     location,
     latitude,
     longitude,
-    crewAssignments
+    crewAssignments,
+    equipment: selectedEquipment
   };
 
   let createdSuccessfully = false;
@@ -2458,6 +2676,7 @@ async function handleCreateShoot(e) {
       const data = await res.json();
       newShoot = (data && data.shoot) ? data.shoot : data;
       if (newShoot && newShoot.id) {
+        if (!newShoot.equipment) newShoot.equipment = selectedEquipment;
         globalShoots = [newShoot, ...(globalShoots || []).filter(s => s.id !== newShoot.id)];
         localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
       }
@@ -2477,6 +2696,7 @@ async function handleCreateShoot(e) {
       longitude,
       isCompleted: false,
       creator: { fullName: currentUser ? currentUser.fullName : 'Бадиков Семён Станиславович' },
+      equipment: selectedEquipment,
       crew: crewAssignments.map((ca, idx) => {
         const st = (globalStudents || []).find(s => s.id === ca.userId) || { fullName: 'Студент', groupName: 'КТ-26', rating: 4.5, telegram: '@student' };
         return {
@@ -2848,6 +3068,67 @@ async function handleAuth(e) {
   }
 }
 
+function getDefaultShoots() {
+  return [
+    {
+      id: 'shoot-101',
+      title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ',
+      description: 'Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.',
+      type: 'ПАВИЛЬОН',
+      date: '2026-10-22T15:00:00Z',
+      location: 'ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)',
+      isCompleted: true,
+      latitude: 55.858244,
+      longitude: 37.518423,
+      creator: { fullName: 'Бадиков Семён Станиславович' },
+      equipment: [],
+      crew: [
+        { id: 'c101-1', roleInShoot: 'ОПЕРАТОР-ПОСТАНОВЩИК', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1', grade: 5 },
+        { id: 'c101-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u2', grade: 5 },
+        { id: 'c101-3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'PENDING', attendance: 'PRESENT', userId: 'u4', grade: 5 },
+        { id: 'c101-4', roleInShoot: 'РЕЖИССЁР СМЕНЫ', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'demo-user-1', grade: 5 }
+      ]
+    },
+    {
+      id: 'shoot-102',
+      title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
+      description: 'Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.',
+      type: 'СТУДИЯ',
+      date: '2026-10-25T16:30:00Z',
+      location: 'СТУДИЯ ЗВУКОЗАПИСИ И ПОДКАСТОВ ЦКТ',
+      latitude: 55.851244,
+      longitude: 37.528423,
+      isCompleted: false,
+      creator: { fullName: 'Бадиков Семён Станиславович' },
+      equipment: [],
+      crew: [
+        { id: 'c102-1', roleInShoot: 'КАМЕРНЫЙ ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
+        { id: 'c102-2', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u4' },
+        { id: 'c102-3', roleInShoot: 'ОПЕРАТОР СТЕДИКАМА', status: 'PENDING', attendance: 'PRESENT', userId: 'u5' }
+      ]
+    },
+    {
+      id: 'shoot-103',
+      title: 'ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»',
+      description: 'Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.',
+      type: 'ВЫЕЗД',
+      date: '2026-10-17T11:00:00Z',
+      location: 'ПАРК «СЕВЕРНОЕ ТУШИНО», НАБЕРЕЖНАЯ',
+      latitude: 55.864244,
+      longitude: 37.452423,
+      isCompleted: true,
+      creator: { fullName: 'Бадиков Семён Станиславович' },
+      equipment: [],
+      crew: [
+        { id: 'c103-1', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u1' },
+        { id: 'c103-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u2' },
+        { id: 'c103-3', roleInShoot: 'АССИСТЕНТ ОСВЕТИТЕЛЯ', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u3' },
+        { id: 'c103-4', roleInShoot: 'ЗВУКООПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u4' }
+      ]
+    }
+  ];
+}
+
 async function loadShoots() {
   let shoots = [];
   let stats = { totalShoots: 0, completedShoots: 0 };
@@ -2859,8 +3140,9 @@ async function loadShoots() {
       const data = await res.json();
       const rawShoots = data.shoots;
       shoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
+      
       const stored = JSON.parse(localStorage.getItem('kp11_shoots') || '[]');
-      if (Array.isArray(stored)) {
+      if (Array.isArray(stored) && stored.length > 0) {
         const serverIds = new Set(shoots.map(s => s.id));
         const localOnly = stored.filter(s => !serverIds.has(s.id) && s.id && s.id.startsWith('shoot-'));
         if (localOnly.length > 0) {
@@ -2873,73 +3155,32 @@ async function loadShoots() {
       }
       stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
       userStats = data.userStats || null;
-      localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
+      if (shoots.length > 0) {
+        localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
+      }
     } else {
-      throw new Error('API fetch failed');
+      throw new Error('API fetch status ' + res.status);
     }
   } catch (err) {
     userStats = { rating: 4.8, completedParticipated: 4, totalParticipated: 5 };
-    const stored = JSON.parse(localStorage.getItem('kp11_shoots') || 'null');
-    if (stored !== null) {
+    const stored = JSON.parse(localStorage.getItem('kp11_shoots') || '[]');
+    if (Array.isArray(stored) && stored.length > 0) {
       shoots = stored;
     } else {
-      shoots = [
-        {
-          id: 'shoot-101',
-          title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ',
-          description: 'Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.',
-          type: 'ПАВИЛЬОН',
-          date: '2026-10-22T15:00:00Z',
-          location: 'ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)',
-          isCompleted: false,
-          latitude: 55.858244,
-          longitude: 37.518423,
-          creator: { fullName: 'Бадиков Семён Станиславович' },
-          crew: [
-            { id: 'c101-1', roleInShoot: 'ОПЕРАТОР-ПОСТАНОВЩИК', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
-            { id: 'c101-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u2' },
-            { id: 'c101-3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'PENDING', attendance: 'PRESENT', userId: 'u4' },
-            { id: 'c101-4', roleInShoot: 'РЕЖИССЁР СМЕНЫ', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'demo-user-1' }
-          ]
-        },
-        {
-          id: 'shoot-102',
-          title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
-          description: 'Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.',
-          type: 'СТУДИЯ',
-          date: '2026-10-25T16:30:00Z',
-          location: 'СТУДИЯ ЗВУКОЗАПИСИ И ПОДКАСТОВ ЦКТ',
-          latitude: 55.851244,
-          longitude: 37.528423,
-          isCompleted: false,
-          creator: { fullName: 'Бадиков Семён Станиславович' },
-          crew: [
-            { id: 'c102-1', roleInShoot: 'КАМЕРНЫЙ ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
-            { id: 'c102-2', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u4' },
-            { id: 'c102-3', roleInShoot: 'ОПЕРАТОР СТЕДИКАМА', status: 'PENDING', attendance: 'PRESENT', userId: 'u5' }
-          ]
-        },
-        {
-          id: 'shoot-103',
-          title: 'ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»',
-          description: 'Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.',
-          type: 'ВЫЕЗД',
-          date: '2026-10-17T11:00:00Z',
-          location: 'ПАРК «СЕВЕРНОЕ ТУШИНО», НАБЕРЕЖНАЯ',
-          latitude: 55.864244,
-          longitude: 37.452423,
-          isCompleted: true,
-          creator: { fullName: 'Бадиков Семён Станиславович' },
-          crew: [
-            { id: 'c103-1', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u1' },
-            { id: 'c103-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u2' },
-            { id: 'c103-3', roleInShoot: 'АССИСТЕНТ ОСВЕТИТЕЛЯ', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u3' },
-            { id: 'c103-4', roleInShoot: 'ЗВУКООПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u4' }
-          ]
-        }
-      ];
+      shoots = getDefaultShoots();
+      try {
+        localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
+      } catch (e) {}
     }
     stats = { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
+  }
+
+  // Гарантия непустого каталога: на мобильных устройствах или при первом посещении
+  if (!Array.isArray(shoots) || shoots.length === 0) {
+    shoots = getDefaultShoots();
+    try {
+      localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
+    } catch (e) {}
   }
 
   globalShoots = shoots;
@@ -3098,10 +3339,7 @@ function renderShootsList(shoots = globalShoots) {
     }
 
     container.innerHTML = shoots.map((s, idx) => {
-      const formattedDate = new Date(s.date).toLocaleString('ru-RU', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
+      const formattedDate = safeFormatDate(s.date);
       const locationText = s.location;
       const masterText = s.creator && s.creator.fullName ? s.creator.fullName : 'Не указан';
       const cardStateClass = s.isCompleted ? 'completed-shoot' : 'active-shoot';
