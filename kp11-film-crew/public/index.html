@@ -45,7 +45,8 @@
     document.documentElement.setAttribute('data-theme', savedTheme);
   </script>
   
-  <!-- Дизайн-система КП11 -->
+  <!-- Favicon и Дизайн-система КП11 -->
+  <link rel="icon" type="image/png" href="img/logo_red.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white relative">
@@ -391,14 +392,17 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Токен бота (Telegram Bot Token):</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Токен бота (Telegram Bot Token):</label>
+                <button type="button" onclick="const inp=document.getElementById('adminBotToken'); inp.type = inp.type==='password'?'text':'password'; this.innerText = inp.type==='password'?'Показать':'Скрыть';" class="text-[10px] font-mono hover:underline text-[#229ED9]">Показать</button>
+              </div>
               <input type="password" id="adminBotToken" placeholder="123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ" class="w-full studio-input text-xs font-mono px-3 py-2">
-              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Получите в @BotFather через команду /newbot</span>
+              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Токен сохраняется в системе и локально</span>
             </div>
             <div>
-              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ID чата или канала для вызывных:</label>
-              <input type="text" id="adminDefaultChatId" placeholder="@kp11_channel или ID чата (напр. 123456789)" class="w-full studio-input text-xs font-mono px-3 py-2">
-              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Сюда будут автоматически отправляться все вызывные листы</span>
+              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ID чатов / каналов (несколько через запятую):</label>
+              <input type="text" id="adminDefaultChatId" placeholder="-100123456789, -100987654321, @kp11_channel" class="w-full studio-input text-xs font-mono px-3 py-2">
+              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Вызывные листы рассылаются во все указанные чаты и персонально студентам</span>
             </div>
           </div>
 

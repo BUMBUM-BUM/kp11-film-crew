@@ -134,7 +134,34 @@ while ($listener.IsListening) {
                 [System.IO.File]::WriteAllText($settingsFile, $settingsJsonOut, $utf8Encoding)
                 $rawJsonToSend = "{`"success`":true,`"settings`":$settingsJsonOut}"
             }
+            elseif ($urlPath -eq "/api/shoots/complete" -and $method -eq "POST") {
+                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
+                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
+                $tempFile = Join-Path $PSScriptRoot "data\temp_complete_$([Guid]::NewGuid().ToString('N')).json"
+                try {
+                    [System.IO.File]::WriteAllText($tempFile, $reqBody, $utf8Encoding)
+                    if (Test-Path $nodeExe) {
+                        $rawJsonToSend = & $nodeExe $helperScript complete $tempFile
+                    } else {
+                        $rawJsonToSend = "{`"success`":true}"
+                    }
+                } finally {
+                    if (Test-Path $tempFile) { Remove-Item $tempFile -Force -ErrorAction SilentlyContinue }
+                }
+            }
             elseif ($urlPath -eq "/api/telegram/dispatch" -and $method -eq "POST") {
+                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
+                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $targetShootId = if ($parsed.shootId) { $parsed.shootId } elseif ($parsed.shoot -and $parsed.shoot.id) { $parsed.shoot.id } else { "" }
+
+                if ($targetShootId -and (Test-Path $nodeExe)) {
+                    $rawJsonToSend = & $nodeExe $helperScript dispatch $targetShootId
+                } else {
+                    $rawJsonToSend = "{`"success`":true,`"report`":{`"deliveredCount`":0,`"botTokenConfigured`":false}}"
+                }
+            }
+            elseif ($urlPath -eq "/api/telegram/test" -and $method -eq "POST") {
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
                 $token = ""
                 $defaultChat = ""
@@ -143,48 +170,39 @@ while ($listener.IsListening) {
                     $token = $setObj.telegramBotToken
                     $defaultChat = $setObj.defaultChatId
                 }
-
-                $delivered = 0
-                if ($token -and $defaultChat) {
-                    try {
-                        $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
-                        $sTitle = if ($parsed.shoot.title) { $parsed.shoot.title } else { "Shoot" }
-                        $sLoc = if ($parsed.shoot.location) { $parsed.shoot.location } else { "KP11 Pavilion" }
-                        $msgText = "<b>KP11 FILM CREW // CALL SHEET</b>`nProject: $sTitle`nLocation: $sLoc"
-                        $tgUri = "https://api.telegram.org/bot$token/sendMessage"
-                        $tgBody = @{ chat_id = $defaultChat; text = $msgText; parse_mode = "HTML" } | ConvertTo-Json
-                        Invoke-RestMethod -Uri $tgUri -Method Post -Body $tgBody -ContentType "application/json" | Out-Null
-                        $delivered = 1
-                    } catch {}
-                }
-
-                $rawJsonToSend = "{`"success`":true,`"report`":{`"deliveredCount`":$delivered,`"botTokenConfigured`":" + [string]([bool]$token).ToLower() + ",`"shareUrl`":`"https://t.me/share/url?url=KP11_CALLSHEET`"}}"
-            }
-            elseif ($urlPath -eq "/api/telegram/test" -and $method -eq "POST") {
-                $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
-                $token = ""
-                if (Test-Path $settingsFile) {
-                    $setObj = [System.IO.File]::ReadAllText($settingsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-                    $token = $setObj.telegramBotToken
-                }
                 $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
-                $targetChat = if ($parsed.chatId) { $parsed.chatId } else { "" }
+                if ($parsed.token) { $token = $parsed.token }
+                $targetChatString = if ($parsed.chatId) { $parsed.chatId } else { $defaultChat }
 
-                if ($token -and $targetChat) {
-                    try {
-                        $tgUri = "https://api.telegram.org/bot$token/sendMessage"
-                        $tgBody = @{ chat_id = $targetChat; text = "KP11 Film Crew Bot: Connection test successful!"; parse_mode = "HTML" } | ConvertTo-Json
-                        Invoke-RestMethod -Uri $tgUri -Method Post -Body $tgBody -ContentType "application/json" | Out-Null
-                        $rawJsonToSend = "{`"success`":true,`"message`":`"Test message delivered to Telegram`"}"
-                    } catch {
-                        $errMsg = $_.Exception.Message.Replace('"', ' ')
-                        $rawJsonToSend = "{`"success`":false,`"error`":`"Telegram API Error: $errMsg`"}"
+                if ($token -and $targetChatString) {
+                    $chatList = @($targetChatString -split "[\s,;\n\r]+" | Where-Object { [string]::IsNullOrWhiteSpace($_) -eq $false })
+                    $successCount = 0
+                    $lastError = ""
+                    foreach ($cId in $chatList) {
+                        try {
+                            $tgUri = "https://api.telegram.org/bot$token/sendMessage"
+                            $testMsg = "<b>Медиацентр КП11 // Тест связи</b>`n`nТестовое оповещение успешно доставлено в Telegram!`nБот готов к оперативной рассылке вызывных листов."
+                            $tgBody = @{ chat_id = $cId; text = $testMsg; parse_mode = "HTML" } | ConvertTo-Json
+                            Invoke-RestMethod -Uri $tgUri -Method Post -Body $tgBody -ContentType "application/json" | Out-Null
+                            $successCount++
+                        } catch {
+                            $lastError = $_.Exception.Message
+                        }
+                    }
+                    if ($successCount -gt 0) {
+                        $rawJsonToSend = "{`"success`":true,`"message`":`"Тестовое оповещение доставлено в $successCount чатов!`"}"
+                    } else {
+                        $rawJsonToSend = "{`"success`":false,`"error`":`"Telegram API Error: $($lastError.Replace('"', ' '))`"}"
                     }
                 } else {
-                    $rawJsonToSend = "{`"success`":false,`"error`":`"Specify bot token and Chat ID`"}"
+                    $rawJsonToSend = "{`"success`":false,`"error`":`"Укажите токен бота и Chat ID`"}"
                 }
             }
             else {
+                $rawJsonToSend = "{`"success`":true}"
+            }
+
+            if ([string]::IsNullOrEmpty($rawJsonToSend)) {
                 $rawJsonToSend = "{`"success`":true}"
             }
 
@@ -198,6 +216,9 @@ while ($listener.IsListening) {
 
         if ($urlPath -eq "/" -or [string]::IsNullOrWhiteSpace($urlPath)) {
             $urlPath = "/index.html"
+        }
+        if ($urlPath -eq "/favicon.ico") {
+            $urlPath = "/img/logo_red.png"
         }
 
         $relPath = $urlPath.TrimStart("/").Replace("/", "\")

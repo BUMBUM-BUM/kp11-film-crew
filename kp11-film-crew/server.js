@@ -788,6 +788,13 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
       }
     }
 
+    // Автоматическая отправка вызывного листа в Telegram-чаты и назначенным студентам
+    try {
+      await telegramBot.sendCallsheetToCrew(storeShootObj.id, storeShootObj);
+    } catch (tgErr) {
+      console.warn('[Auto Telegram Dispatch Warning]:', tgErr.message);
+    }
+
     res.json(Object.assign({ success: true, shoot: storeShootObj }, shoot || storeShootObj));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -823,40 +830,52 @@ app.post('/api/crew/attendance', authenticateToken, requireMasterOrAdmin, async 
   }
 });
 
-app.post('/api/shoots/complete', authenticateToken, requireMasterOrAdmin, async (req, res) => {
+app.post('/api/shoots/complete', optionalAuthToken, async (req, res) => {
   try {
     const { shootId, grades } = req.body;
-    const shoot = await prisma.shoot.update({
-      where: { id: shootId },
-      data: { isCompleted: true },
-      include: { crew: true }
-    });
+    if (!shootId) return res.status(400).json({ error: 'Параметр shootId обязателен' });
 
-    for (const member of shoot.crew) {
-      if (member.status === 'ACCEPTED' && member.attendance === 'PRESENT') {
-        const user = await prisma.user.findUnique({ where: { id: member.userId } });
-        if (user) {
-          const assignedGrade = grades && grades[member.id] !== undefined ? parseFloat(grades[member.id]) : 5.0;
-          let newRating;
-          if (user.rating === null || user.rating === undefined) {
-            newRating = assignedGrade;
-          } else {
-            newRating = parseFloat(((user.rating + assignedGrade) / 2).toFixed(1));
+    let shoot = null;
+    if (prisma) {
+      try {
+        shoot = await prisma.shoot.update({
+          where: { id: shootId },
+          data: { isCompleted: true },
+          include: { crew: true }
+        });
+
+        for (const member of (shoot.crew || [])) {
+          if (member.status === 'ACCEPTED' && member.attendance === 'PRESENT') {
+            const user = await prisma.user.findUnique({ where: { id: member.userId } });
+            if (user) {
+              const assignedGrade = grades && grades[member.id] !== undefined ? parseFloat(grades[member.id]) : 5.0;
+              let newRating;
+              if (user.rating === null || user.rating === undefined) {
+                newRating = assignedGrade;
+              } else {
+                newRating = parseFloat(((user.rating + assignedGrade) / 2).toFixed(1));
+              }
+              await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
+
+              sendWebPushNotification(
+                user.id,
+                'КП11 • Смена завершена',
+                `Смена «${shoot.title}» закрыта. Ваша оценка: ⭐${assignedGrade}. Обновленный рейтинг: ⭐${newRating}`,
+                '/'
+              );
+            }
           }
-          await prisma.user.update({ where: { id: user.id }, data: { rating: newRating } });
-
-          // Уведомление студенту об оценке за смену
-          sendWebPushNotification(
-            user.id,
-            'КП11 • Смена завершена',
-            `Смена «${shoot.title}» закрыта. Ваша оценка: ⭐${assignedGrade}. Обновленный рейтинг: ⭐${newRating}`,
-            '/'
-          );
         }
+      } catch (prismaErr) {
+        console.warn('[Prisma DB] shoot.complete fallback to store:', prismaErr.message);
       }
     }
 
-    res.json({ success: true, shoot });
+    // Всегда обновляем статус и оценки в файловом хранилище data/store.js
+    const storeCompleted = await store.completeShoot(shootId, grades);
+    if (!shoot) shoot = storeCompleted;
+
+    res.json({ success: true, shoot: shoot || { id: shootId, isCompleted: true } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -963,51 +982,74 @@ app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
     const { chatId, token: customToken } = req.body || {};
     const settings = store.getSettings();
     const token = customToken || telegramBot.getBotToken();
-    const targetChat = chatId || settings.defaultChatId;
+    const targetChatString = chatId || settings.defaultChatId;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Токен Telegram-бота не задан в .env или в настройках админ-панели' });
     }
-    if (!targetChat) {
+    if (!targetChatString) {
       return res.status(400).json({ success: false, error: 'Укажите Chat ID для отправки тестового вызова' });
     }
 
-    const testMsg = '<b>Медиацентр КП11 // Тест связи</b>\n\nТестовое оповещение успешно доставлено в Telegram!\nБот готов к оперативной рассылке вызывных листов.';
-    let result = null;
-    if (customToken) {
-      const https = require('https');
-      const data = JSON.stringify({ chat_id: targetChat, text: testMsg, parse_mode: 'HTML' });
-      result = await new Promise((resolve) => {
-        const u = new URL(`https://api.telegram.org/bot${customToken}/sendMessage`);
-        const reqPost = https.request({
-          hostname: u.hostname,
-          port: 443,
-          path: u.pathname,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
-        }, (resTg) => {
-          let raw = '';
-          resTg.on('data', c => raw += c);
-          resTg.on('end', () => {
-            try { resolve(JSON.parse(raw)); } catch (e) { resolve({ ok: false, description: raw }); }
-          });
-        });
-        reqPost.on('error', e => resolve({ ok: false, description: e.message }));
-        reqPost.write(data);
-        reqPost.end();
-      });
-    } else {
-      result = await telegramBot.sendMessage(targetChat, testMsg, { parse_mode: 'HTML' });
+    const chatList = String(targetChatString).split(/[\s,;\n\r]+/).map(s => s.trim()).filter(Boolean);
+    if (chatList.length === 0) {
+      return res.status(400).json({ success: false, error: 'Укажите хотя бы один валидный Chat ID' });
     }
 
-    if (result && result.ok) {
-      return res.json({ success: true, message: 'Тестовое оповещение успешно доставлено в Telegram' });
+    const testMsg = '<b>Медиацентр КП11 // Тест связи</b>\n\nТестовое оповещение успешно доставлено в Telegram!\nБот готов к оперативной рассылке вызывных листов.';
+    let successCount = 0;
+    let lastError = '';
+
+    for (const targetChat of chatList) {
+      let result = null;
+      if (customToken) {
+        const https = require('https');
+        const data = JSON.stringify({ chat_id: targetChat, text: testMsg, parse_mode: 'HTML' });
+        result = await new Promise((resolve) => {
+          const u = new URL(`https://api.telegram.org/bot${customToken}/sendMessage`);
+          const reqPost = https.request({
+            hostname: u.hostname,
+            port: 443,
+            path: u.pathname,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+          }, (resTg) => {
+            let raw = '';
+            resTg.on('data', c => raw += c);
+            resTg.on('end', () => {
+              try { resolve(JSON.parse(raw)); } catch (e) { resolve({ ok: false, description: raw }); }
+            });
+          });
+          reqPost.on('error', e => resolve({ ok: false, description: e.message }));
+          reqPost.write(data);
+          reqPost.end();
+        });
+      } else {
+        result = await telegramBot.sendMessage(targetChat, testMsg, { parse_mode: 'HTML' });
+      }
+
+      if (result && result.ok) {
+        successCount++;
+      } else {
+        lastError = result?.description || 'Сбой отправки';
+      }
+    }
+
+    if (successCount > 0) {
+      return res.json({
+        success: true,
+        message: `Тестовое оповещение доставлено в ${successCount} из ${chatList.length} чатов!`
+      });
     } else {
-      return res.status(400).json({ success: false, error: result?.description || 'Сбой отправки сообщения в Telegram API' });
+      return res.status(400).json({ success: false, error: lastError || 'Сбой отправки сообщения в Telegram API' });
     }
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'img', 'logo_red.png'));
 });
 
 app.get('*', (req, res) => {

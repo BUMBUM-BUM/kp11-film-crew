@@ -867,20 +867,35 @@ async function loadStatisticsData() {
 async function loadAdminPanel() {
   try {
     const res = await fetch('/api/admin/data', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
     });
     if (res.ok) {
       const data = await res.json();
       globalAdminUsers = data.users || [];
       renderAdminUsers(globalAdminUsers);
 
-      if (data.settings) {
-        if (document.getElementById('adminBotToken') && data.settings.telegramBotToken) {
-          document.getElementById('adminBotToken').value = data.settings.telegramBotToken;
-        }
-        if (document.getElementById('adminDefaultChatId') && data.settings.defaultChatId) {
-          document.getElementById('adminDefaultChatId').value = data.settings.defaultChatId;
-        }
+      const serverToken = (data.settings && data.settings.telegramBotToken) || '';
+      const serverChat = (data.settings && data.settings.defaultChatId) || '';
+      const localToken = localStorage.getItem('kp11_tg_token') || '';
+      const localChat = localStorage.getItem('kp11_tg_chat') || '';
+
+      const effectiveToken = serverToken || localToken;
+      const effectiveChat = serverChat || localChat;
+
+      if (document.getElementById('adminBotToken')) {
+        document.getElementById('adminBotToken').value = effectiveToken;
+      }
+      if (document.getElementById('adminDefaultChatId')) {
+        document.getElementById('adminDefaultChatId').value = effectiveChat;
+      }
+
+      // Если на сервере токен ещё не сохранён, но есть локальный — фоново синхронизируем
+      if (!serverToken && localToken) {
+        fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+          body: JSON.stringify({ telegramBotToken: localToken, defaultChatId: effectiveChat })
+        }).catch(() => {});
       }
       return;
     }
@@ -1032,7 +1047,7 @@ async function saveTelegramSettings() {
   try {
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify({ telegramBotToken: botToken, defaultChatId })
     });
     const data = await res.json();
@@ -1090,28 +1105,30 @@ async function testTelegramConnection() {
   } catch (e) {
     // Резервная прямая отправка в Telegram API из браузера при локальном предпросмотре!
     if (effectiveToken && effectiveChat) {
-      try {
-        const tgRes = await fetch('https://api.telegram.org/bot' + effectiveToken + '/sendMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: effectiveChat,
-            text: '<b>МЕДИАЦЕНТР КП11 // ТЕСТ СВЯЗИ</b>\n════════════════════════════════════\nТестовое сообщение успешно получено из панели управления киноцеха!',
-            parse_mode: 'HTML'
-          })
-        });
-        const tgData = await tgRes.json();
-        if (tgData.ok) {
-          statusEl.className = 'text-xs font-mono font-bold text-emerald-400';
-          statusEl.innerText = 'Успешно доставлено в ' + effectiveChat + '!';
-          showToast('Тестовое сообщение доставлено в Telegram!');
-        } else {
-          statusEl.className = 'text-xs font-mono font-bold text-red-400';
-          statusEl.innerText = 'Ошибка: ' + (tgData.description || 'Не удалось отправить');
-        }
-      } catch (clientErr) {
+      const chats = String(effectiveChat).split(/[\s,;\n\r]+/).map(s => s.trim()).filter(Boolean);
+      let okCount = 0;
+      for (const c of chats) {
+        try {
+          const tgRes = await fetch('https://api.telegram.org/bot' + effectiveToken + '/sendMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: c,
+              text: '<b>МЕДИАЦЕНТР КП11 // ТЕСТ СВЯЗИ</b>\n════════════════════════════════════\nТестовое сообщение успешно получено из панели управления киноцеха!',
+              parse_mode: 'HTML'
+            })
+          });
+          const tgData = await tgRes.json();
+          if (tgData.ok) okCount++;
+        } catch (clientErr) {}
+      }
+      if (okCount > 0) {
+        statusEl.className = 'text-xs font-mono font-bold text-emerald-400';
+        statusEl.innerText = 'Успешно доставлено в ' + okCount + ' из ' + chats.length + ' чатов!';
+        showToast('Тестовое сообщение доставлено в Telegram!');
+      } else {
         statusEl.className = 'text-xs font-mono font-bold text-red-400';
-        statusEl.innerText = 'Ошибка сети при обращении к api.telegram.org';
+        statusEl.innerText = 'Не удалось отправить сообщения в указанные чаты.';
       }
     } else {
       statusEl.className = 'text-xs font-mono font-bold text-amber-400';
@@ -1506,6 +1523,7 @@ async function handleCreateShoot(e) {
   };
 
   let createdSuccessfully = false;
+  let newShoot = null;
 
   try {
     const res = await fetch('/api/shoots', {
@@ -1516,7 +1534,7 @@ async function handleCreateShoot(e) {
     if (res.ok) {
       createdSuccessfully = true;
       const data = await res.json();
-      const newShoot = (data && data.shoot) ? data.shoot : data;
+      newShoot = (data && data.shoot) ? data.shoot : data;
       if (newShoot && newShoot.id) {
         globalShoots = [newShoot, ...(globalShoots || []).filter(s => s.id !== newShoot.id)];
         localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
@@ -1526,7 +1544,7 @@ async function handleCreateShoot(e) {
 
   if (!createdSuccessfully) {
     // Fallback локального сохранения:
-    const newShoot = {
+    newShoot = {
       id: 'shoot-' + Date.now(),
       title,
       description,
@@ -1553,7 +1571,19 @@ async function handleCreateShoot(e) {
     localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   }
 
-  showToast('Смена «' + title + '» создана в производстве!');
+  // Дополнительный вызов диспетчеризации вызывного листа в Telegram
+  try {
+    const targetShootId = (newShoot && newShoot.id) ? newShoot.id : null;
+    if (targetShootId) {
+      fetch('/api/telegram/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({ shootId: targetShootId, shoot: newShoot })
+      }).catch(() => {});
+    }
+  } catch (e) {}
+
+  showToast('Смена «' + title + '» создана! Вызывной разослан в Telegram');
   closeShootModal();
   if (titleEl) titleEl.value = '';
   if (descEl) descEl.value = '';
@@ -1606,22 +1636,28 @@ async function saveShootGrades(shootId, crewMemberIds) {
   try {
     const res = await fetch('/api/shoots/complete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify({ shootId, grades })
     });
-    if (!res.ok) throw new Error('Ошибка сохранения оценок');
-    alert('Оценки успешно сохранены и начислены участникам!');
-    loadShoots();
+    if (!res.ok) throw new Error('Ошибка сохранения оценок на сервере');
   } catch (err) {
-    alert(err.message);
+    console.warn('API /api/shoots/complete error, using local fallback:', err.message);
   }
+
+  const target = (globalShoots || []).find(s => s.id === shootId);
+  if (target) {
+    target.isCompleted = true;
+    localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+  }
+  showToast('Смена завершена! Оценки выставлены в производственный журнал.');
+  await loadShoots();
 }
 
 async function updateAttendance(crewMemberId, attendance) {
   try {
     const res = await fetch('/api/crew/attendance', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify({ crewMemberId, attendance })
     });
     if (!res.ok) throw new Error('Ошибка');

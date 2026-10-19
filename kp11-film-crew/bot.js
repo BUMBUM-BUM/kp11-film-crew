@@ -663,6 +663,15 @@ async function handleUpdate(update) {
   }
 }
 
+function parseChatIds(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(String).map(s => s.trim()).filter(Boolean);
+  return String(raw)
+    .split(/[\s,;\n\r]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 // ------------------------------------------------------------------------------
 // ФУНКЦИЯ РАССЫЛКИ ВЫЗЫВНОГО ЛИСТА С САЙТА В TELEGRAM
 // ------------------------------------------------------------------------------
@@ -745,22 +754,28 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
     });
   }
 
-  // Если настроен общий чат / канал для вызывных в настройках, отправляем и туда
-  if (token && settings.defaultChatId) {
-    try {
-      const groupText = formatCallsheetMessage(shoot, null, allUsers);
-      await sendMessage(settings.defaultChatId, groupText, {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: 'Открыть в @KP11_FilmCrew_Bot', url: `https://t.me/${settings.botUsername || 'KP11_FilmCrew_Bot'}?start=call_${shoot.id}` }
+  // Если настроены общие чаты / каналы для вызывных в настройках, отправляем во ВСЕ указанные чаты
+  const targetChats = parseChatIds(settings.defaultChatId);
+  for (const targetChat of targetChats) {
+    if (token && targetChat) {
+      try {
+        const groupText = formatCallsheetMessage(shoot, null, allUsers);
+        const resGroup = await sendMessage(targetChat, groupText, {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: 'Открыть в @KP11_FilmCrew_Bot', url: `https://t.me/${settings.botUsername || 'KP11_FilmCrew_Bot'}?start=call_${shoot.id}` }
+              ]
             ]
-          ]
+          }
+        });
+        if (resGroup && resGroup.ok) {
+          results.deliveredCount++;
         }
-      });
-      console.log(`[KP11 Bot Dispatch] Вызывной лист успешно продублирован в канал/чат: ${settings.defaultChatId}`);
-    } catch (e) {
-      console.error('[KP11 Bot Dispatch] Ошибка отправки в общий чат:', e.message);
+        console.log(`[KP11 Bot Dispatch] Вызывной лист успешно продублирован в чат/канал: ${targetChat}`);
+      } catch (e) {
+        console.error(`[KP11 Bot Dispatch] Ошибка отправки в чат ${targetChat}:`, e.message);
+      }
     }
   }
 

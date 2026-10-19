@@ -237,6 +237,38 @@ async function deleteShoot(id) {
   return true;
 }
 
+async function completeShoot(shootId, grades = {}) {
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
+  const shoot = shoots.find(s => s.id === shootId);
+  if (shoot) {
+    shoot.isCompleted = true;
+    writeJsonFile(SHOOTS_FILE, shoots);
+  }
+
+  if (grades && Object.keys(grades).length > 0 && shoot && shoot.crew) {
+    const users = readJsonFile(USERS_FILE, INITIAL_USERS);
+    for (const member of shoot.crew) {
+      const g = grades[member.id] !== undefined 
+        ? parseFloat(grades[member.id]) 
+        : (grades[member.userId] !== undefined ? parseFloat(grades[member.userId]) : undefined);
+      
+      if (g !== undefined && !isNaN(g)) {
+        const u = users.find(user => user.id === member.userId);
+        if (u) {
+          if (u.rating === null || u.rating === undefined) {
+            u.rating = g;
+          } else {
+            u.rating = parseFloat(((u.rating + g) / 2).toFixed(1));
+          }
+        }
+      }
+    }
+    writeJsonFile(USERS_FILE, users);
+  }
+
+  return shoot;
+}
+
 async function updateCrewMemberStatus(shootId, userId, newStatus) {
   if (prisma) {
     try {
@@ -351,6 +383,7 @@ module.exports = {
   getShoots,
   getShootById,
   saveShoot,
+  completeShoot,
   deleteShoot,
   updateCrewMemberStatus,
   getUsers,
