@@ -1138,12 +1138,38 @@ async function deleteUser(userId) {
   renderAdminUsers(globalAdminUsers);
 }
 
-async function deleteShoot(shootId) {
-  if (!confirm('Удалить эту смену (событие) и связанные с ней метки с карты?')) return;
+let pendingDeleteShootId = null;
+
+function deleteShoot(shootId) {
+  pendingDeleteShootId = shootId;
+  const shoot = (globalShoots || []).find(s => s.id === shootId);
+
+  const modal = document.getElementById('confirmDeleteModal');
+  const titleEl = document.getElementById('confirmDeleteShootTitle');
+
+  if (modal) {
+    if (titleEl) {
+      titleEl.innerText = shoot ? ('«' + shoot.title + '»') : 'Выбранная смена';
+    }
+    modal.classList.remove('hidden');
+  } else {
+    executeDeleteShoot();
+  }
+}
+
+async function executeDeleteShoot() {
+  const shootId = pendingDeleteShootId;
+  closeConfirmDeleteModal();
+  if (!shootId) return;
+
+  // 1. Оптимистичное удаление из состояния и localStorage
   globalShoots = (globalShoots || []).filter(s => s.id !== shootId);
   localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   renderShootsList(globalShoots);
 
+  showToast('Смена удалена из производства');
+
+  // 2. Отправка на бэкенд
   try {
     const headers = { 'Authorization': 'Bearer ' + (token || 'demo-token') };
     const res = await fetch('/api/admin/shoots/' + shootId, {
@@ -1158,9 +1184,31 @@ async function deleteShoot(shootId) {
     }
   } catch (err) {}
 
-  showToast('Смена удалена из производства');
+  // 3. Загрузка обновленного реестра с сервера
   await loadShoots();
 }
+
+function closeConfirmDeleteModal() {
+  const modal = document.getElementById('confirmDeleteModal');
+  if (modal) modal.classList.add('hidden');
+  pendingDeleteShootId = null;
+}
+
+window.deleteShoot = deleteShoot;
+window.executeDeleteShoot = executeDeleteShoot;
+window.closeConfirmDeleteModal = closeConfirmDeleteModal;
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action="delete-shoot"]');
+  if (btn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = btn.getAttribute('data-shoot-id');
+    if (id && typeof window.deleteShoot === 'function') {
+      window.deleteShoot(id);
+    }
+  }
+});
 
 function filterAdminUsers() {
   const query = document.getElementById('adminSearch').value.toLowerCase();
@@ -1791,7 +1839,7 @@ async function loadShoots() {
             '<div style="margin-top:8px; display:flex; gap:4px;">' +
               '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
           if (canDeleteShoot) {
-            balloonHTML += '<button onclick="deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
+            balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
           }
           balloonHTML += '</div></div>';
 
@@ -1825,7 +1873,7 @@ async function loadShoots() {
 
       let typeBadge = '<span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">' + (s.type || 'СМЕНА') + '</span>';
 
-      let deleteBtn = canDeleteShoot ? '<button onclick="deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1" title="Удалить смену"><svg class="w-3 h-3 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>Удалить</span></button>' : '';
+      let deleteBtn = canDeleteShoot ? '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1 cursor-pointer" title="Удалить смену"><svg class="w-3 h-3 text-red-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="pointer-events-none">Удалить</span></button>' : '';
 
       const crewList = s.crew || [];
       const acceptedMemberIds = crewList.filter(c => c.status === 'ACCEPTED').map(c => '\'' + c.id + '\'').join(', ');

@@ -532,6 +532,22 @@
     </div>
   </div>
 
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ СМЕНЫ ================= -->
+  <div id="confirmDeleteModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="studio-modal-box p-6 w-full max-w-sm relative space-y-4">
+      <div class="border-b pb-3" style="border-color: var(--border-color);">
+        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-red-500">Удаление смены</h3>
+        <p class="text-[10px] mt-0.5" style="color: var(--text-muted);">Подтвердите снятие проекта с производства</p>
+      </div>
+      <p id="confirmDeleteShootTitle" class="text-xs font-bold leading-relaxed" style="color: var(--text-primary);"></p>
+      <p class="text-[11px]" style="color: var(--text-secondary);">Смена будет удалена из графика, базы данных и с интерактивной карты.</p>
+      <div class="flex items-center gap-2 pt-2">
+        <button type="button" onclick="closeConfirmDeleteModal()" class="flex-1 py-2.5 text-xs font-extrabold uppercase btn-brand-ghost">Отмена</button>
+        <button type="button" id="confirmDeleteActionBtn" onclick="executeDeleteShoot()" class="flex-1 py-2.5 text-xs font-extrabold uppercase bg-red-600 hover:bg-red-700 text-white font-bold transition">Удалить</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= МОДАЛЬНОЕ ОКНО: ОПЕРАТИВНЫЙ ВЫЗЫВНОЙ ЛИСТ TELEGRAM (МОДУЛЬ 3) ================= -->
   <div id="callsheetModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
     <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
