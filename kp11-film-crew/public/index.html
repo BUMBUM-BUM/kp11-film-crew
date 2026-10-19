@@ -102,17 +102,17 @@
   <header class="backdrop-blur-md border-b sticky top-0 z-50 transition-colors relative" style="background-color: var(--bg-secondary); border-color: var(--border-color);">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
       
-      <!-- Фирменный блок логотипа (Красный знак КП11 по брендбуку) -->
-      <a href="/" class="flex items-center space-x-3 group flex-shrink-0">
+      <!-- Фирменный блок логотипа (Красный знак КП11 + Медиацентр по брендбуку) -->
+      <a href="/" class="flex items-center space-x-3 group flex-shrink-0" title="Медиацентр Колледжа предпринимательства №11">
         <div class="h-9 w-auto flex items-center justify-center">
-          <img src="img/logo_red.png" alt="КП11" class="h-7 sm:h-8 w-auto object-contain">
+          <img src="img/logo_red.png" alt="КП11" class="h-7 sm:h-8 w-auto object-contain transition-transform group-hover:scale-105">
         </div>
-        <div class="border-l pl-3" style="border-color: var(--border-color);">
+        <div class="border-l pl-3 space-y-0.5" style="border-color: var(--border-color);">
           <div class="flex items-center space-x-2">
-            <span class="text-xs font-extrabold uppercase tracking-widest" style="color: var(--text-primary);">КП11</span>
-            <span class="text-[9px] font-bold px-1.5 py-0.5 border tracking-widest uppercase font-mono" style="background-color: var(--brand-beige-subtle); color: var(--brand-beige-text); border-color: var(--brand-beige-dark);">Медиацентр</span>
+            <span class="text-xs sm:text-sm font-extrabold uppercase tracking-wider font-mono" style="color: var(--brand-red);">МЕДИАЦЕНТР</span>
+            <span class="hidden sm:inline-block text-[9px] font-bold px-1.5 py-0.5 border tracking-wider uppercase font-mono" style="background-color: var(--brand-beige-subtle); color: var(--brand-beige-text); border-color: var(--brand-beige-dark);">ЦКТ</span>
           </div>
-          <p class="hidden md:block text-[10px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Съёмочные смены</p>
+          <p class="hidden md:block text-[10px] font-medium tracking-wide uppercase" style="color: var(--text-muted);">Съёмочные смены &amp; Производство</p>
         </div>
       </a>
 
@@ -200,80 +200,15 @@
       <section id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div class="lg:col-span-8 space-y-4">
           <div class="flex items-center justify-between px-4 py-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">
-            <span id="globalStatsText" class="text-xs font-bold uppercase tracking-wider font-mono" style="color: var(--text-muted);">Всего смен: 2 | Завершено: 2</span>
-            <span id="shootCount" class="text-xs px-2.5 py-1 font-extrabold font-mono border" style="background-color: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-color);">1 смен</span>
+            <span id="globalStatsText" class="text-xs font-bold uppercase tracking-wider font-mono" style="color: var(--text-muted);">Синхронизация графика производства...</span>
+            <span id="shootCount" class="text-xs px-2.5 py-1 font-extrabold font-mono border" style="background-color: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-color);">...</span>
           </div>
           
           <div id="shootsList" class="space-y-4">
-            <!-- Начальное отображение смены (предотвращает зависание "Загрузка...") -->
-            <div class="viewfinder-card viewfinder-corners shoot-card completed-shoot p-5 sm:p-6 space-y-4">
-              <div class="flex flex-wrap justify-between items-center gap-2">
-                <div class="flex items-center space-x-2">
-                  <span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">ВЫЕЗД</span>
-                  <span class="badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> ЗАВЕРШЕНО</span>
-                  <span class="hidden sm:inline-block font-mono text-[9px] px-1.5 py-0.5 border uppercase tracking-wider opacity-60" style="border-color: var(--border-subtle); color: var(--text-muted);">ARRI • 2.39:1 • RAW</span>
-                </div>
-                <div class="flex items-center space-x-3 text-xs font-mono">
-                  <span class="font-semibold" style="color: var(--text-muted);">19.10.2026, 01:23</span>
-                  <button id="expand_btn_demo-shoot-1" onclick="toggleShootExpand('demo-shoot-1')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">Свернуть ▴</button>
-                </div>
-              </div>
-              <div>
-                <h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">ТЕСТ 2</h4>
-                <p class="text-xs leading-relaxed font-medium" style="color: var(--text-secondary);">Съёмка короткометражного эпизода на выездной локации. Отработка ракурсов и экспозиции.</p>
-              </div>
-              <div class="text-xs border-t pt-3 flex flex-wrap justify-between items-center gap-2 font-mono text-[11px]" style="border-color: var(--border-subtle); color: var(--text-muted);">
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 inline-block text-[var(--brand-red)] mr-1 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> ПАРК ЗЕЛЁНАЯ РЕКА</span>
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 inline-block text-[var(--brand-red)] mr-1 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8H4Z"/><path d="m4 11 3-7h13l-3 7H4Z"/></svg> Мастер: <span style="color: var(--text-primary);">Главный администратор ЦКТ</span></span>
-              </div>
-              <div id="shoot_details_demo-shoot-1" class="border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">
-                <div class="space-y-2 pt-1">
-                  <div class="flex items-center justify-between">
-                    <span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>
-                    <span class="text-[10px] font-mono" style="color: var(--text-muted);">ОЦЕНКИ И ПОСЕЩАЕМОСТЬ</span>
-                  </div>
-                  <div class="space-y-1.5 mt-2">
-                    <div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">
-                      <div class="flex items-center flex-wrap gap-2">
-                        <span class="crew-dept-tag dept-badge-light">ГАФФЕР</span>
-                        <span class="font-bold text-xs uppercase" style="color: var(--text-primary);">Гусев Андрей Алексеевич</span>
-                        <span class="font-mono text-[11px]" style="color: var(--text-muted);">[КТ-25]</span>
-                        <span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">★ 3.5</span>
-                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5">✓ Принят</span>
-                      </div>
-                      <div class="flex items-center space-x-2 ml-auto">
-                        <span class="text-xs font-bold font-mono" style="color: var(--text-muted);">Присутствовал</span>
-                        <span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ 5</span>
-                      </div>
-                    </div>
-                    <div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">
-                      <div class="flex items-center flex-wrap gap-2">
-                        <span class="crew-dept-tag dept-badge-cinema">ОПЕРАТОР</span>
-                        <span class="font-bold text-xs uppercase" style="color: var(--text-primary);">Жемчужников Ярослав Станиславович</span>
-                        <span class="font-mono text-[11px]" style="color: var(--text-muted);">[КТ-25]</span>
-                        <span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">★ 4.5</span>
-                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5">✓ Принят</span>
-                      </div>
-                      <div class="flex items-center space-x-2 ml-auto">
-                        <span class="text-xs font-bold font-mono" style="color: var(--text-muted);">Присутствовал</span>
-                        <span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ 5</span>
-                      </div>
-                    </div>
-                    <div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">
-                      <div class="flex items-center flex-wrap gap-2">
-                        <span class="crew-dept-tag dept-badge-sound">ЗВУКОРЕЖИССЁР</span>
-                        <span class="font-bold text-xs uppercase" style="color: var(--text-primary);">Бадиков Семён Станиславович</span>
-                        <span class="font-mono text-[11px]" style="color: var(--text-muted);">[КТ-26]</span>
-                        <span class="text-emerald-400 font-mono text-xs font-bold inline-flex items-center gap-1">★ 5.0</span>
-                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5">✓ Принят</span>
-                      </div>
-                      <div class="flex items-center space-x-2 ml-auto">
-                        <span class="text-xs font-bold font-mono" style="color: var(--text-muted);">Присутствовал</span>
-                        <span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ 5</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <div class="viewfinder-card p-6 text-center space-y-3" style="border-color: var(--border-color); background-color: var(--bg-card);">
+              <div class="flex items-center justify-center space-x-2">
+                <span class="rec-dot"></span>
+                <span class="text-xs font-mono uppercase font-bold tracking-wider" style="color: var(--brand-beige-text);">Синхронизация производственного таймлайна...</span>
               </div>
             </div>
           </div>

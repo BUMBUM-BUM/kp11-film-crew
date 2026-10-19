@@ -15,6 +15,16 @@ function getStoredUser() {
   }
 }
 
+function pluralizeRu(n, one, few, many) {
+  const num = Math.abs(Number(n)) || 0;
+  const mod10 = num % 10;
+  const mod100 = num % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${num} ${many}`;
+  if (mod10 === 1) return `${num} ${one}`;
+  if (mod10 >= 2 && mod10 <= 4) return `${num} ${few}`;
+  return `${num} ${many}`;
+}
+
 function getUserRoleName(user) {
   if (!user) return 'Гость';
   if (typeof user.role === 'string') return user.role;
@@ -52,7 +62,28 @@ if (urlParams.get('theme')) {
   document.documentElement.setAttribute('data-theme', urlParams.get('theme'));
   localStorage.setItem('kp11_theme', urlParams.get('theme'));
 }
-if ((urlParams.get('demo') === '1' || urlParams.get('tab') || urlParams.get('expand') || urlParams.get('theme')) && !currentUser) {
+if (urlParams.get('demo') === 'student') {
+  currentUser = {
+    id: 'u1',
+    fullName: 'Ковалев Михаил Алексеевич',
+    groupName: 'ФВТ-22',
+    role: 'Студент',
+    telegram: '@mikhail_cam'
+  };
+  token = 'student-token';
+} else if (urlParams.get('demo') === 'admin') {
+  currentUser = {
+    id: 'admin-1',
+    fullName: 'Смирнов Алексей Викторович',
+    groupName: 'ЦКТ',
+    role: 'Администратор',
+    telegram: '@kp11_admin'
+  };
+  token = 'admin-token';
+} else if (urlParams.get('demo') === 'guest') {
+  currentUser = null;
+  token = '';
+} else if ((urlParams.get('demo') === '1' || urlParams.get('demo') === 'master' || urlParams.get('tab') || urlParams.get('expand') || urlParams.get('theme')) && !currentUser) {
   currentUser = {
     id: 'demo-user-1',
     fullName: 'Бадиков Семён Станиславович',
@@ -559,7 +590,7 @@ function getStudentDirectory() {
       telegram: '@timofey_light',
       competencies: { camera: 88, sound: 78, light: 94, edit: 80 },
       skills: ['Dedolight', 'Светотеневой рисунок', 'Вольфрам 3200K', 'Электробезопасность'],
-      projects: ['ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
     },
     {
       id: 'u3',
@@ -570,7 +601,7 @@ function getStudentDirectory() {
       telegram: '@andrey_gaffer',
       competencies: { camera: 75, sound: 70, light: 85, edit: 68 },
       skills: ['Гаффер-сетап', 'Рассеиватели', 'Штативы C-Stand'],
-      projects: ['ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
     },
     {
       id: 'u4',
@@ -592,7 +623,7 @@ function getStudentDirectory() {
       telegram: '@yaroslav_dop',
       competencies: { camera: 97, sound: 85, light: 90, edit: 92 },
       skills: ['Оператор-постановщик', 'Фокус-пуллинг', 'ARRI RAW', 'Стедикам'],
-      projects: ['ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА', 'СПОРТИВНЫЙ РЕПОРТАЖ', 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03']
+      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'СПОРТИВНЫЙ РЕПОРТАЖ', 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03']
     }
   ];
 }
@@ -628,7 +659,7 @@ function openShowreelModal(userId) {
     '<div class="space-y-3">' +
       '<div class="flex items-center justify-between">' +
         '<span class="text-xs font-extrabold uppercase font-mono" style="color: var(--brand-red);">Матрица цеховых компетенций (Skills Matrix):</span>' +
-        '<span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + ' Рейтинг: ' + student.rating + ' (' + student.completedShoots + ' смен)</span>' +
+        '<span class="text-amber-400 font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + ' Рейтинг: ' + student.rating + ' (' + pluralizeRu(student.completedShoots || 0, 'смена', 'смены', 'смен') + ')</span>' +
       '</div>' +
 
       '<div class="space-y-2 p-3 border" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
@@ -850,7 +881,7 @@ async function loadStatisticsData() {
         { groupName: 'КТ-26', avgRating: 4.8, participations: 2 }
       ],
       frequentShoots: [
-        { title: 'ТЕСТ 2', count: 2 },
+        { title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ', count: 3 },
         { title: 'ПОДКАСТ МЕДИАЦЕНТРА', count: 1 },
         { title: 'РЕПОРТАЖ СПОРТИВНОГО КЛУБА', count: 1 }
       ]
@@ -903,7 +934,7 @@ async function loadStatisticsData() {
             gLabel +
             '<span class="font-bold" style="color: var(--text-primary);">Группа: ' + g.groupName + '</span>' +
           '</div>' +
-          '<span class="text-amber-400 font-mono font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + g.avgRating + ' <span class="font-normal" style="color: var(--text-muted);">(' + g.participations + ' смен)</span></span>' +
+          '<span class="text-amber-400 font-mono font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + g.avgRating + ' <span class="font-normal" style="color: var(--text-muted);">(' + pluralizeRu(g.participations || 0, 'смена', 'смены', 'смен') + ')</span></span>' +
         '</div>';
       }).join('') || '<p class="text-xs" style="color: var(--text-muted);">Нет данных по группам.</p>';
     }
@@ -1963,42 +1994,56 @@ async function loadShoots() {
     } else {
       shoots = [
         {
-          id: 'demo-shoot-1',
-          title: 'ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА',
-          description: 'Съёмка короткометражного эпизода на выездной локации. Отработка ракурсов и экспозиции на открытой диафрагме f/1.4.',
-          type: 'ВЫЕЗД',
-          date: '2026-10-18T14:00:00Z',
-          location: 'ПАРК ЗЕЛЁНАЯ РЕКА (СЕРП И МОЛОТ)',
-          isCompleted: true,
-          latitude: 55.751244,
-          longitude: 37.688423,
-          videoUrl: 'https://vk.com/video_ext.php?oid=-1&id=456239017',
-          previewUrl: 'img/hero.jpg',
-          creator: { fullName: 'Бадиков Семён Станиславович' },
-          crew: [
-            { id: 'c1', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', user: { id: 'u3', fullName: 'Гусев Андрей Алексеевич', groupName: 'КТ-25', rating: 3.5, telegram: '@andrey_gaffer', participations: 3 } },
-            { id: 'c2', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', user: { id: 'u5', fullName: 'Жемчужников Ярослав Станиславович', groupName: 'КТ-25', rating: 4.5, telegram: '@yaroslav_dop', participations: 7 } },
-            { id: 'c3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', user: { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович', groupName: 'КТ-26', rating: 5.0, telegram: '@badikov_dop', participations: 6 } },
-            { id: 'c4', roleInShoot: 'ОСВЕТИТЕЛЬ', status: 'ACCEPTED', attendance: 'PRESENT', user: { id: 'u2', fullName: 'Демидов Тимофей Дмитриевич', groupName: 'ФВТ-22', rating: 4.5, telegram: '@timofey_light', participations: 4 } }
-          ]
-        },
-        {
-          id: 'demo-shoot-2',
-          title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
-          description: 'Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.',
-          type: 'СТУДИЯ',
-          date: '2026-10-21T16:30:00Z',
-          location: 'ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ)',
+          id: 'shoot-101',
+          title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ',
+          description: 'Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.',
+          type: 'ПАВИЛЬОН',
+          date: '2026-10-22T15:00:00Z',
+          location: 'ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)',
           isCompleted: false,
           latitude: 55.858244,
           longitude: 37.518423,
-          videoUrl: 'https://rutube.ru/play/embed/sample',
-          previewUrl: 'img/student.jpg',
           creator: { fullName: 'Бадиков Семён Станиславович' },
           crew: [
-            { id: 'c5', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', user: { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович', groupName: 'КТ-26', rating: 5.0, telegram: '@badikov_dop', participations: 6 } },
-            { id: 'c6', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', user: { id: 'u1', fullName: 'Ковалев Михаил Алексеевич', groupName: 'ФВТ-22', rating: 4.7, telegram: '@mikhail_cam', participations: 5 } },
-            { id: 'c7', roleInShoot: 'ОПЕРАТОР', status: 'PENDING', attendance: 'PRESENT', user: { id: 'u4', fullName: 'Соколова Анна Алексеевна', groupName: 'КТ-15', rating: 4.0, telegram: '@anna_sound', participations: 3 } }
+            { id: 'c101-1', roleInShoot: 'ОПЕРАТОР-ПОСТАНОВЩИК', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
+            { id: 'c101-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u2' },
+            { id: 'c101-3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'PENDING', attendance: 'PRESENT', userId: 'u4' },
+            { id: 'c101-4', roleInShoot: 'РЕЖИССЁР СМЕНЫ', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'demo-user-1' }
+          ]
+        },
+        {
+          id: 'shoot-102',
+          title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
+          description: 'Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.',
+          type: 'СТУДИЯ',
+          date: '2026-10-25T16:30:00Z',
+          location: 'СТУДИЯ ЗВУКОЗАПИСИ И ПОДКАСТОВ ЦКТ',
+          latitude: 55.851244,
+          longitude: 37.528423,
+          isCompleted: false,
+          creator: { fullName: 'Бадиков Семён Станиславович' },
+          crew: [
+            { id: 'c102-1', roleInShoot: 'КАМЕРНЫЙ ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
+            { id: 'c102-2', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u4' },
+            { id: 'c102-3', roleInShoot: 'ОПЕРАТОР СТЕДИКАМА', status: 'PENDING', attendance: 'PRESENT', userId: 'u5' }
+          ]
+        },
+        {
+          id: 'shoot-103',
+          title: 'ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»',
+          description: 'Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.',
+          type: 'ВЫЕЗД',
+          date: '2026-10-17T11:00:00Z',
+          location: 'ПАРК «СЕВЕРНОЕ ТУШИНО», НАБЕРЕЖНАЯ',
+          latitude: 55.864244,
+          longitude: 37.452423,
+          isCompleted: true,
+          creator: { fullName: 'Бадиков Семён Станиславович' },
+          crew: [
+            { id: 'c103-1', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u1' },
+            { id: 'c103-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u2' },
+            { id: 'c103-3', roleInShoot: 'АССИСТЕНТ ОСВЕТИТЕЛЯ', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u3' },
+            { id: 'c103-4', roleInShoot: 'ЗВУКООПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u4' }
           ]
         }
       ];
@@ -2010,7 +2055,7 @@ async function loadShoots() {
 
   try {
     if (document.getElementById('shootCount')) {
-      document.getElementById('shootCount').innerText = shoots.length + ' смен';
+      document.getElementById('shootCount').innerText = pluralizeRu(shoots.length, 'смена', 'смены', 'смен');
     }
     if (document.getElementById('globalStatsText')) {
       document.getElementById('globalStatsText').innerText = 'Всего смен: ' + stats.totalShoots + ' | Завершено: ' + stats.completedShoots;

@@ -5,6 +5,11 @@ try {
   bot = require('../bot');
 } catch (e) {}
 
+// Redirect console.log to stderr so stdout is strictly clean JSON for the caller process
+console.log = function(...args) {
+  process.stderr.write(args.join(' ') + '\n');
+};
+
 const action = process.argv[2];
 const param = process.argv[3];
 

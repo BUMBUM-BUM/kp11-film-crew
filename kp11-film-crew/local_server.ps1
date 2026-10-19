@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Local preview HTTP server for KP11 Film Crew
 # ==============================================================================
 
@@ -74,32 +74,82 @@ while ($listener.IsListening) {
                 $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
                 $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
                 $tempFile = Join-Path $PSScriptRoot "data\temp_shoot_$([Guid]::NewGuid().ToString('N')).json"
+                $shootSaved = $false
                 try {
                     [System.IO.File]::WriteAllText($tempFile, $reqBody, $utf8Encoding)
                     if (Test-Path $nodeExe) {
-                        $rawJsonToSend = & $nodeExe $helperScript add $tempFile
-                    } else {
-                        $rawJsonToSend = "{`"success`":true}"
+                        $helperOut = (& $nodeExe $helperScript add $tempFile 2>$null) | Out-String
+                        if ($helperOut -match '(\{"success":[\s\S]+\})') {
+                            $rawJsonToSend = $Matches[1].Trim()
+                            $shootSaved = $true
+                        }
                     }
-                } finally {
+                } catch {}
+                finally {
                     if (Test-Path $tempFile) { Remove-Item $tempFile -Force -ErrorAction SilentlyContinue }
+                }
+
+                if (-not $shootSaved) {
+                    $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                    $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                    $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                    $shootId = if ($parsed.id) { $parsed.id } else { "shoot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
+                    
+                    $users = if (Test-Path $usersFile) { [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
+                    $crewList = @()
+                    if ($parsed.crew) {
+                        $crewList = $parsed.crew
+                    } elseif ($parsed.crewAssignments) {
+                        $idx = 1
+                        foreach ($ca in $parsed.crewAssignments) {
+                            $st = ($users | Where-Object { $_.id -eq $ca.userId }) | Select-Object -First 1
+                            $crewList += @{
+                                id = "c-$shootId-$idx"
+                                roleInShoot = if ($ca.craftRole) { $ca.craftRole } else { "Специалист цеха" }
+                                status = "PENDING"
+                                attendance = "PRESENT"
+                                userId = $ca.userId
+                                user = $st
+                            }
+                            $idx++
+                        }
+                    }
+
+                    $newShootObj = @{
+                        id = $shootId
+                        title = if ($parsed.title) { $parsed.title } else { "Новая смена" }
+                        description = if ($parsed.description) { $parsed.description } else { "" }
+                        type = if ($parsed.type) { $parsed.type } else { "СТУДИЯ" }
+                        date = if ($parsed.date) { $parsed.date } else { [DateTime]::UtcNow.ToString("o") }
+                        location = if ($parsed.location) { $parsed.location } else { "Павильон КП11" }
+                        latitude = if ($parsed.latitude) { [double]$parsed.latitude } else { 55.858244 }
+                        longitude = if ($parsed.longitude) { [double]$parsed.longitude } else { 37.518423 }
+                        isCompleted = $false
+                        creator = @{ fullName = if ($parsed.creator -and $parsed.creator.fullName) { $parsed.creator.fullName } else { "Бадиков Семён Станиславович" } }
+                        crew = $crewList
+                    }
+
+                    $existingRaw = if (Test-Path $shootsFile) { [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
+                    $existingList = if ($existingRaw -is [Array]) { @($existingRaw) } elseif ($existingRaw.value -is [Array]) { @($existingRaw.value) } elseif ($null -ne $existingRaw) { @($existingRaw) } else { @() }
+                    $allShoots = @($newShootObj) + @($existingList | Where-Object { $_.id -ne $shootId })
+                    $shootsJsonOut = ($allShoots | ConvertTo-Json -Depth 6)
+                    if (-not $shootsJsonOut.Trim().StartsWith("[")) { $shootsJsonOut = "[$shootsJsonOut]" }
+                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+
+                    $newShootJson = $newShootObj | ConvertTo-Json -Depth 6
+                    $rawJsonToSend = "{`"success`":true,`"shoot`":$newShootJson}"
                 }
             }
             elseif ($urlPath -match "^/api/(?:admin/)?shoots/([^/]+)" -and $method -eq "DELETE") {
                 $targetShootId = $Matches[1]
-                $helperScript = Join-Path $PSScriptRoot "data\shoots_helper.js"
-                $nodeExe = "C:\Users\bad14\AppData\Local\Programs\com.brotorrent.torrent-client-utorrent\resources\app.asar.unpacked\node_modules\node\bin\node.exe"
-                if (Test-Path $nodeExe) {
-                    & $nodeExe $helperScript delete $targetShootId | Out-Null
-                } else {
-                    $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
-                    if (Test-Path $shootsFile) {
-                        $shoots = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-                        $filteredShoots = @($shoots | Where-Object { $_.id -ne $targetShootId })
-                        if ($filteredShoots.Count -eq 0) {
-                            [System.IO.File]::WriteAllText($shootsFile, "[]", $utf8Encoding)
-                        }
-                    }
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                if (Test-Path $shootsFile) {
+                    $existingRaw = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    $existingList = if ($existingRaw -is [Array]) { @($existingRaw) } elseif ($existingRaw.value -is [Array]) { @($existingRaw.value) } elseif ($null -ne $existingRaw) { @($existingRaw) } else { @() }
+                    $filteredShoots = @($existingList | Where-Object { $_.id -ne $targetShootId })
+                    $shootsJsonOut = ($filteredShoots | ConvertTo-Json -Depth 6)
+                    if (-not $shootsJsonOut.Trim().StartsWith("[")) { $shootsJsonOut = "[$shootsJsonOut]" }
+                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
                 }
                 $rawJsonToSend = "{`"success`":true,`"message`":`"Shoot deleted`"}"
             }
@@ -337,7 +387,16 @@ while ($listener.IsListening) {
                 $rawJsonToSend = "{`"success`":true}"
             }
             elseif ($urlPath -eq "/api/cinemaboard" -and $method -eq "GET") {
-                $rawJsonToSend = '{"timeBlock":1,"rating":4.8,"message":"Cinema quote","statusType":"praise"}'
+                $quotes = @(
+                    "«Кино — это жизнь, с которой вывели пятна». Продолжаем двигаться по сценарию! — Альфред Хичкок",
+                    "«Кинематограф не должен быть куском жизни, он должен быть произведением искусства». — Стэнли Кубрик",
+                    "«Великие фильмы рождаются из великих идей и безупречной работы команды». — Жан-Люк Годар",
+                    "«Смонтировать фильм — значит заново вдохнуть в него ритм и жизнь». — Андрей Тарковский",
+                    "«Свет на съёмочной площадке рисует историю задолго до того, как актёр скажет первую реплику». — Роджер Дикинс"
+                )
+                $selectedQuote = $quotes[(Get-Random -Maximum $quotes.Count)]
+                $quoteObj = @{ timeBlock = 1; rating = 5.0; message = $selectedQuote; statusType = "praise" }
+                $rawJsonToSend = $quoteObj | ConvertTo-Json -Depth 3
             }
             elseif ($urlPath -eq "/api/notifications/vapid-public-key" -and $method -eq "GET") {
                 $rawJsonToSend = "{`"publicKey`":`"BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkZsMlY_b448`"}"
