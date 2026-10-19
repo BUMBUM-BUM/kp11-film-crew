@@ -156,11 +156,21 @@ body {
 /* Текстура органического плёночного зерна (Organic 35mm Film Grain) */
 .film-grain-overlay {
   position: fixed;
-  inset: 0;
+  inset: -50px;
+  width: calc(100% + 100px);
+  height: calc(100% + 100px);
   pointer-events: none;
   z-index: 999;
-  opacity: 0.038;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  animation: filmGrainJitter 0.5s steps(3) infinite;
+}
+
+@keyframes filmGrainJitter {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-2px, 2px); }
+  66% { transform: translate(2px, -1px); }
+  100% { transform: translate(0, 0); }
 }
 
 /* Швейцарская координатная сетка студийного видоискателя */
@@ -1086,5 +1096,215 @@ body {
   height: 100%;
   background: linear-gradient(90deg, #F59E0B 0%, var(--brand-red) 100%);
   transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   АВТОРСКИЕ ПЛЁНОЧНЫЕ ЭФФЕКТЫ И КИНО-ЭЛЕМЕНТЫ (СУБАГЕНТ «ДИЗАЙН»)
+   ========================================================================== */
+
+/* Золотое сияние звёзд рейтинга */
+.golden-star-glow {
+  color: #F59E0B !important;
+  filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.5));
+}
+
+/* Плашка кинохлопушки (Film Slate Tag) */
+.film-slate-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--brand-font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  background: repeating-linear-gradient(
+    -45deg,
+    #1A1A1A,
+    #1A1A1A 6px,
+    #333333 6px,
+    #333333 12px
+  );
+  color: #F5F5F5;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Выделение строки смены, если текущий студент назначен в команду */
+.student-my-row {
+  border-left: 3px solid var(--brand-red) !important;
+  background-color: rgba(252, 44, 44, 0.06) !important;
+}
+
+.student-my-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-family: var(--brand-font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  background-color: rgba(252, 44, 44, 0.18);
+  color: var(--brand-red);
+  border: 1px solid var(--brand-red);
+  letter-spacing: 0.05em;
+}
+
+/* Кинематографическая рамка видоискателя на карточке смены */
+.viewfinder-card {
+  position: relative;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth), border-color var(--transition-smooth);
+}
+
+.viewfinder-card:hover {
+  border-color: var(--border-strong);
+}
+
+/* Индикатор статуса производства смены */
+.rec-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--brand-font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--brand-red);
+  background-color: rgba(252, 44, 44, 0.12);
+  border: 1px solid rgba(252, 44, 44, 0.35);
+  padding: 2px 7px;
+  letter-spacing: 0.05em;
+}
+
+/* ==========================================================================
+   АДАПТИВНОСТЬ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА (СУБАГЕНТ «ВЁРСТКА»)
+   ========================================================================== */
+
+/* Планшеты и смартфоны (<= 768px) */
+@media (max-width: 768px) {
+  /* Горизонтальный скролл навигационной панели табов */
+  #tabNav {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 8px;
+    padding-bottom: 8px;
+    margin-left: -4px;
+    margin-right: -4px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  #tabNav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .studio-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+
+  /* Карточки смен */
+  .shoot-card {
+    padding: 16px 12px !important;
+  }
+
+  .shoot-card .crew-member-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .shoot-card .crew-member-row > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shoot-card .crew-member-row > div:last-child {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-left: 0 !important;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-subtle);
+  }
+
+  /* Модальные окна */
+  .studio-modal-box {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 18px 14px !important;
+    margin: 12px auto !important;
+  }
+
+  .studio-input, select.studio-input {
+    min-height: 42px;
+    font-size: 14px;
+  }
+
+  /* Студийные кнопки для удобных тапов */
+  .btn-brand-primary,
+  .btn-brand-beige,
+  .btn-brand-ghost {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Студийный таймер на мобилке */
+  #studioClock {
+    font-size: 10px;
+  }
+  
+  .geom-easter-edge,
+  .geom-easter-edge-right {
+    display: none !important;
+  }
+}
+
+/* Компактные экраны (<= 480px) */
+@media (max-width: 480px) {
+  header .max-w-7xl {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .cinema-banner {
+    padding: 14px 12px !important;
+  }
+
+  .cinema-banner h2 {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+  }
+
+  .accreditation-badge {
+    padding: 14px 12px !important;
+  }
+
+  .student-action-btn-group {
+    display: flex;
+    width: 100%;
+    gap: 6px;
+  }
+
+  .student-action-btn-group button {
+    flex: 1;
+    min-height: 38px;
+    text-align: center;
+    justify-content: center;
+  }
 }
 

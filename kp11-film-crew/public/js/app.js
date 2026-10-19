@@ -22,9 +22,25 @@ function getUserRoleName(user) {
   return 'Студент';
 }
 
-function isMasterOrAdminUser(user) {
+function isAdminUser(user) {
+  if (!user) return false;
   const r = getUserRoleName(user);
-  return r === 'Мастер / Преподаватель' || r === 'Администратор' || r.includes('Мастер') || r.includes('Админ');
+  return r === 'Администратор' || r.includes('Админ');
+}
+
+function isMasterUser(user) {
+  if (!user) return false;
+  const r = getUserRoleName(user);
+  return r === 'Мастер / Преподаватель' || r.includes('Мастер') || r.includes('Преподаватель');
+}
+
+function isStudentUser(user) {
+  if (!user) return false;
+  return !isAdminUser(user) && !isMasterUser(user);
+}
+
+function isMasterOrAdminUser(user) {
+  return isAdminUser(user) || isMasterUser(user);
 }
 
 let currentUser = getStoredUser();
@@ -259,7 +275,7 @@ function updateNav() {
         '</div>';
     }
 
-    if (isMasterOrAdminUser(currentUser)) {
+    if (isMasterUser(currentUser)) {
       if (actionContainer) {
         actionContainer.innerHTML = 
           '<button onclick="openShootModal()" class="btn-brand-primary px-4 py-2 text-xs flex items-center space-x-2 shadow-lg">' +
@@ -267,14 +283,27 @@ function updateNav() {
             '<span>Новая смена</span>' +
           '</button>';
       }
-    } else if (actionContainer) {
-      actionContainer.innerHTML = '';
-    }
-
-    if (isMasterOrAdminUser(currentUser)) {
-      if (tabAdminBtn) tabAdminBtn.classList.remove('hidden');
-      loadAdminPanel();
+      if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
+    } else if (isAdminUser(currentUser)) {
+      if (actionContainer) {
+        actionContainer.innerHTML = 
+          '<button onclick="switchTab(\'admin\')" class="btn-brand-beige px-4 py-2 text-xs flex items-center space-x-2 shadow-lg">' +
+            '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
+            '<span>Панель администрирования</span>' +
+          '</button>';
+      }
+      if (tabAdminBtn) {
+        tabAdminBtn.classList.remove('hidden');
+        loadAdminPanel();
+      }
     } else {
+      if (actionContainer) {
+        actionContainer.innerHTML = 
+          '<div class="flex items-center gap-1.5 px-3 py-1.5 border font-mono text-[11px]" style="background-color: var(--bg-card); border-color: var(--border-color); color: var(--text-secondary);">' +
+            '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>' +
+            '<span>Студенческий доступ</span>' +
+          '</div>';
+      }
       if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
     }
 
@@ -337,8 +366,8 @@ function switchTab(tab) {
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
 
-  if (isAdmin && !isMasterOrAdminUser(currentUser)) {
-    alert('Доступ запрещён!');
+  if (isAdmin && !isAdminUser(currentUser)) {
+    showToast('Раздел «Администрирование» доступен только Администратору системы.');
     switchTab('shoots');
     return;
   }
@@ -953,44 +982,105 @@ async function loadAdminPanel() {
   renderAdminUsers(globalAdminUsers);
 }
 
+let currentAdminRoleFilter = 'ALL';
+
+function setAdminRoleFilter(filterType) {
+  currentAdminRoleFilter = filterType;
+  filterAdminUsers();
+}
+
 function renderAdminUsers(users) {
   const container = document.getElementById('adminUsersList');
   if (!container) return;
   
-  let adminTopBar = '<div class="mb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
-    '<span class="text-xs font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Глобальное управление базой</span>' +
-    '<button onclick="resetAllRatings()" class="px-3 py-1.5 text-xs font-extrabold uppercase btn-brand-primary">Сбросить весь рейтинг</button>' +
+  const allList = globalAdminUsers || [];
+  const totalCount = allList.length;
+  const studentsCount = allList.filter(u => (u.role && u.role.name === 'Студент') || (!u.role || !u.role.name)).length;
+  const mastersCount = allList.filter(u => u.role && u.role.name === 'Мастер / Преподаватель').length;
+  const adminsCount = allList.filter(u => u.role && u.role.name === 'Администратор').length;
+  const suspendedCount = allList.filter(u => u.isSuspended).length;
+
+  const btnActiveClass = 'btn-brand-beige shadow-md font-extrabold';
+  const btnInactiveClass = 'btn-brand-ghost text-[var(--text-muted)]';
+
+  let adminTopBar = '<div class="space-y-4 mb-4">' +
+    '<!-- Карточки ключевых метрик базы -->' +
+    '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">' +
+      '<div onclick="setAdminRoleFilter(\'ALL\')" class="cursor-pointer p-3 border transition hover:border-[var(--brand-red)] ' + (currentAdminRoleFilter === 'ALL' ? 'border-[var(--brand-red)] bg-[#1A1A1A]' : 'border-[var(--border-color)] bg-[var(--bg-elevated)]') + '">' +
+        '<div class="text-[10px] font-mono uppercase text-[var(--text-muted)]">Всего в базе</div>' +
+        '<div class="text-xl font-extrabold font-mono text-[var(--text-primary)] mt-0.5">' + totalCount + '</div>' +
+      '</div>' +
+      '<div onclick="setAdminRoleFilter(\'STUDENT\')" class="cursor-pointer p-3 border transition hover:border-[#229ED9] ' + (currentAdminRoleFilter === 'STUDENT' ? 'border-[#229ED9] bg-[#1A1A1A]' : 'border-[var(--border-color)] bg-[var(--bg-elevated)]') + '">' +
+        '<div class="text-[10px] font-mono uppercase text-[var(--text-muted)]">Студенты</div>' +
+        '<div class="text-xl font-extrabold font-mono text-[#229ED9] mt-0.5">' + studentsCount + '</div>' +
+      '</div>' +
+      '<div onclick="setAdminRoleFilter(\'MASTER\')" class="cursor-pointer p-3 border transition hover:border-amber-400 ' + (currentAdminRoleFilter === 'MASTER' ? 'border-amber-400 bg-[#1A1A1A]' : 'border-[var(--border-color)] bg-[var(--bg-elevated)]') + '">' +
+        '<div class="text-[10px] font-mono uppercase text-[var(--text-muted)]">Мастера</div>' +
+        '<div class="text-xl font-extrabold font-mono text-amber-400 mt-0.5">' + mastersCount + '</div>' +
+      '</div>' +
+      '<div onclick="setAdminRoleFilter(\'SUSPENDED\')" class="cursor-pointer p-3 border transition hover:border-red-500 ' + (currentAdminRoleFilter === 'SUSPENDED' ? 'border-red-500 bg-red-950/20' : 'border-[var(--border-color)] bg-[var(--bg-elevated)]') + '">' +
+        '<div class="text-[10px] font-mono uppercase text-red-400">Отстранены</div>' +
+        '<div class="text-xl font-extrabold font-mono text-red-500 mt-0.5">' + suspendedCount + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<!-- Фильтр-пилюли и сброс рейтинга -->' +
+    '<div class="flex flex-wrap items-center justify-between gap-2.5 p-2.5 border" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+      '<div class="flex flex-wrap items-center gap-1.5">' +
+        '<button onclick="setAdminRoleFilter(\'ALL\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'ALL' ? btnActiveClass : btnInactiveClass) + '">Все (' + totalCount + ')</button>' +
+        '<button onclick="setAdminRoleFilter(\'STUDENT\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'STUDENT' ? btnActiveClass : btnInactiveClass) + '">Студенты (' + studentsCount + ')</button>' +
+        '<button onclick="setAdminRoleFilter(\'MASTER\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'MASTER' ? btnActiveClass : btnInactiveClass) + '">Мастера (' + mastersCount + ')</button>' +
+        '<button onclick="setAdminRoleFilter(\'ADMIN\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'ADMIN' ? btnActiveClass : btnInactiveClass) + '">Админы (' + adminsCount + ')</button>' +
+        '<button onclick="setAdminRoleFilter(\'SUSPENDED\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'SUSPENDED' ? 'bg-red-700 text-white font-extrabold' : btnInactiveClass) + '">Отстранены (' + suspendedCount + ')</button>' +
+      '</div>' +
+      '<button onclick="resetAllRatings()" class="px-3 py-1.5 text-[11px] font-extrabold uppercase btn-brand-primary shrink-0" title="Обнулить звёздные оценки всех пользователей">Сбросить весь рейтинг</button>' +
+    '</div>' +
   '</div>';
+
+  if (!users || users.length === 0) {
+    container.innerHTML = adminTopBar + '<div class="p-8 text-center text-xs font-mono border" style="color: var(--text-muted); border-color: var(--border-subtle);">Пользователи по выбранному фильтру не найдены</div>';
+    return;
+  }
 
   container.innerHTML = adminTopBar + users.map(u => {
     const currentRole = u.role && u.role.name ? u.role.name : 'Студент';
-    const isAdminUser = currentUser && currentUser.id === u.id;
+    const isMe = currentUser && currentUser.id === u.id;
     const ratingText = u.rating !== null && u.rating !== undefined ? u.rating : '';
     const colorClass = getRatingBadgeColor(u.rating);
-    const suspendedText = u.isSuspended ? '<span class="text-red-500 font-extrabold ml-2">[ОТСТРАНЁН]</span>' : '';
+    const suspendedText = u.isSuspended ? '<span class="text-red-500 font-extrabold ml-1.5 px-1.5 py-0.5 border border-red-600/50 bg-red-950/30 text-[10px] uppercase font-mono">[ОТСТРАНЁН]</span>' : '';
     const borderClass = u.isSuspended ? 'border-red-600/60 bg-red-950/20' : 'border';
     const rowBg = u.isSuspended ? '' : 'style="background-color: var(--bg-card); border-color: var(--border-color);"';
     
+    let roleBadgeTag = '';
+    if (currentRole === 'Администратор') {
+      roleBadgeTag = '<span class="text-[10px] font-extrabold uppercase px-2 py-0.5 border border-red-600/60 bg-red-950/40 text-red-300 font-mono inline-flex items-center gap-1">🛡️ Админ</span>';
+    } else if (currentRole === 'Мастер / Преподаватель') {
+      roleBadgeTag = '<span class="text-[10px] font-extrabold uppercase px-2 py-0.5 border border-amber-600/60 bg-amber-950/40 text-amber-300 font-mono inline-flex items-center gap-1">🎬 Мастер</span>';
+    } else {
+      roleBadgeTag = '<span class="text-[10px] font-extrabold uppercase px-2 py-0.5 border border-blue-600/50 bg-blue-950/30 text-blue-300 font-mono inline-flex items-center gap-1">🎓 Студент</span>';
+    }
+
     const cleanTg = u.telegram ? (u.telegram.startsWith('@') ? u.telegram : '@' + u.telegram) : '';
     const tgBadge = cleanTg 
-      ? '<span class="font-mono text-[11px] font-bold px-1.5 py-0.5 border border-[#229ED9]/50 bg-[#229ED9]/10 text-[#229ED9] inline-flex items-center gap-1" title="Привязанный Telegram">' + SVG_ICONS.telegram + '<span id="display_tg_' + u.id + '">' + cleanTg + '</span></span>'
+      ? '<a href="https://t.me/' + cleanTg.replace(/^@/, '') + '" target="_blank" class="font-mono text-[11px] font-bold px-1.5 py-0.5 border border-[#229ED9]/50 bg-[#229ED9]/10 text-[#229ED9] inline-flex items-center gap-1 hover:underline" title="Открыть профиль Telegram">' + SVG_ICONS.telegram + '<span id="display_tg_' + u.id + '">' + cleanTg + '</span></a>'
       : '<span class="font-mono text-[10px] text-amber-400 border border-amber-500/30 px-1 py-0.5" id="display_tg_' + u.id + '">[TG не указан]</span>';
 
     let deleteBtn = '';
-    if (!isAdminUser) {
-      deleteBtn = '<button onclick="deleteUser(\'' + u.id + '\')" class="px-3 py-1 text-xs font-extrabold uppercase bg-red-700/80 hover:bg-red-600 text-white transition">Удалить</button>';
+    if (!isMe) {
+      deleteBtn = '<button onclick="deleteUser(\'' + u.id + '\')" class="px-2.5 py-1 text-xs font-extrabold uppercase bg-red-700/80 hover:bg-red-600 text-white transition">Удалить</button>';
     }
 
     return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3.5 gap-3 border ' + borderClass + ' transition" ' + rowBg + '>' +
       '<div id="user_info_' + u.id + '" class="flex-grow">' +
-        '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
+        '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
           '<span id="display_name_' + u.id + '" class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + u.fullName + '</span> ' +
+          roleBadgeTag + ' ' +
           '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span id="display_group_' + u.id + '" style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
           tgBadge + ' ' +
           '<span class="' + colorClass + ' font-mono text-xs inline-flex items-center gap-1">' + SVG_ICONS.star + '<span id="display_rating_' + u.id + '">' + (ratingText !== '' ? ratingText : 'Нет') + '</span></span> ' +
           suspendedText +
         '</div>' +
-        '<p class="text-[11px] font-mono mt-0.5" style="color: var(--text-muted);">' + u.email + '</p>' +
+        '<p class="text-[11px] font-mono mt-1" style="color: var(--text-muted);">' + u.email + (isMe ? ' <span class="text-[var(--brand-beige-text)] font-bold ml-1">(Вы)</span>' : '') + '</p>' +
       '</div>' +
       '<div id="user_edit_form_' + u.id + '" class="hidden flex items-center space-x-2 flex-grow flex-wrap gap-y-2">' +
         '<input type="text" id="edit_name_' + u.id + '" value="' + u.fullName.replace(/"/g, '&quot;') + '" class="studio-input px-2 py-1 text-xs" placeholder="ФИО">' +
@@ -1004,15 +1094,15 @@ function renderAdminUsers(users) {
         '<button onclick="toggleUserEdit(\'' + u.id + '\', false)" class="btn-brand-ghost px-2 py-1 text-xs font-extrabold uppercase">Отмена</button>' +
       '</div>' +
       '<div class="flex items-center space-x-2 flex-wrap gap-y-2" id="user_actions_' + u.id + '">' +
-        '<button onclick="toggleUserEdit(\'' + u.id + '\', true)" class="px-3 py-1 text-xs font-extrabold uppercase btn-brand-ghost">Изменить</button>' +
-        '<select onchange="changeUserRole(\'' + u.id + '\', this.value)" class="studio-input px-2.5 py-1 text-xs font-bold">' +
+        '<button onclick="toggleUserEdit(\'' + u.id + '\', true)" class="px-2.5 py-1 text-xs font-extrabold uppercase btn-brand-ghost">Изменить</button>' +
+        '<select onchange="changeUserRole(\'' + u.id + '\', this.value)" class="studio-input px-2 py-1 text-xs font-bold">' +
           '<option value="Студент" ' + (currentRole === 'Студент' ? 'selected' : '') + '>Студент</option>' +
-          '<option value="Мастер / Преподаватель" ' + (currentRole === 'Мастер / Преподаватель' ? 'selected' : '') + '>Мастер / Преподаватель</option>' +
+          '<option value="Мастер / Преподаватель" ' + (currentRole === 'Мастер / Преподаватель' ? 'selected' : '') + '>Мастер</option>' +
           '<option value="Администратор" ' + (currentRole === 'Администратор' ? 'selected' : '') + '>Администратор</option>' +
         '</select>' +
-        '<button onclick="toggleSuspend(\'' + u.id + '\', ' + (!u.isSuspended) + ')" class="px-3 py-1 text-xs font-extrabold uppercase transition ' + (u.isSuspended ? 'bg-emerald-600 text-white' : 'btn-brand-primary') + '">' +
+        (!isMe ? '<button onclick="toggleSuspend(\'' + u.id + '\', ' + (!u.isSuspended) + ')" class="px-2.5 py-1 text-xs font-extrabold uppercase transition ' + (u.isSuspended ? 'bg-emerald-600 text-white' : 'btn-brand-primary') + '">' +
           (u.isSuspended ? 'Восстановить' : 'Отстранить') +
-        '</button>' +
+        '</button>' : '') +
         deleteBtn +
       '</div>' +
     '</div>';
@@ -1191,8 +1281,11 @@ async function deleteUser(userId) {
   } catch (err) {}
 
   globalAdminUsers = (globalAdminUsers || []).filter(u => u.id !== userId);
+  globalStudents = (globalStudents || []).filter(s => s.id !== userId);
+  localStorage.setItem('kp11_admin_users', JSON.stringify(globalAdminUsers));
+  localStorage.setItem('kp11_students', JSON.stringify(globalStudents));
   showToast('Пользователь удален из базы данных');
-  renderAdminUsers(globalAdminUsers);
+  filterAdminUsers();
 }
 
 let pendingDeleteShootId = null;
@@ -1268,8 +1361,30 @@ document.addEventListener('click', function(e) {
 });
 
 function filterAdminUsers() {
-  const query = document.getElementById('adminSearch').value.toLowerCase();
-  const filtered = globalAdminUsers.filter(u => u.fullName.toLowerCase().includes(query) || (u.groupName && u.groupName.toLowerCase().includes(query)));
+  const searchInput = document.getElementById('adminSearch');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  
+  let filtered = (globalAdminUsers || []).filter(u => {
+    const roleName = (u.role && u.role.name) ? u.role.name : 'Студент';
+    let matchRole = true;
+    if (currentAdminRoleFilter === 'STUDENT') {
+      matchRole = roleName === 'Студент';
+    } else if (currentAdminRoleFilter === 'MASTER') {
+      matchRole = roleName === 'Мастер / Преподаватель';
+    } else if (currentAdminRoleFilter === 'ADMIN') {
+      matchRole = roleName === 'Администратор';
+    } else if (currentAdminRoleFilter === 'SUSPENDED') {
+      matchRole = !!u.isSuspended;
+    }
+    
+    if (!matchRole) return false;
+    if (!query) return true;
+    return (u.fullName && u.fullName.toLowerCase().includes(query)) ||
+           (u.email && u.email.toLowerCase().includes(query)) ||
+           (u.groupName && u.groupName.toLowerCase().includes(query)) ||
+           (u.telegram && u.telegram.toLowerCase().includes(query));
+  });
+
   renderAdminUsers(filtered);
 }
 
@@ -1286,16 +1401,21 @@ async function toggleSuspend(userId, isSuspended) {
   if (user) {
     user.isSuspended = isSuspended;
   }
+  const student = (globalStudents || []).find(s => s.id === userId);
+  if (student) {
+    student.isSuspended = isSuspended;
+  }
+  localStorage.setItem('kp11_admin_users', JSON.stringify(globalAdminUsers));
   showToast(isSuspended ? 'Пользователь отстранён от съёмок' : 'Доступ к съёмкам восстановлен');
-  renderAdminUsers(globalAdminUsers);
+  filterAdminUsers();
 }
 
 async function changeUserRole(userId, roleName) {
   try {
-    await fetch('/api/admin/users/' + userId + '/role', {
+    await fetch('/api/admin/users/' + userId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ roleName })
+      body: JSON.stringify({ role: roleName, roleName: roleName })
     });
   } catch (err) {}
 
@@ -1303,13 +1423,19 @@ async function changeUserRole(userId, roleName) {
   if (user) {
     user.role = { name: roleName };
   }
+  const student = (globalStudents || []).find(s => s.id === userId);
+  if (student) {
+    student.role = { name: roleName };
+  }
+  localStorage.setItem('kp11_admin_users', JSON.stringify(globalAdminUsers));
+  
   if (currentUser && currentUser.id === userId) {
     currentUser.role = roleName;
     localStorage.setItem('user', JSON.stringify(currentUser));
     updateNav();
   }
   showToast('Роль пользователя изменена на: ' + roleName);
-  renderAdminUsers(globalAdminUsers);
+  filterAdminUsers();
 }
 
 async function loadNotifications() {
@@ -1332,23 +1458,37 @@ async function loadNotifications() {
     }
 
     container.innerHTML = 
-      '<div class="p-4 bg-[#1A1A1A] border-l-4 border-l-[var(--brand-red)] border border-[#333333] mb-6 space-y-3 shadow-lg">' +
-        '<div class="flex items-center space-x-2">' +
-          '<span class="rec-dot"></span>' +
-          '<h4 class="text-xs font-extrabold uppercase tracking-wider text-[var(--brand-beige)]">Входящие приглашения в состав смены:</h4>' +
+      '<div class="p-4 mb-6 space-y-3 shadow-xl border-l-4 border-l-[var(--brand-red)] border viewfinder-card" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+        '<div class="flex items-center justify-between">' +
+          '<div class="flex items-center space-x-2">' +
+            '<span class="rec-dot"></span>' +
+            '<h4 class="text-xs font-extrabold uppercase tracking-wider" style="color: var(--brand-beige-text);">Входящие вызовы на смену (' + invites.length + '):</h4>' +
+          '</div>' +
+          '<span class="text-[10px] font-mono uppercase px-2 py-0.5 border border-red-500/40 text-red-400 bg-red-950/20 font-bold">Требуется решение</span>' +
         '</div>' +
-        invites.map(inv => 
-          '<div class="flex flex-col sm:flex-row sm:items-center justify-between bg-[#141414] p-3 text-xs border border-[#2B2B2B] gap-3">' +
-            '<div>' +
-              '<strong class="text-xs font-bold uppercase text-[#E9EAEB]">' + inv.shoot.title + '</strong>' +
-              '<p class="text-neutral-400 text-[11px] font-mono mt-0.5">Локация: ' + inv.shoot.location + '</p>' +
+        invites.map(inv => {
+          const shootTitle = (inv.shoot && inv.shoot.title) || inv.shootTitle || 'Съёмочная смена';
+          const shootLoc = (inv.shoot && inv.shoot.location) || inv.shootLocation || 'Локация уточняется';
+          const shootRole = inv.roleInShoot || inv.role || 'Участник смены';
+          const shootDate = (inv.shoot && inv.shoot.shootDate) ? new Date(inv.shoot.shootDate).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+          
+          return '<div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">' +
+            '<div class="space-y-1">' +
+              '<div class="flex items-center flex-wrap gap-2">' +
+                '<strong class="text-xs font-extrabold uppercase" style="color: var(--text-primary);">' + shootTitle + '</strong>' +
+                '<span class="crew-dept-tag dept-badge-cinema"><span class="inline-flex items-center gap-1">' + SVG_ICONS.camera + shootRole + '</span></span>' +
+              '</div>' +
+              '<p class="text-[11px] font-mono flex items-center gap-2" style="color: var(--text-muted);">' +
+                '<span>' + SVG_ICONS.pin + ' ' + shootLoc + '</span>' +
+                (shootDate ? '<span>• ' + shootDate + '</span>' : '') +
+              '</p>' +
             '</div>' +
-            '<div class="space-x-2 flex items-center">' +
-              '<button onclick="respondCrew(\'' + inv.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-extrabold uppercase transition">Принять</button>' +
-              '<button onclick="respondCrew(\'' + inv.id + '\', \'DECLINED\')" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase">Отклонить</button>' +
+            '<div class="student-action-btn-group flex items-center gap-2 shrink-0">' +
+              '<button onclick="respondCrew(\'' + inv.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-extrabold uppercase transition shadow inline-flex items-center gap-1">' + SVG_ICONS.check + 'Принять вызов</button>' +
+              '<button onclick="respondCrew(\'' + inv.id + '\', \'DECLINED\')" class="btn-brand-ghost px-3 py-1.5 text-xs font-extrabold uppercase text-red-400 hover:text-red-300">Отклонить</button>' +
             '</div>' +
-          '</div>'
-        ).join('') +
+          '</div>';
+        }).join('') +
       '</div>';
   } catch (err) {
     console.error(err);
@@ -1953,8 +2093,8 @@ function renderShootsList(shoots = globalShoots) {
       return;
     }
 
-    const canDeleteShoot = isMasterOrAdminUser(currentUser);
-    const canManage = canDeleteShoot;
+    const canDeleteShoot = isAdminUser(currentUser) || isMasterUser(currentUser);
+    const canGradeAndManage = isMasterUser(currentUser);
 
     try {
       if (fullMap && fullMap.geoObjects) {
@@ -1997,7 +2137,14 @@ function renderShootsList(shoots = globalShoots) {
         ? '<span class="badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> ЗАВЕРШЕНО</span>' 
         : '<span class="badge-rec text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5"><span class="rec-dot"></span> В ПРОИЗВОДСТВЕ</span>';
 
+      let filmMarker = s.isCompleted
+        ? '<span class="film-slate-tag">■ WRAP</span>'
+        : '<span class="rec-pulse-badge">● REC 24FPS</span>';
+
       let typeBadge = '<span class="badge-neutral text-[10px] px-2 py-0.5 font-mono">' + (s.type || 'СМЕНА') + '</span>';
+
+      const isMeInShoot = currentUser && s.crew && s.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
+      const shootMyBadge = isMeInShoot ? '<span class="student-my-badge hidden sm:inline-flex">Вы в составе смены</span>' : '';
 
       let deleteBtn = canDeleteShoot ? '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1 cursor-pointer" title="Удалить смену"><svg class="w-3 h-3 text-red-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="pointer-events-none">Удалить</span></button>' : '';
 
@@ -2019,27 +2166,33 @@ function renderShootsList(shoots = globalShoots) {
           let cUserId = actualUser.id || 'demo-user-1';
           let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : 3, actualUser.rating || 4.5);
           
+          const isMe = currentUser && (c.userId === currentUser.id || c.id === currentUser.id);
+          const rowClassExtra = isMe ? ' student-my-row' : '';
+          const myBadge = isMe ? '<span class="student-my-badge">Вы в смене</span>' : '';
+
           let statusBadgeCrew = '';
           if (c.status === 'ACCEPTED') {
-            statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.check + 'Принят</span>';
+            statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.check + (isMe ? 'Вы подтвердили' : 'Принят') + '</span>';
           } else if (c.status === 'DECLINED') {
-            statusBadgeCrew = '<span class="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.cross + 'Отклонил</span>';
+            statusBadgeCrew = '<span class="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.cross + (isMe ? 'Вы отклонили' : 'Отклонил') + '</span>';
           } else {
             statusBadgeCrew = '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.clock + 'Ожидание</span>';
           }
 
           let manualAcceptBtn = '';
           if (c.status === 'PENDING') {
-            if (canManage) {
-              manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Подтвердить</button>';
-            } else if (currentUser && (c.userId === currentUser.id || c.id === currentUser.id)) {
-              manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Принять</button>' +
-                '<button onclick="respondCrew(\'' + c.id + '\', \'DECLINED\')" class="btn-brand-ghost px-2 py-0.5 text-[10px] font-extrabold uppercase ml-1">Отклонить</button>';
+            if (isMe) {
+              manualAcceptBtn = '<div class="student-action-btn-group inline-flex items-center gap-1.5 ml-1">' +
+                '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[10px] font-extrabold uppercase transition shadow inline-flex items-center gap-1">' + SVG_ICONS.check + 'Принять вызов</button>' +
+                '<button onclick="respondCrew(\'' + c.id + '\', \'DECLINED\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-400 hover:text-red-300">Отклонить</button>' +
+              '</div>';
+            } else if (canGradeAndManage) {
+              manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-700/80 hover:bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Подтвердить</button>';
             }
           }
 
           let competencyMatrixBtn = '';
-          if (canManage && !s.isCompleted) {
+          if (canGradeAndManage && !s.isCompleted) {
             competencyMatrixBtn = '<button onclick="openCompetencyModal(\'' + s.id + '\', \'' + c.id + '\', \'' + c.roleInShoot + '\', \'' + cUserName.replace(/'/g, "\\'") + '\')" class="btn-brand-ghost px-2 py-0.5 text-[9px] font-extrabold uppercase" title="Оценить по цеховой матрице">Матрица цеха</button>';
           }
 
@@ -2047,7 +2200,7 @@ function renderShootsList(shoots = globalShoots) {
           let starsBlock = '';
           const currentGrade = c.grade !== undefined && c.grade !== null ? c.grade : 5;
 
-          if (canManage && !s.isCompleted) {
+          if (canGradeAndManage && !s.isCompleted) {
             let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
             let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
             attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="studio-input text-xs font-bold px-2 py-0.5 ml-2">' +
@@ -2059,7 +2212,7 @@ function renderShootsList(shoots = globalShoots) {
               let starsHTML = '';
               for (let i = 1; i <= 5; i++) {
                 let isFilled = i <= currentGrade;
-                starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-0.5 hover:scale-125 transition ' + (isFilled ? 'opacity-100' : 'opacity-40') + '">' + (isFilled ? SVG_ICONS.star : SVG_ICONS.starEmpty) + '</span>';
+                starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-0.5 hover:scale-125 transition ' + (isFilled ? 'golden-star-glow opacity-100' : 'opacity-40') + '">' + (isFilled ? SVG_ICONS.star : SVG_ICONS.starEmpty) + '</span>';
               }
               starsBlock = '<div class="flex items-center space-x-1 ml-auto" id="stars_container_' + c.id + '">' +
                 '<span class="text-[10px] uppercase font-bold mr-1 font-mono" style="color: var(--text-muted);">Оценка:</span>' +
@@ -2072,7 +2225,7 @@ function renderShootsList(shoots = globalShoots) {
             const attColor = c.attendance === 'ABSENT' ? '#f87171' : 'var(--text-muted)';
             attendanceSelect = '<span class="text-xs font-bold font-mono" style="color: ' + attColor + ';">' + attText + '</span>';
             if (s.isCompleted || c.grade !== undefined) {
-              starsBlock = '<span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ ' + currentGrade + '</span>';
+              starsBlock = '<span class="text-xs font-mono font-bold golden-star-glow">★ ' + currentGrade + '</span>';
             }
           }
 
@@ -2093,11 +2246,12 @@ function renderShootsList(shoots = globalShoots) {
             roleSvg = SVG_ICONS.scissors;
           }
 
-          return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2">' +
+          return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
             '<div class="flex items-center flex-wrap gap-2">' +
               '<span class="crew-dept-tag ' + roleClass + '"><span class="inline-flex items-center">' + roleSvg + c.roleInShoot + '</span></span>' +
               '<span onclick="openShowreelModal(\'' + cUserId + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" style="color: var(--text-primary);" title="Открыть цифровой паспорт компетенций и портфолио">' + cUserName + '</span>' +
               '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
+              myBadge +
               '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
               '<span class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
               statusBadgeCrew +
@@ -2114,10 +2268,10 @@ function renderShootsList(shoots = globalShoots) {
 
       let globalGradeControl = '';
       let saveGradesBtn = '';
-      if (canManage && !s.isCompleted) {
+      if (canGradeAndManage && !s.isCompleted) {
         let globalStarsHTML = '';
         for (let i = 1; i <= 5; i++) {
-          globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-1 hover:scale-125 transition" title="Оценить всех на ' + i + '">' + SVG_ICONS.star + '</span>';
+          globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="rating-star-btn golden-star-glow cursor-pointer inline-flex items-center p-1 hover:scale-125 transition" title="Оценить всех на ' + i + '">' + SVG_ICONS.star + '</span>';
         }
 
         globalGradeControl = '<div class="flex flex-wrap items-center justify-between p-3 border gap-2 mb-2" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +

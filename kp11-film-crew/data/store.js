@@ -28,6 +28,20 @@ try {
 // Начальные пользователи сайта (строго соответствующие реестру колледжа)
 const INITIAL_USERS = [
   {
+    id: 'admin-1',
+    fullName: 'Смирнов Алексей Викторович',
+    email: 'admin@kp11.ru',
+    groupName: 'ЦКТ',
+    rating: 5.0,
+    telegram: '@kp11_admin',
+    telegramChatId: null,
+    craftRank: 'Системный администратор // System Admin',
+    isSuspended: false,
+    role: { name: 'Администратор' },
+    competencies: { camera: 90, sound: 90, light: 90, edit: 90 },
+    skills: ['Управление платформой', 'Безопасность', 'Настройка оборудования', 'Инфраструктура ЦКТ']
+  },
+  {
     id: 'demo-user-1',
     fullName: 'Бадиков Семён Станиславович',
     email: 'semyon.badikov@kp11.ru',

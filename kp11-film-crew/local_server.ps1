@@ -110,7 +110,7 @@ while ($listener.IsListening) {
                 $settingsRaw = if (Test-Path $settingsFile) { [System.IO.File]::ReadAllText($settingsFile, [System.Text.Encoding]::UTF8) } else { "{}" }
                 $rawJsonToSend = "{`"success`":true,`"users`":$usersRaw,`"roles`":[],`"settings`":$settingsRaw}"
             }
-            elseif ($urlPath -match "^/api/admin/users/([^/]+)" -and $method -eq "PATCH") {
+            elseif ($urlPath -match "^/api/admin/users/([^/]+)(?:/role)?$" -and $method -eq "PATCH") {
                 $targetUserId = $Matches[1]
                 $usersFile = Join-Path $PSScriptRoot "data\users.json"
                 if (Test-Path $usersFile) {
@@ -120,8 +120,12 @@ while ($listener.IsListening) {
                         if ($u.id -eq $targetUserId) {
                             if ($parsed.fullName) { $u.fullName = $parsed.fullName }
                             if ($parsed.groupName) { $u.groupName = $parsed.groupName }
-                            if ($parsed.rating) { $u.rating = [double]$parsed.rating }
+                            if ($parsed.rating -ne $null) { $u.rating = [double]$parsed.rating }
                             if ($parsed.telegram -ne $null) { $u.telegram = $parsed.telegram }
+                            if ($parsed.role -or $parsed.roleName) {
+                                $roleNameVal = if ($parsed.roleName) { $parsed.roleName } elseif ($parsed.role -is [string]) { $parsed.role } elseif ($parsed.role.name) { $parsed.role.name } else { "Студент" }
+                                $u.role = @{ name = $roleNameVal }
+                            }
                             break
                         }
                     }
@@ -129,6 +133,47 @@ while ($listener.IsListening) {
                     [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
                 }
                 $rawJsonToSend = "{`"success`":true,`"message`":`"User updated`"}"
+            }
+            elseif ($urlPath -eq "/api/admin/reset-ratings" -and $method -eq "POST") {
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                if (Test-Path $usersFile) {
+                    $users = [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    foreach ($u in $users) {
+                        $u.rating = $null
+                    }
+                    $usersJsonOut = $users | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
+                }
+                $rawJsonToSend = "{`"success`":true,`"message`":`"Ratings reset`"}"
+            }
+            elseif ($urlPath -eq "/api/admin/suspend" -and $method -eq "POST") {
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $targetUserId = $parsed.userId
+                $isSuspended = [bool]$parsed.isSuspended
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                if (Test-Path $usersFile) {
+                    $users = [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    foreach ($u in $users) {
+                        if ($u.id -eq $targetUserId) {
+                            $u.isSuspended = $isSuspended
+                            break
+                        }
+                    }
+                    $usersJsonOut = $users | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
+                }
+                $rawJsonToSend = "{`"success`":true,`"isSuspended`":$($isSuspended.ToString().ToLower())}"
+            }
+            elseif ($urlPath -match "^/api/admin/users/([^/]+)" -and $method -eq "DELETE") {
+                $targetUserId = $Matches[1]
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                if (Test-Path $usersFile) {
+                    $users = @([System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json)
+                    $filteredUsers = @($users | Where-Object { $_.id -ne $targetUserId })
+                    $usersJsonOut = $filteredUsers | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
+                }
+                $rawJsonToSend = "{`"success`":true,`"message`":`"User deleted`"}"
             }
             elseif ($urlPath -eq "/api/auth/login" -and $method -eq "POST") {
                 $usersFile = Join-Path $PSScriptRoot "data\users.json"
