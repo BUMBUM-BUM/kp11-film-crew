@@ -310,17 +310,31 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ 
-      where: { email },
-      include: { role: true }
-    });
+    let user = null;
+    if (prisma) {
+      try {
+        user = await prisma.user.findUnique({ 
+          where: { email },
+          include: { role: true }
+        });
+      } catch (e) {}
+    }
+
+    if (!user) {
+      const users = await store.getUsers();
+      user = users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase().trim());
+    }
+
     if (!user) return res.status(400).json({ error: 'Неверные данные' });
     if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт отстранен администрацией' });
 
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return res.status(400).json({ error: 'Неверные данные' });
+    if (user.passwordHash) {
+      const isValid = await bcrypt.compare(password, user.passwordHash).catch(() => false);
+      if (!isValid) return res.status(400).json({ error: 'Неверные данные' });
+    }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+    const roleName = user.role?.name || (typeof user.role === 'string' ? user.role : 'Студент');
     res.json({ 
       token, 
       user: { 
@@ -328,7 +342,10 @@ app.post('/api/auth/login', async (req, res) => {
         fullName: user.fullName, 
         email: user.email, 
         groupName: user.groupName, 
-        role: user.role?.name || 'Без роли'
+        role: roleName,
+        rating: user.rating,
+        telegram: user.telegram,
+        craftRank: user.craftRank
       } 
     });
   } catch (err) {
@@ -804,27 +821,33 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
 app.post('/api/crew/attendance', authenticateToken, requireMasterOrAdmin, async (req, res) => {
   try {
     const { crewMemberId, attendance } = req.body;
-    const crewMember = await prisma.crewMember.findUnique({
-      where: { id: crewMemberId },
-      include: { user: true }
-    });
+    let updated = null;
+    if (prisma) {
+      try {
+        const crewMember = await prisma.crewMember.findUnique({
+          where: { id: crewMemberId },
+          include: { user: true }
+        });
 
-    if (!crewMember) return res.status(404).json({ error: 'Участник не найден' });
+        if (crewMember) {
+          if (attendance === 'ABSENT' && crewMember.attendance === 'PRESENT' && crewMember.user.rating !== null) {
+            const newRating = Math.max(1.0, parseFloat((crewMember.user.rating - 0.3).toFixed(1)));
+            await prisma.user.update({
+              where: { id: crewMember.userId },
+              data: { rating: newRating }
+            });
+          }
 
-    if (attendance === 'ABSENT' && crewMember.attendance === 'PRESENT' && crewMember.user.rating !== null) {
-      const newRating = Math.max(1.0, parseFloat((crewMember.user.rating - 0.3).toFixed(1)));
-      await prisma.user.update({
-        where: { id: crewMember.userId },
-        data: { rating: newRating }
-      });
+          updated = await prisma.crewMember.update({
+            where: { id: crewMemberId },
+            data: { attendance }
+          });
+        }
+      } catch (prismaErr) {}
     }
 
-    const updated = await prisma.crewMember.update({
-      where: { id: crewMemberId },
-      data: { attendance }
-    });
-
-    res.json({ success: true, updated });
+    await store.updateCrewAttendance(crewMemberId, attendance);
+    res.json({ success: true, updated: updated || { id: crewMemberId, attendance } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

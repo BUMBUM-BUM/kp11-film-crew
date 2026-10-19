@@ -24,6 +24,17 @@ async function run() {
       const data = JSON.parse(body);
       const completed = await store.completeShoot(data.shootId, data.grades);
       process.stdout.write(JSON.stringify({ success: true, shoot: completed || { id: data.shootId, isCompleted: true } }));
+    } else if (action === 'attendance') {
+      let body = param;
+      if (param && fs.existsSync(param)) {
+        body = fs.readFileSync(param, 'utf-8');
+      }
+      if (typeof body === 'string') {
+        body = body.replace(/^\uFEFF/, '').trim();
+      }
+      const data = JSON.parse(body);
+      await store.updateCrewAttendance(data.crewMemberId, data.attendance);
+      process.stdout.write(JSON.stringify({ success: true }));
     } else if (action === 'dispatch') {
       if (bot && typeof bot.sendCallsheetToCrew === 'function') {
         const rep = await bot.sendCallsheetToCrew(param);

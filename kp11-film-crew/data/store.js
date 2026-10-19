@@ -127,10 +127,10 @@ const INITIAL_SHOOTS = [
     longitude: 37.688423,
     creator: { fullName: 'Бадиков Семён Станиславович' },
     crew: [
-      { id: 'c1', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u3' },
-      { id: 'c2', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u5' },
-      { id: 'c3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'demo-user-1' },
-      { id: 'c4', roleInShoot: 'ОСВЕТИТЕЛЬ', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u2' }
+      { id: 'c1', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u3' },
+      { id: 'c2', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u5' },
+      { id: 'c3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'demo-user-1' },
+      { id: 'c4', roleInShoot: 'ОСВЕТИТЕЛЬ', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u2' }
     ]
   },
   {
@@ -242,17 +242,17 @@ async function completeShoot(shootId, grades = {}) {
   const shoot = shoots.find(s => s.id === shootId);
   if (shoot) {
     shoot.isCompleted = true;
-    writeJsonFile(SHOOTS_FILE, shoots);
   }
 
-  if (grades && Object.keys(grades).length > 0 && shoot && shoot.crew) {
+  if (shoot && shoot.crew) {
     const users = readJsonFile(USERS_FILE, INITIAL_USERS);
     for (const member of shoot.crew) {
-      const g = grades[member.id] !== undefined 
+      const g = grades && (grades[member.id] !== undefined 
         ? parseFloat(grades[member.id]) 
-        : (grades[member.userId] !== undefined ? parseFloat(grades[member.userId]) : undefined);
+        : (grades[member.userId] !== undefined ? parseFloat(grades[member.userId]) : undefined));
       
       if (g !== undefined && !isNaN(g)) {
+        member.grade = g;
         const u = users.find(user => user.id === member.userId);
         if (u) {
           if (u.rating === null || u.rating === undefined) {
@@ -261,12 +261,46 @@ async function completeShoot(shootId, grades = {}) {
             u.rating = parseFloat(((u.rating + g) / 2).toFixed(1));
           }
         }
+      } else if (!member.grade) {
+        member.grade = 5;
       }
     }
     writeJsonFile(USERS_FILE, users);
+    writeJsonFile(SHOOTS_FILE, shoots);
+  } else if (shoot) {
+    writeJsonFile(SHOOTS_FILE, shoots);
   }
 
   return shoot;
+}
+
+async function updateCrewAttendance(crewMemberId, attendance) {
+  if (prisma) {
+    try {
+      await prisma.crewMember.update({
+        where: { id: crewMemberId },
+        data: { attendance }
+      });
+    } catch (e) {}
+  }
+
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
+  let found = false;
+  for (const s of shoots) {
+    if (s.crew) {
+      const m = s.crew.find(c => c.id === crewMemberId || c.userId === crewMemberId);
+      if (m) {
+        m.attendance = attendance;
+        found = true;
+        break;
+      }
+    }
+  }
+  if (found) {
+    writeJsonFile(SHOOTS_FILE, shoots);
+    return true;
+  }
+  return false;
 }
 
 async function updateCrewMemberStatus(shootId, userId, newStatus) {
@@ -384,6 +418,7 @@ module.exports = {
   getShootById,
   saveShoot,
   completeShoot,
+  updateCrewAttendance,
   deleteShoot,
   updateCrewMemberStatus,
   getUsers,

@@ -1,5 +1,35 @@
-let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw || raw === 'undefined' || raw === 'null') return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.role && typeof parsed.role === 'object' && parsed.role.name) {
+        parsed.role = parsed.role.name;
+      }
+      return parsed;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function getUserRoleName(user) {
+  if (!user) return 'Гость';
+  if (typeof user.role === 'string') return user.role;
+  if (user.role && user.role.name) return user.role.name;
+  return 'Студент';
+}
+
+function isMasterOrAdminUser(user) {
+  const r = getUserRoleName(user);
+  return r === 'Мастер / Преподаватель' || r === 'Администратор' || r.includes('Мастер') || r.includes('Админ');
+}
+
+let currentUser = getStoredUser();
 let token = localStorage.getItem('token') || '';
+if (token === 'undefined' || token === 'null') token = '';
 
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('theme')) {
@@ -229,7 +259,7 @@ function updateNav() {
         '</div>';
     }
 
-    if (currentUser.role === 'Мастер / Преподаватель' || currentUser.role === 'Администратор') {
+    if (isMasterOrAdminUser(currentUser)) {
       if (actionContainer) {
         actionContainer.innerHTML = 
           '<button onclick="openShootModal()" class="btn-brand-primary px-4 py-2 text-xs flex items-center space-x-2 shadow-lg">' +
@@ -241,7 +271,7 @@ function updateNav() {
       actionContainer.innerHTML = '';
     }
 
-    if (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель') {
+    if (isMasterOrAdminUser(currentUser)) {
       if (tabAdminBtn) tabAdminBtn.classList.remove('hidden');
       loadAdminPanel();
     } else {
@@ -307,7 +337,7 @@ function switchTab(tab) {
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
 
-  if (isAdmin && (!currentUser || (currentUser.role !== 'Администратор' && currentUser.role !== 'Мастер / Преподаватель'))) {
+  if (isAdmin && !isMasterOrAdminUser(currentUser)) {
     alert('Доступ запрещён!');
     switchTab('shoots');
     return;
@@ -1288,9 +1318,13 @@ async function loadNotifications() {
     const res = await fetch('/api/notifications', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
-    const invites = await res.json();
+    const data = await res.json();
+    const rawInvites = Array.isArray(data) ? data : (data && Array.isArray(data.invitations) ? data.invitations : []);
     const container = document.getElementById('notificationsContainer');
     if (!container) return;
+
+    const myUserId = currentUser ? currentUser.id : null;
+    const invites = rawInvites.filter(inv => !inv.userId || inv.userId === myUserId || inv.id === myUserId);
 
     if (!invites || invites.length === 0) {
       container.innerHTML = '';
@@ -1647,6 +1681,17 @@ async function saveShootGrades(shootId, crewMemberIds) {
   const target = (globalShoots || []).find(s => s.id === shootId);
   if (target) {
     target.isCompleted = true;
+    if (target.crew) {
+      target.crew.forEach(m => {
+        if (grades[m.id] !== undefined) {
+          m.grade = grades[m.id];
+        } else if (grades[m.userId] !== undefined) {
+          m.grade = grades[m.userId];
+        } else if (!m.grade) {
+          m.grade = 5;
+        }
+      });
+    }
     localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   }
   showToast('Смена завершена! Оценки выставлены в производственный журнал.');
@@ -1668,15 +1713,18 @@ async function updateAttendance(crewMemberId, attendance) {
 }
 
 function toggleShootExpand(shootId) {
+  window._openedShootIds = window._openedShootIds || new Set(['demo-shoot-1']);
   const detailsBlock = document.getElementById('shoot_details_' + shootId);
   const btn = document.getElementById('expand_btn_' + shootId);
   if (detailsBlock) {
     const isOpen = detailsBlock.style.maxHeight && detailsBlock.style.maxHeight !== '0px';
     if (isOpen) {
       detailsBlock.style.maxHeight = '0px';
+      window._openedShootIds.delete(shootId);
       if (btn) btn.innerText = 'Развернуть ▾';
     } else {
       detailsBlock.style.maxHeight = detailsBlock.scrollHeight + 'px';
+      window._openedShootIds.add(shootId);
       if (btn) btn.innerText = 'Свернуть ▴';
 
       const mapContainer = document.getElementById('mini_map_' + shootId);
@@ -1722,12 +1770,15 @@ async function handleAuth(e) {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+    if (!res.ok || !data.user) throw new Error(data.error || 'Ошибка входа');
 
-    localStorage.setItem('token', data.token);
+    if (data.user.role && typeof data.user.role === 'object' && data.user.role.name) {
+      data.user.role = data.user.role.name;
+    }
+    localStorage.setItem('token', data.token || 'demo-token');
     localStorage.setItem('user', JSON.stringify(data.user));
     currentUser = data.user;
-    token = data.token;
+    token = data.token || 'demo-token';
     closeModal();
     updateNav();
   } catch (err) {
@@ -1846,7 +1897,7 @@ async function loadShoots() {
                 '<span class="text-[8px] font-mono font-bold" style="color: #666;">ROLL: 11-A</span>' +
               '</div>' +
               '<h4 class="font-extrabold text-xs uppercase leading-tight truncate" style="color: #141414;">' + currentUser.fullName + '</h4>' +
-              '<p class="text-[10px] font-mono mt-0.5 font-bold" style="color: #555555;">' + currentUser.role + '</p>' +
+              '<p class="text-[10px] font-mono mt-0.5 font-bold" style="color: #555555;">' + getUserRoleName(currentUser) + '</p>' +
             '</div>' +
           '</div>' +
 
@@ -1902,7 +1953,8 @@ function renderShootsList(shoots = globalShoots) {
       return;
     }
 
-    const canDeleteShoot = !currentUser || (currentUser.role === 'Администратор' || currentUser.role === 'Мастер / Преподаватель' || (currentUser.role?.name && (currentUser.role.name === 'Администратор' || currentUser.role.name === 'Мастер / Преподаватель')) || String(currentUser.role).includes('Мастер') || String(currentUser.role).includes('Админ'));
+    const canDeleteShoot = isMasterOrAdminUser(currentUser);
+    const canManage = canDeleteShoot;
 
     try {
       if (fullMap && fullMap.geoObjects) {
@@ -1932,9 +1984,7 @@ function renderShootsList(shoots = globalShoots) {
       console.warn('Yandex map placemarks deferred:', mapErr);
     }
 
-    const canManage = canDeleteShoot;
-
-    container.innerHTML = shoots.map(s => {
+    container.innerHTML = shoots.map((s, idx) => {
       const formattedDate = new Date(s.date).toLocaleString('ru-RU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
@@ -1979,18 +2029,25 @@ function renderShootsList(shoots = globalShoots) {
           }
 
           let manualAcceptBtn = '';
-          if (canManage && c.status === 'PENDING') {
-            manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Подтвердить</button>';
+          if (c.status === 'PENDING') {
+            if (canManage) {
+              manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Подтвердить</button>';
+            } else if (currentUser && (c.userId === currentUser.id || c.id === currentUser.id)) {
+              manualAcceptBtn = '<button onclick="respondCrew(\'' + c.id + '\', \'ACCEPTED\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase transition">Принять</button>' +
+                '<button onclick="respondCrew(\'' + c.id + '\', \'DECLINED\')" class="btn-brand-ghost px-2 py-0.5 text-[10px] font-extrabold uppercase ml-1">Отклонить</button>';
+            }
           }
 
           let competencyMatrixBtn = '';
-          if (canManage) {
+          if (canManage && !s.isCompleted) {
             competencyMatrixBtn = '<button onclick="openCompetencyModal(\'' + s.id + '\', \'' + c.id + '\', \'' + c.roleInShoot + '\', \'' + cUserName.replace(/'/g, "\\'") + '\')" class="btn-brand-ghost px-2 py-0.5 text-[9px] font-extrabold uppercase" title="Оценить по цеховой матрице">Матрица цеха</button>';
           }
 
           let attendanceSelect = '';
           let starsBlock = '';
-          if (canManage) {
+          const currentGrade = c.grade !== undefined && c.grade !== null ? c.grade : 5;
+
+          if (canManage && !s.isCompleted) {
             let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
             let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
             attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="studio-input text-xs font-bold px-2 py-0.5 ml-2">' +
@@ -1999,17 +2056,23 @@ function renderShootsList(shoots = globalShoots) {
             '</select>';
 
             if (c.status === 'ACCEPTED') {
-              let defaultVal = 5;
               let starsHTML = '';
               for (let i = 1; i <= 5; i++) {
-                let isFilled = i <= defaultVal;
+                let isFilled = i <= currentGrade;
                 starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-0.5 hover:scale-125 transition ' + (isFilled ? 'opacity-100' : 'opacity-40') + '">' + (isFilled ? SVG_ICONS.star : SVG_ICONS.starEmpty) + '</span>';
               }
               starsBlock = '<div class="flex items-center space-x-1 ml-auto" id="stars_container_' + c.id + '">' +
                 '<span class="text-[10px] uppercase font-bold mr-1 font-mono" style="color: var(--text-muted);">Оценка:</span>' +
                 starsHTML +
-                '<input type="hidden" id="grade_input_' + c.id + '" value="' + defaultVal + '">' +
+                '<input type="hidden" id="grade_input_' + c.id + '" value="' + currentGrade + '">' +
               '</div>';
+            }
+          } else {
+            const attText = c.attendance === 'ABSENT' ? 'Прогул' : 'Присутствовал';
+            const attColor = c.attendance === 'ABSENT' ? '#f87171' : 'var(--text-muted)';
+            attendanceSelect = '<span class="text-xs font-bold font-mono" style="color: ' + attColor + ';">' + attText + '</span>';
+            if (s.isCompleted || c.grade !== undefined) {
+              starsBlock = '<span class="text-xs font-mono font-bold" style="color: var(--brand-beige-text);">★ ' + currentGrade + '</span>';
             }
           }
 
@@ -2051,7 +2114,7 @@ function renderShootsList(shoots = globalShoots) {
 
       let globalGradeControl = '';
       let saveGradesBtn = '';
-      if (canManage) {
+      if (canManage && !s.isCompleted) {
         let globalStarsHTML = '';
         for (let i = 1; i <= 5; i++) {
           globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-1 hover:scale-125 transition" title="Оценить всех на ' + i + '">' + SVG_ICONS.star + '</span>';
@@ -2068,6 +2131,9 @@ function renderShootsList(shoots = globalShoots) {
       }
 
       const techSpecBadge = '';
+      const isShootOpen = (window._openedShootIds ? window._openedShootIds.has(s.id) : (idx === 0));
+      const expandBtnText = isShootOpen ? 'Свернуть ▴' : 'Развернуть ▾';
+      const detailsStyle = isShootOpen ? 'transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);' : 'max-height: 0px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);';
 
       return '<div class="viewfinder-card viewfinder-corners shoot-card ' + cardStateClass + ' p-5 sm:p-6 space-y-4">' +
         '<div class="flex flex-wrap justify-between items-center gap-2">' +
@@ -2082,7 +2148,7 @@ function renderShootsList(shoots = globalShoots) {
               SVG_ICONS.telegram +
               '<span>Вызывной</span>' +
             '</button>' +
-            '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">Развернуть ▾</button>' +
+            '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
             deleteBtn +
           '</div>' +
         '</div>' +
@@ -2097,7 +2163,7 @@ function renderShootsList(shoots = globalShoots) {
           '<span class="flex items-center gap-1.5">' + SVG_ICONS.slate + ' Мастер: <span style="color: var(--text-primary);">' + masterText + '</span></span>' +
         '</div>' +
         
-        '<div id="shoot_details_' + s.id + '" style="max-height: 0px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);" class="border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">' +
+        '<div id="shoot_details_' + s.id + '" style="' + detailsStyle + '" class="border-t pt-3 space-y-4" style="border-color: var(--border-subtle);">' +
           '<div class="space-y-2 pt-1">' +
             '<div class="flex items-center justify-between">' +
               '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +

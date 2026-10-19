@@ -5,6 +5,9 @@
 $port = 3000
 $baseDir = Join-Path $PSScriptRoot "public"
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 
@@ -126,6 +129,173 @@ while ($listener.IsListening) {
                     [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
                 }
                 $rawJsonToSend = "{`"success`":true,`"message`":`"User updated`"}"
+            }
+            elseif ($urlPath -eq "/api/auth/login" -and $method -eq "POST") {
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $email = if ($parsed.email) { $parsed.email.ToString().Trim().ToLower() } else { "" }
+                
+                $foundUser = $null
+                if (Test-Path $usersFile) {
+                    $users = [System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    foreach ($u in $users) {
+                        if ($u.email -and $u.email.ToString().Trim().ToLower() -eq $email) {
+                            $foundUser = $u
+                            break
+                        }
+                    }
+                }
+                
+                if ($foundUser) {
+                    $roleStr = if ($foundUser.role -and $foundUser.role.name) { $foundUser.role.name } elseif ($foundUser.role) { [string]$foundUser.role } else { "Студент" }
+                    $token = "token-$($foundUser.id)"
+                    $ratingVal = if ($foundUser.rating -ne $null) { [double]$foundUser.rating } else { 4.8 }
+                    $userObj = @{
+                        id = $foundUser.id
+                        fullName = $foundUser.fullName
+                        email = $foundUser.email
+                        groupName = $foundUser.groupName
+                        role = $roleStr
+                        telegram = $foundUser.telegram
+                        craftRank = $foundUser.craftRank
+                        rating = $ratingVal
+                    }
+                    $userJson = $userObj | ConvertTo-Json -Depth 3
+                    $rawJsonToSend = "{`"success`":true,`"token`":`"$token`",`"user`":$userJson}"
+                } else {
+                    $response.StatusCode = 400
+                    $rawJsonToSend = "{`"success`":false,`"error`":`"Неверный email или пароль`"}"
+                }
+            }
+            elseif ($urlPath -eq "/api/auth/register" -and $method -eq "POST") {
+                $usersFile = Join-Path $PSScriptRoot "data\users.json"
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $email = if ($parsed.email) { $parsed.email.ToString().Trim().ToLower() } else { "" }
+                $fullName = if ($parsed.fullName) { $parsed.fullName.ToString().Trim() } else { "Студент" }
+                $groupName = if ($parsed.groupName) { $parsed.groupName.ToString().Trim() } else { "КТ-26" }
+                
+                $users = @()
+                if (Test-Path $usersFile) {
+                    $users = @([System.IO.File]::ReadAllText($usersFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json)
+                }
+                
+                $newId = "u-$([Guid]::NewGuid().ToString('N').Substring(0,6))"
+                $newUser = @{
+                    id = $newId
+                    fullName = $fullName
+                    email = $email
+                    groupName = $groupName
+                    rating = 5.0
+                    telegram = ""
+                    telegramChatId = $null
+                    craftRank = "Ассистент цеха"
+                    isSuspended = $false
+                    role = @{ name = "Студент" }
+                    competencies = @{ camera = 85; sound = 80; light = 80; edit = 85 }
+                    skills = @("Оператор")
+                }
+                $users += $newUser
+                $usersJsonOut = $users | ConvertTo-Json -Depth 5
+                [System.IO.File]::WriteAllText($usersFile, $usersJsonOut, $utf8Encoding)
+                
+                $token = "token-$newId"
+                $userObj = @{
+                    id = $newId
+                    fullName = $fullName
+                    email = $email
+                    groupName = $groupName
+                    role = "Студент"
+                    telegram = ""
+                    craftRank = "Ассистент цеха"
+                    rating = 5.0
+                }
+                $userJson = $userObj | ConvertTo-Json -Depth 3
+                $rawJsonToSend = "{`"success`":true,`"token`":`"$token`",`"user`":$userJson}"
+            }
+            elseif ($urlPath -eq "/api/notifications" -and $method -eq "GET") {
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $shoots = if (Test-Path $shootsFile) { [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { @() }
+                $invites = @()
+                foreach ($s in $shoots) {
+                    if ($s.crew) {
+                        foreach ($c in $s.crew) {
+                            if ($c.status -eq "PENDING") {
+                                $invites += @{
+                                    id = $c.id
+                                    userId = $c.userId
+                                    roleInShoot = $c.roleInShoot
+                                    status = $c.status
+                                    shoot = @{
+                                        id = $s.id
+                                        title = $s.title
+                                        location = $s.location
+                                        date = $s.date
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                $invitesJson = if ($invites.Count -eq 0) {
+                    "[]"
+                } elseif ($invites.Count -eq 1) {
+                    "[" + ($invites[0] | ConvertTo-Json -Depth 4) + "]"
+                } else {
+                    $invites | ConvertTo-Json -Depth 4
+                }
+                $rawJsonToSend = $invitesJson
+            }
+            elseif ($urlPath -eq "/api/crew/attendance" -and $method -eq "POST") {
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $crewMemberId = $parsed.crewMemberId
+                $attendance = $parsed.attendance
+                
+                if (Test-Path $shootsFile) {
+                    $shoots = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    foreach ($s in $shoots) {
+                        if ($s.crew) {
+                            foreach ($c in $s.crew) {
+                                if ($c.id -eq $crewMemberId -or $c.userId -eq $crewMemberId) {
+                                    $c.attendance = $attendance
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    $shootsJsonOut = $shoots | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+                }
+                $rawJsonToSend = "{`"success`":true}"
+            }
+            elseif ($urlPath -eq "/api/crew/response" -and $method -eq "POST") {
+                $shootsFile = Join-Path $PSScriptRoot "data\shoots.json"
+                $parsed = if ($reqBody) { $reqBody | ConvertFrom-Json } else { @{} }
+                $crewMemberId = $parsed.crewMemberId
+                $newStatus = $parsed.status
+                
+                if (Test-Path $shootsFile) {
+                    $shoots = [System.IO.File]::ReadAllText($shootsFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    foreach ($s in $shoots) {
+                        if ($s.crew) {
+                            foreach ($c in $s.crew) {
+                                if ($c.id -eq $crewMemberId -or $c.userId -eq $crewMemberId) {
+                                    $c.status = $newStatus
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    $shootsJsonOut = $shoots | ConvertTo-Json -Depth 6
+                    [System.IO.File]::WriteAllText($shootsFile, $shootsJsonOut, $utf8Encoding)
+                }
+                $rawJsonToSend = "{`"success`":true}"
+            }
+            elseif ($urlPath -eq "/api/cinemaboard" -and $method -eq "GET") {
+                $rawJsonToSend = '{"timeBlock":1,"rating":4.8,"message":"Cinema quote","statusType":"praise"}'
+            }
+            elseif ($urlPath -eq "/api/notifications/vapid-public-key" -and $method -eq "GET") {
+                $rawJsonToSend = "{`"publicKey`":`"BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkZsMlY_b448`"}"
             }
             elseif ($urlPath -eq "/api/admin/settings" -and $method -eq "POST") {
                 $settingsFile = Join-Path $PSScriptRoot "data\settings.json"
