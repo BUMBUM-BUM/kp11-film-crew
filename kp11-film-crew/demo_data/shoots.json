@@ -1,0 +1,210 @@
+[
+  {
+    "id": "demo-shoot-101",
+    "title": "КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ",
+    "description": "Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.",
+    "type": "ПАВИЛЬОН",
+    "date": "2026-10-22",
+    "callTime": "14:00",
+    "startTime": "15:00",
+    "endTime": "20:00",
+    "timeline": [
+      {
+        "time": "14:00",
+        "title": "Сбор цехов и разгрузка кофров"
+      },
+      {
+        "time": "14:30",
+        "title": "Построение световой схемы Low Key"
+      },
+      {
+        "time": "15:00",
+        "title": "Мотор! Сцена №1 (крупный план)"
+      },
+      {
+        "time": "17:30",
+        "title": "Перестановка на обратную точку"
+      },
+      {
+        "time": "20:00",
+        "title": "Шапка смены / Сдача техники на склад"
+      }
+    ],
+    "location": "Павильон №1 ЦКТ (Онежская, 3)",
+    "latitude": 55.858244,
+    "longitude": 37.518423,
+    "isCompleted": false,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "equipment": [
+      "eq-1",
+      "eq-3"
+    ],
+    "crew": [
+      {
+        "id": "c-demo-1",
+        "roleInShoot": "ОПЕРАТОР-ПОСТАНОВЩИК",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u1",
+        "grade": 5
+      },
+      {
+        "id": "c-demo-2",
+        "roleInShoot": "ГАФФЕР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u2",
+        "grade": 5
+      },
+      {
+        "id": "c-demo-3",
+        "roleInShoot": "ЗВУКОРЕЖИССЁР",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "userId": "u4",
+        "grade": 5
+      },
+      {
+        "id": "c-demo-4",
+        "roleInShoot": "РЕЖИССЁР СМЕНЫ",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "master-1",
+        "grade": 5
+      }
+    ]
+  },
+  {
+    "id": "demo-shoot-102",
+    "title": "ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ",
+    "description": "Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.",
+    "type": "СТУДИЯ",
+    "date": "2026-10-25",
+    "callTime": "15:30",
+    "startTime": "16:30",
+    "endTime": "19:30",
+    "timeline": [
+      {
+        "time": "15:30",
+        "title": "Сбор группы и чек тракта звука"
+      },
+      {
+        "time": "16:30",
+        "title": "Мотор! Запись интервью"
+      },
+      {
+        "time": "19:30",
+        "title": "Конец записи / Бэкап материалов на RAID"
+      }
+    ],
+    "location": "Студия подкастов и звукозаписи ЦКТ (Онежская, 3)",
+    "latitude": 55.858244,
+    "longitude": 37.518423,
+    "isCompleted": false,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "equipment": [
+      "eq-2",
+      "eq-4"
+    ],
+    "crew": [
+      {
+        "id": "c-demo-5",
+        "roleInShoot": "КАМЕРНЫЙ ОПЕРАТОР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u1"
+      },
+      {
+        "id": "c-demo-6",
+        "roleInShoot": "ЗВУКОРЕЖИССЁР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u4"
+      },
+      {
+        "id": "c-demo-7",
+        "roleInShoot": "ОПЕРАТОР СТЕДИКАМА",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "userId": "u5"
+      }
+    ]
+  },
+  {
+    "id": "demo-shoot-103",
+    "title": "ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»",
+    "description": "Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.",
+    "type": "ВЫЕЗД",
+    "date": "2026-10-17",
+    "callTime": "10:00",
+    "startTime": "11:00",
+    "endTime": "16:00",
+    "timeline": [
+      {
+        "time": "10:00",
+        "title": "Сбор группы в парке Северное Тушино"
+      },
+      {
+        "time": "11:00",
+        "title": "Мотор! Сцена у набережной"
+      },
+      {
+        "time": "14:00",
+        "title": "Обеденный перерыв"
+      },
+      {
+        "time": "16:00",
+        "title": "Окончание натурной смены"
+      }
+    ],
+    "location": "Выездная съёмка (натура / экспедиция)",
+    "latitude": 55.864244,
+    "longitude": 37.452423,
+    "isCompleted": true,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "equipment": [
+      "eq-5",
+      "eq-6"
+    ],
+    "crew": [
+      {
+        "id": "c-demo-8",
+        "roleInShoot": "ОПЕРАТОР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u1",
+        "grade": 5
+      },
+      {
+        "id": "c-demo-9",
+        "roleInShoot": "ГАФФЕР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u2",
+        "grade": 5
+      },
+      {
+        "id": "c-demo-10",
+        "roleInShoot": "АССИСТЕНТ ОСВЕТИТЕЛЯ",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u3",
+        "grade": 5
+      },
+      {
+        "id": "c-demo-11",
+        "roleInShoot": "ЗВУКООПЕРАТОР",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "userId": "u4",
+        "grade": 5
+      }
+    ]
+  }
+]

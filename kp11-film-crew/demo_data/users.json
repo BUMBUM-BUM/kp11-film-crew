@@ -1,0 +1,189 @@
+[
+  {
+    "id": "admin-1",
+    "fullName": "Смирнов Алексей Викторович",
+    "email": "admin@kp11.ru",
+    "groupName": "ЦКТ",
+    "rating": 5,
+    "telegram": "@kp11_admin",
+    "telegramChatId": null,
+    "craftRank": "Системный администратор // System Admin",
+    "isSuspended": false,
+    "role": {
+      "name": "Администратор"
+    },
+    "competencies": {
+      "camera": 90,
+      "sound": 90,
+      "light": 90,
+      "edit": 90
+    },
+    "skills": [
+      "Управление платформой",
+      "Безопасность",
+      "Настройка оборудования",
+      "Инфраструктура ЦКТ"
+    ]
+  },
+  {
+    "id": "master-1",
+    "fullName": "Бадиков Семён Станиславович",
+    "email": "semyon.badikov@kp11.ru",
+    "groupName": "КТ-26",
+    "rating": 5,
+    "telegram": "@badikov_dop",
+    "telegramChatId": null,
+    "craftRank": "Оператор-постановщик // Master DOP",
+    "isSuspended": false,
+    "role": {
+      "name": "Мастер / Преподаватель"
+    },
+    "competencies": {
+      "camera": 96,
+      "sound": 98,
+      "light": 92,
+      "edit": 94
+    },
+    "skills": [
+      "Log-C",
+      "Shure SM7B",
+      "Aputure 300D",
+      "Sound Design",
+      "DaVinci Resolve"
+    ],
+    "completedShoots": 3
+  },
+  {
+    "id": "u1",
+    "fullName": "Ковалев Михаил Алексеевич",
+    "email": "mikhail.kovalev@kp11.ru",
+    "groupName": "ФВТ-22",
+    "rating": 4.8,
+    "telegram": "@mikhail_cam",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 95,
+      "sound": 82,
+      "light": 88,
+      "edit": 96
+    },
+    "skills": [
+      "ARRI Master Prime",
+      "Цветокоррекция",
+      "Стедикам",
+      "LUT Pipeline"
+    ],
+    "completedShoots": 3
+  },
+  {
+    "id": "u2",
+    "fullName": "Демидов Тимофей Дмитриевич",
+    "email": "timofey.demidov@kp11.ru",
+    "groupName": "ФВТ-22",
+    "rating": 4.6,
+    "telegram": "@timofey_light",
+    "telegramChatId": null,
+    "craftRank": "Осветитель / Гаффер // Gaffer",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 88,
+      "sound": 78,
+      "light": 94,
+      "edit": 80
+    },
+    "skills": [
+      "Dedolight",
+      "Светотеневой рисунок",
+      "Вольфрам 3200K",
+      "Электробезопасность"
+    ],
+    "completedShoots": 2
+  },
+  {
+    "id": "u3",
+    "fullName": "Гусев Андрей Алексеевич",
+    "email": "andrey.gusev@kp11.ru",
+    "groupName": "КТ-25",
+    "rating": 4.0,
+    "telegram": "@andrey_gaffer",
+    "telegramChatId": null,
+    "craftRank": "Ассистент цеха // Best Boy",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 75,
+      "sound": 70,
+      "light": 85,
+      "edit": 68
+    },
+    "skills": [
+      "Гаффер-сетап",
+      "Рассеиватели",
+      "Штативы C-Stand"
+    ],
+    "completedShoots": 1
+  },
+  {
+    "id": "u4",
+    "fullName": "Соколова Анна Алексеевна",
+    "email": "anna.sokolova@kp11.ru",
+    "groupName": "КТ-15",
+    "rating": 4.7,
+    "telegram": "@anna_sound",
+    "telegramChatId": null,
+    "craftRank": "Звукорежиссёр площадки // Sound Mixer",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 70,
+      "sound": 95,
+      "light": 72,
+      "edit": 88
+    },
+    "skills": [
+      "Shure SM7B",
+      "Петлички Sennheiser",
+      "Микрофонный бум",
+      "Синхронизация"
+    ],
+    "completedShoots": 3
+  },
+  {
+    "id": "u5",
+    "fullName": "Жемчужников Ярослав Станиславович",
+    "email": "yaroslav.zhemch@kp11.ru",
+    "groupName": "КТ-25",
+    "rating": 4.5,
+    "telegram": "@yaroslav_dop",
+    "telegramChatId": null,
+    "craftRank": "Оператор стедикама // Steadicam Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 92,
+      "sound": 75,
+      "light": 80,
+      "edit": 84
+    },
+    "skills": [
+      "DJI RS3 Pro",
+      "Камерные рельсы",
+      "Динамический кадр"
+    ],
+    "completedShoots": 2
+  }
+]

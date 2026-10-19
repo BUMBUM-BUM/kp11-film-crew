@@ -233,7 +233,7 @@ const server = http.createServer(async (req, res) => {
       let targetUser = users.find(u => u.id === authUserId || u.email === authUserId);
       if (!targetUser && authUserId === 'student-token') targetUser = users.find(u => u.id === 'u1');
       if (!targetUser && (authUserId === 'admin-token' || authUserId === 'admin-1')) targetUser = users.find(u => u.id === 'admin-1');
-      if (!targetUser) targetUser = users.find(u => u.id === 'demo-user-1') || users[0];
+      if (!targetUser) targetUser = users.find(u => u.id === 'master-1') || users[0];
 
       let compPart = 0;
       let totPart = 0;

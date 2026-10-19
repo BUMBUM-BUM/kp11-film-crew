@@ -1,0 +1,68 @@
+[
+  {
+    "id": "eq-1",
+    "name": "Canon Cinema EOS C200 (EF)",
+    "category": "Камеры",
+    "serialNumber": "C200-884912",
+    "status": "AVAILABLE",
+    "location": "Склад техники ЦКТ КП11",
+    "notes": "2x CFast 256GB, 2x BP-A60, кейс",
+    "signedBy": "Бадиков Семён Станиславович",
+    "signedAt": "2026-10-19T10:00:00Z"
+  },
+  {
+    "id": "eq-2",
+    "name": "Sony FX3 Cinema Line",
+    "category": "Камеры",
+    "serialNumber": "FX3-441209",
+    "status": "AVAILABLE",
+    "location": "Склад техники ЦКТ КП11",
+    "notes": "Клетка SmallRig, ручка XLR, 3x NP-FZ100",
+    "signedBy": "Бадиков Семён Станиславович",
+    "signedAt": "2026-10-19T10:00:00Z"
+  },
+  {
+    "id": "eq-3",
+    "name": "Aputure Light Storm 300D II (Bowens)",
+    "category": "Свет",
+    "serialNumber": "AP-300D-1194",
+    "status": "AVAILABLE",
+    "location": "Склад техники ЦКТ КП11",
+    "notes": "Рефлектор, софтбокс Light Dome II, C-stand",
+    "signedBy": "Бадиков Семён Станиславович",
+    "signedAt": "2026-10-19T10:00:00Z"
+  },
+  {
+    "id": "eq-4",
+    "name": "Комплект микрофонов Shure SM7B + Focusrite 2i2",
+    "category": "Звук",
+    "serialNumber": "SH-SM7B-5501",
+    "status": "AVAILABLE",
+    "location": "Студия подкастов ЦКТ",
+    "notes": "Пантограф Rode PSA1, XLR Mogami, ветрозащита",
+    "signedBy": "Бадиков Семён Станиславович",
+    "signedAt": "2026-10-19T10:00:00Z"
+  },
+  {
+    "id": "eq-5",
+    "name": "Стедикам DJI RS3 Pro Combo",
+    "category": "Стабилизация",
+    "serialNumber": "RS3-903112",
+    "status": "AVAILABLE",
+    "location": "Склад техники ЦКТ КП11",
+    "notes": "Фокус-мотор, RavenEye передатчик, кейс",
+    "signedBy": "Бадиков Семён Станиславович",
+    "signedAt": "2026-10-19T10:00:00Z"
+  },
+  {
+    "id": "eq-6",
+    "name": "Оптика Canon CN-E 35mm T1.5 L F Cinema",
+    "category": "Оптика",
+    "serialNumber": "CNE-35-091",
+    "status": "AVAILABLE",
+    "location": "Склад техники ЦКТ КП11",
+    "notes": "Бленда, передняя/задняя крышки, жесткий кейс Pelicase",
+    "signedBy": "Бадиков Семён Станиславович",
+    "signedAt": "2026-10-19T10:00:00Z"
+  }
+]

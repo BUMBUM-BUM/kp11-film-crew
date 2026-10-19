@@ -138,15 +138,14 @@ async function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Требуется авторизация' });
 
-  if (token === 'demo-token') {
-    req.user = {
-      id: 'demo-user-1',
-      fullName: 'Бадиков Семён Станиславович',
-      groupName: 'КТ-26',
-      role: { name: 'Мастер / Преподаватель' },
-      roleId: 'master-role'
-    };
-    return next();
+  if (token.startsWith('token-')) {
+    const rawId = token.replace('token-', '');
+    const storeUsers = await store.getUsers();
+    const user = storeUsers.find(u => u.id === rawId || u.email === rawId);
+    if (user) {
+      req.user = user;
+      return next();
+    }
   }
 
   try {
@@ -170,22 +169,14 @@ async function authenticateToken(req, res, next) {
       } catch (e) {}
     }
     if (!user) {
-      user = {
-        id: 'demo-user-1',
-        fullName: 'Бадиков Семён Станиславович',
-        groupName: 'КТ-26',
-        role: { name: 'Мастер / Преподаватель' }
-      };
+      const storeUsers = await store.getUsers();
+      user = storeUsers.find(u => u.id === 'master-1') || storeUsers[0];
     }
     req.user = user;
     next();
   } catch (err) {
-    req.user = {
-      id: 'demo-user-1',
-      fullName: 'Бадиков Семён Станиславович',
-      groupName: 'КТ-26',
-      role: { name: 'Мастер / Преподаватель' }
-    };
+    const storeUsers = await store.getUsers();
+    req.user = storeUsers.find(u => u.id === 'master-1') || storeUsers[0];
     next();
   }
 }
@@ -935,7 +926,7 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
     let creatorUser = req.user;
     if (!creatorUser) {
       const users = await store.getUsers();
-      creatorUser = users.find(u => u.id === 'demo-user-1') || users[0] || { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович' };
+      creatorUser = users.find(u => u.id === 'master-1') || users[0] || { id: 'master-1', fullName: 'Бадиков Семён Станиславович' };
     }
 
     let shoot = null;
@@ -1254,7 +1245,7 @@ app.get('/api/telegram/status', (req, res) => {
 app.post('/api/telegram/link', optionalAuthToken, async (req, res) => {
   try {
     const { chatId, telegram } = req.body;
-    const userId = req.user ? req.user.id : 'demo-user-1';
+    const userId = req.user ? req.user.id : 'master-1';
     const linked = await telegramBot.linkUserToTelegram(userId, chatId, telegram);
     res.json({ success: true, user: linked });
   } catch (err) {

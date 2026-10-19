@@ -42,7 +42,7 @@ const INITIAL_USERS = [
     skills: ['Управление платформой', 'Безопасность', 'Настройка оборудования', 'Инфраструктура ЦКТ']
   },
   {
-    id: 'demo-user-1',
+    id: 'master-1',
     fullName: 'Бадиков Семён Станиславович',
     email: 'semyon.badikov@kp11.ru',
     groupName: 'КТ-26',
@@ -169,62 +169,8 @@ const INITIAL_USERS = [
   }
 ];
 
-// Начальные смены сайта (ТОЛЬКО РЕАЛЬНЫЕ СМЕНЫ С САЙТА, БЕЗ ВЫДУМАННЫХ ДАННЫХ)
-const INITIAL_SHOOTS = [
-  {
-    id: 'shoot-101',
-    title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ',
-    description: 'Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.',
-    type: 'ПАВИЛЬОН',
-    date: '2026-10-22T15:00:00Z',
-    location: 'ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)',
-    latitude: 55.858244,
-    longitude: 37.518423,
-    isCompleted: false,
-    creator: { fullName: 'Бадиков Семён Станиславович' },
-    crew: [
-      { id: 'c101-1', roleInShoot: 'ОПЕРАТОР-ПОСТАНОВЩИК', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
-      { id: 'c101-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u2' },
-      { id: 'c101-3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'PENDING', attendance: 'PRESENT', userId: 'u4' },
-      { id: 'c101-4', roleInShoot: 'РЕЖИССЁР СМЕНЫ', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'demo-user-1' }
-    ]
-  },
-  {
-    id: 'shoot-102',
-    title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
-    description: 'Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.',
-    type: 'СТУДИЯ',
-    date: '2026-10-25T16:30:00Z',
-    location: 'СТУДИЯ ЗВУКОЗАПИСИ И ПОДКАСТОВ ЦКТ',
-    latitude: 55.851244,
-    longitude: 37.528423,
-    isCompleted: false,
-    creator: { fullName: 'Бадиков Семён Станиславович' },
-    crew: [
-      { id: 'c102-1', roleInShoot: 'КАМЕРНЫЙ ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
-      { id: 'c102-2', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u4' },
-      { id: 'c102-3', roleInShoot: 'ОПЕРАТОР СТЕДИКАМА', status: 'PENDING', attendance: 'PRESENT', userId: 'u5' }
-    ]
-  },
-  {
-    id: 'shoot-103',
-    title: 'ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»',
-    description: 'Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.',
-    type: 'ВЫЕЗД',
-    date: '2026-10-17T11:00:00Z',
-    location: 'ПАРК «СЕВЕРНОЕ ТУШИНО», НАБЕРЕЖНАЯ',
-    latitude: 55.864244,
-    longitude: 37.452423,
-    isCompleted: true,
-    creator: { fullName: 'Бадиков Семён Станиславович' },
-    crew: [
-      { id: 'c103-1', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u1' },
-      { id: 'c103-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u2' },
-      { id: 'c103-3', roleInShoot: 'АССИСТЕНТ ОСВЕТИТЕЛЯ', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u3' },
-      { id: 'c103-4', roleInShoot: 'ЗВУКООПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u4' }
-    ]
-  }
-];
+// Начальные смены сайта (пустой список по умолчанию)
+const INITIAL_SHOOTS = [];
 
 function readJsonFile(filePath, defaultData) {
   try {

@@ -22,6 +22,7 @@ function pluralizeRu(n, one, few, many) {
   if (mod100 >= 11 && mod100 <= 19) return `${num} ${many}`;
   if (mod10 === 1) return `${num} ${one}`;
   if (mod10 >= 2 && mod10 <= 4) return `${num} ${few}`;
+  return `${num} ${many}`;
 }
 
 function safeFormatDate(dStr) {
@@ -77,37 +78,7 @@ if (urlParams.get('theme')) {
   document.documentElement.setAttribute('data-theme', urlParams.get('theme'));
   localStorage.setItem('kp11_theme', urlParams.get('theme'));
 }
-if (urlParams.get('demo') === 'student') {
-  currentUser = {
-    id: 'u1',
-    fullName: 'Ковалев Михаил Алексеевич',
-    groupName: 'ФВТ-22',
-    role: 'Студент',
-    telegram: '@mikhail_cam'
-  };
-  token = 'student-token';
-} else if (urlParams.get('demo') === 'admin') {
-  currentUser = {
-    id: 'admin-1',
-    fullName: 'Смирнов Алексей Викторович',
-    groupName: 'ЦКТ',
-    role: 'Администратор',
-    telegram: '@kp11_admin'
-  };
-  token = 'admin-token';
-} else if (urlParams.get('demo') === 'guest') {
-  currentUser = null;
-  token = '';
-} else if ((urlParams.get('demo') === '1' || urlParams.get('demo') === 'master' || urlParams.get('tab') || urlParams.get('expand') || urlParams.get('theme')) && !currentUser) {
-  currentUser = {
-    id: 'demo-user-1',
-    fullName: 'Бадиков Семён Станиславович',
-    groupName: 'КТ-26',
-    role: 'Мастер / Преподаватель',
-    telegram: '@badikov_dop'
-  };
-  token = 'demo-token';
-}
+// В рабочей версии аутентификация пользователя происходит строго через getStoredUser() и форму входа
 
 let isRegister = false;
 let globalStudents = [];
@@ -412,51 +383,6 @@ function updateNav() {
   }
 }
 
-function quickLogin(role) {
-  let user = null;
-  let tokenStr = 'demo-token';
-  if (role === 'student') {
-    user = {
-      id: 'u1',
-      fullName: 'Ковалев Михаил Алексеевич',
-      email: 'mikhail.kovalev@kp11.ru',
-      groupName: 'ФВТ-22',
-      role: 'Студент',
-      telegram: '@mikhail_cam'
-    };
-    tokenStr = 'token-u1';
-  } else if (role === 'admin') {
-    user = {
-      id: 'admin-1',
-      fullName: 'Смирнов Алексей Викторович',
-      email: 'admin@kp11.ru',
-      groupName: 'ЦКТ',
-      role: 'Администратор',
-      telegram: '@kp11_admin'
-    };
-    tokenStr = 'token-admin-1';
-  } else {
-    user = {
-      id: 'demo-user-1',
-      fullName: 'Бадиков Семён Станиславович',
-      email: 'semyon.badikov@kp11.ru',
-      groupName: 'КТ-26',
-      role: 'Мастер / Преподаватель',
-      telegram: '@badikov_dop'
-    };
-    tokenStr = 'token-demo-user-1';
-  }
-  localStorage.setItem('user', JSON.stringify(user));
-  localStorage.setItem('token', tokenStr);
-  currentUser = user;
-  token = tokenStr;
-  closeModal();
-  updateNav();
-  loadShoots();
-  showToast('Вход выполнен: ' + user.fullName + ' (' + user.role + ')');
-}
-window.quickLogin = quickLogin;
-
 function renderGuestSidebar() {
   const sidebar = document.getElementById('sidebarProfile');
   if (!sidebar) return;
@@ -478,14 +404,6 @@ function renderGuestSidebar() {
       '<div class="pt-1 flex gap-2">' +
         '<button onclick="openModal(\'login\')" class="w-1/2 py-2 text-xs font-extrabold uppercase btn-brand-primary">Войти</button>' +
         '<button onclick="openModal(\'register\')" class="w-1/2 py-2 text-xs font-extrabold uppercase btn-brand-ghost" style="color:#141414; border-color:#999;">Регистрация</button>' +
-      '</div>' +
-      '<div class="pt-2 border-t space-y-1.5" style="border-color: rgba(0,0,0,0.1);">' +
-        '<span class="text-[9px] font-mono uppercase font-bold text-neutral-600 block">Быстрое переключение ролей:</span>' +
-        '<div class="grid grid-cols-3 gap-1">' +
-          '<button onclick="quickLogin(\'student\')" class="py-1 px-1 text-[9px] font-bold uppercase btn-brand-ghost text-center truncate" style="border-color: rgba(0,0,0,0.2); color:#141414;" title="Войти как студент">🎓 Студент</button>' +
-          '<button onclick="quickLogin(\'master\')" class="py-1 px-1 text-[9px] font-bold uppercase btn-brand-ghost text-center truncate" style="border-color: rgba(0,0,0,0.2); color:#141414;" title="Войти как мастер">🎬 Мастер</button>' +
-          '<button onclick="quickLogin(\'admin\')" class="py-1 px-1 text-[9px] font-bold uppercase btn-brand-ghost text-center truncate" style="border-color: rgba(0,0,0,0.2); color:#141414;" title="Войти как администратор">⚙️ Админ</button>' +
-        '</div>' +
       '</div>' +
       '<div class="pt-2 border-t flex flex-col items-center justify-center space-y-1" style="border-color: rgba(0,0,0,0.1);">' +
         '<span class="text-[8px] font-mono tracking-widest text-black/60 font-extrabold">MEDIA-CREW-KP11-GUEST</span>' +
@@ -1495,7 +1413,7 @@ async function submitCktGrading() {
 function getStudentDirectory() {
   return [
     {
-      id: 'demo-user-1',
+      id: 'master-1',
       fullName: 'Бадиков Семён Станиславович',
       groupName: 'КТ-26',
       rating: 4.8,
@@ -2811,7 +2729,7 @@ async function loadAdminPanel() {
       { id: 'u3', fullName: 'Гусев Андрей Алексеевич', email: 'andrey.gusev@kp11.ru', groupName: 'КТ-25', rating: 3.5, telegram: '@andrey_gaffer', isSuspended: false, role: { name: 'Студент' } },
       { id: 'u4', fullName: 'Соколова Анна Алексеевна', email: 'anna.sokolova@kp11.ru', groupName: 'КТ-15', rating: 4.0, telegram: '@anna_sound', isSuspended: false, role: { name: 'Студент' } },
       { id: 'u5', fullName: 'Жемчужников Ярослав Станиславович', email: 'yaroslav.zhemch@kp11.ru', groupName: 'КТ-25', rating: 4.5, telegram: '@yaroslav_dop', isSuspended: false, role: { name: 'Студент' } },
-      { id: 'demo-user-1', fullName: 'Бадиков Семён Станиславович', email: 'semyon.badikov@kp11.ru', groupName: 'КТ-26', rating: 4.8, telegram: '@badikov_dop', isSuspended: false, role: { name: 'Мастер / Преподаватель' } }
+      { id: 'master-1', fullName: 'Бадиков Семён Станиславович', email: 'semyon.badikov@kp11.ru', groupName: 'КТ-26', rating: 4.8, telegram: '@badikov_dop', isSuspended: false, role: { name: 'Мастер / Преподаватель' } }
     ];
   }
 
@@ -4327,10 +4245,10 @@ async function handleAuth(e) {
     if (data.user.role && typeof data.user.role === 'object' && data.user.role.name) {
       data.user.role = data.user.role.name;
     }
-    localStorage.setItem('token', data.token || 'demo-token');
+    localStorage.setItem('token', data.token || '');
     localStorage.setItem('user', JSON.stringify(data.user));
     currentUser = data.user;
-    token = data.token || 'demo-token';
+    token = data.token || '';
     closeModal();
     updateNav();
     await loadShoots();
@@ -4340,64 +4258,7 @@ async function handleAuth(e) {
 }
 
 function getDefaultShoots() {
-  return [
-    {
-      id: 'shoot-101',
-      title: 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ',
-      description: 'Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.',
-      type: 'ПАВИЛЬОН',
-      date: '2026-10-22T15:00:00Z',
-      location: 'ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)',
-      isCompleted: true,
-      latitude: 55.858244,
-      longitude: 37.518423,
-      creator: { fullName: 'Бадиков Семён Станиславович' },
-      equipment: [],
-      crew: [
-        { id: 'c101-1', roleInShoot: 'ОПЕРАТОР-ПОСТАНОВЩИК', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1', grade: 5 },
-        { id: 'c101-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u2', grade: 5 },
-        { id: 'c101-3', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'PENDING', attendance: 'PRESENT', userId: 'u4', grade: 5 },
-        { id: 'c101-4', roleInShoot: 'РЕЖИССЁР СМЕНЫ', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'demo-user-1', grade: 5 }
-      ]
-    },
-    {
-      id: 'shoot-102',
-      title: 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ',
-      description: 'Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.',
-      type: 'СТУДИЯ',
-      date: '2026-10-25T16:30:00Z',
-      location: 'СТУДИЯ ЗВУКОЗАПИСИ И ПОДКАСТОВ ЦКТ',
-      latitude: 55.851244,
-      longitude: 37.528423,
-      isCompleted: false,
-      creator: { fullName: 'Бадиков Семён Станиславович' },
-      equipment: [],
-      crew: [
-        { id: 'c102-1', roleInShoot: 'КАМЕРНЫЙ ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u1' },
-        { id: 'c102-2', roleInShoot: 'ЗВУКОРЕЖИССЁР', status: 'ACCEPTED', attendance: 'PRESENT', userId: 'u4' },
-        { id: 'c102-3', roleInShoot: 'ОПЕРАТОР СТЕДИКАМА', status: 'PENDING', attendance: 'PRESENT', userId: 'u5' }
-      ]
-    },
-    {
-      id: 'shoot-103',
-      title: 'ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»',
-      description: 'Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.',
-      type: 'ВЫЕЗД',
-      date: '2026-10-17T11:00:00Z',
-      location: 'ПАРК «СЕВЕРНОЕ ТУШИНО», НАБЕРЕЖНАЯ',
-      latitude: 55.864244,
-      longitude: 37.452423,
-      isCompleted: true,
-      creator: { fullName: 'Бадиков Семён Станиславович' },
-      equipment: [],
-      crew: [
-        { id: 'c103-1', roleInShoot: 'ОПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u1' },
-        { id: 'c103-2', roleInShoot: 'ГАФФЕР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u2' },
-        { id: 'c103-3', roleInShoot: 'АССИСТЕНТ ОСВЕТИТЕЛЯ', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u3' },
-        { id: 'c103-4', roleInShoot: 'ЗВУКООПЕРАТОР', status: 'ACCEPTED', attendance: 'PRESENT', grade: 5, userId: 'u4' }
-      ]
-    }
-  ];
+  return [];
 }
 
 async function loadShoots() {
@@ -4406,7 +4267,8 @@ async function loadShoots() {
   let userStats = null;
 
   try {
-    const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') } });
+    const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+    const res = await fetch('/api/shoots', { headers });
     if (res.ok) {
       const data = await res.json();
       const rawShoots = data.shoots;

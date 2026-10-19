@@ -26,7 +26,7 @@
     ]
   },
   {
-    "id": "demo-user-1",
+    "id": "master-1",
     "fullName": "Бадиков Семён Станиславович",
     "email": "semyon.badikov@kp11.ru",
     "groupName": "КТ-26",
@@ -78,7 +78,7 @@
       "Стедикам",
       "LUT Pipeline"
     ],
-    "completedShoots": 2
+    "completedShoots": 1
   },
   {
     "id": "u2",
@@ -105,7 +105,7 @@
       "Вольфрам 3200K",
       "Электробезопасность"
     ],
-    "completedShoots": 2
+    "completedShoots": 1
   },
   {
     "id": "u3",
@@ -157,7 +157,7 @@
       "Микрофонный бум",
       "Синхронизация"
     ],
-    "completedShoots": 2
+    "completedShoots": 1
   },
   {
     "id": "u5",

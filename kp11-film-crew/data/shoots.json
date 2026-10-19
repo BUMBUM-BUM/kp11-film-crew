@@ -1,31 +1,49 @@
 [
   {
-    "id": "shoot-101",
-    "title": "КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ",
-    "description": "Постановочная съёмка драматического диалога при низком ключе освещения (Low Key). Отработка ракурсов, фокус-пуллинга на светосильной оптике и поканальной записи звука.",
-    "type": "ПАВИЛЬОН",
-    "date": "2026-10-22",
-    "callTime": "14:00",
-    "startTime": "15:00",
-    "endTime": "20:00",
+    "id": "shoot-prod-1",
+    "title": "ПРОИЗВОДСТВЕННАЯ СМЕНА: ИНТЕРВЬЮ В СТУДИИ ПОДКАСТОВ",
+    "description": "Многокамерная запись интервью с экспертом индустрии. Настройка микрофонов Shure SM7B, световой схемы и поканального аудиотракта.",
+    "type": "СТУДИЯ",
+    "date": "2026-10-20",
+    "callTime": "10:00",
+    "startTime": "11:30",
+    "endTime": "17:00",
     "timeline": [
-      { "time": "14:00", "label": "Сбор съёмочной группы и чеклист техники" },
-      { "time": "14:30", "label": "Монтаж световой схемы Low Key и тракта звука" },
-      { "time": "15:00", "label": "Мотор! Съёмка постановочного диалога" },
-      { "time": "17:30", "label": "Перестановка ракурсов и световой акцент" },
-      { "time": "20:00", "label": "Шапка смены / Сдача техники на склад" }
+      {
+        "time": "10:00",
+        "title": "Сбор съёмочной группы и чеклист"
+      },
+      {
+        "time": "10:30",
+        "title": "Монтаж световой схемы и звука"
+      },
+      {
+        "time": "11:30",
+        "title": "Мотор! Запись интервью"
+      },
+      {
+        "time": "14:00",
+        "title": "Обед группы и перестановка"
+      },
+      {
+        "time": "17:00",
+        "title": "Шапка смены / Сдача техники"
+      }
     ],
-    "location": "ПАВИЛЬОН МЕДИАЦЕНТРА №1 (ОНЕЖСКАЯ, 3)",
+    "location": "Павильон №1 ЦКТ (Онежская, 3)",
     "latitude": 55.858244,
     "longitude": 37.518423,
-    "isCompleted": true,
+    "isCompleted": false,
     "creator": {
       "fullName": "Бадиков Семён Станиславович"
     },
-    "equipment": ["eq-1", "eq-3"],
+    "equipment": [
+      "eq-1",
+      "eq-4"
+    ],
     "crew": [
       {
-        "id": "c101-1",
+        "id": "c-prod-1",
         "roleInShoot": "ОПЕРАТОР-ПОСТАНОВЩИК",
         "status": "ACCEPTED",
         "attendance": "PRESENT",
@@ -33,135 +51,20 @@
         "grade": 5
       },
       {
-        "id": "c101-2",
-        "roleInShoot": "ГАФФЕР",
+        "id": "c-prod-2",
+        "roleInShoot": "РЕЖИССЁР / МАСТЕР",
         "status": "ACCEPTED",
         "attendance": "PRESENT",
-        "userId": "u2",
+        "userId": "master-1",
         "grade": 5
       },
       {
-        "id": "c101-3",
-        "roleInShoot": "ЗВУКОРЕЖИССЁР",
-        "status": "PENDING",
+        "id": "c-prod-3",
+        "roleInShoot": "КУРАТОР СМЕНЫ",
+        "status": "ACCEPTED",
         "attendance": "PRESENT",
-        "userId": "u4",
+        "userId": "admin-1",
         "grade": 5
-      },
-      {
-        "id": "c101-4",
-        "roleInShoot": "РЕЖИССЁР СМЕНЫ",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "userId": "demo-user-1",
-        "grade": 5
-      }
-    ]
-  },
-  {
-    "id": "shoot-102",
-    "title": "ПОДКАСТ МЕДИАЦЕНТРА КП11 #03: ИНТЕРВЬЮ",
-    "description": "Многокамерная студийная запись интервью с режиссёром. Поканальная запись звука Shure SM7B, мониторинг уровней, свет Dedolight.",
-    "type": "СТУДИЯ",
-    "date": "2026-10-25",
-    "callTime": "15:30",
-    "startTime": "16:30",
-    "endTime": "19:30",
-    "timeline": [
-      { "time": "15:30", "label": "Сбор группы в студии подкастов" },
-      { "time": "16:00", "label": "Проверка тракта Shure SM7B и свет Dedolight" },
-      { "time": "16:30", "label": "Мотор! Запись интервью #03" },
-      { "time": "19:00", "label": "Бэкап аудиодорожек и видеоматериалов" },
-      { "time": "19:30", "label": "Окончание смены / Чек-аут оборудования" }
-    ],
-    "location": "СТУДИЯ ЗВУКОЗАПИСИ И ПОДКАСТОВ ЦКТ",
-    "latitude": 55.851244,
-    "longitude": 37.528423,
-    "isCompleted": false,
-    "creator": {
-      "fullName": "Бадиков Семён Станиславович"
-    },
-    "equipment": ["eq-4", "eq-2"],
-    "crew": [
-      {
-        "id": "c102-1",
-        "roleInShoot": "КАМЕРНЫЙ ОПЕРАТОР",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "userId": "u1"
-      },
-      {
-        "id": "c102-2",
-        "roleInShoot": "ЗВУКОРЕЖИССЁР",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "userId": "u4"
-      },
-      {
-        "id": "c102-3",
-        "roleInShoot": "ОПЕРАТОР СТЕДИКАМА",
-        "status": "PENDING",
-        "attendance": "PRESENT",
-        "userId": "u5"
-      }
-    ]
-  },
-  {
-    "id": "shoot-103",
-    "title": "ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»",
-    "description": "Выездная натурная съёмка сцены в парке. Отработка экспозиции при естественном свете, работа с отражателями и запись чистового звука на петлички.",
-    "type": "ВЫЕЗД",
-    "date": "2026-10-17",
-    "callTime": "10:00",
-    "startTime": "11:00",
-    "endTime": "16:00",
-    "timeline": [
-      { "time": "10:00", "label": "Сбор группы на набережной (Северное Тушино)" },
-      { "time": "10:30", "label": "Разбивка площадки, проверка радиосистем" },
-      { "time": "11:00", "label": "Мотор! Сцена короткого метра «Эхо»" },
-      { "time": "14:00", "label": "Обеденный перерыв экспедиции" },
-      { "time": "16:00", "label": "Шапка смены / Сбор экспедиционного комплекта" }
-    ],
-    "location": "ПАРК «СЕВЕРНОЕ ТУШИНО», НАБЕРЕЖНАЯ",
-    "latitude": 55.864244,
-    "longitude": 37.452423,
-    "isCompleted": true,
-    "creator": {
-      "fullName": "Бадиков Семён Станиславович"
-    },
-    "equipment": ["eq-5", "eq-6"],
-    "crew": [
-      {
-        "id": "c103-1",
-        "roleInShoot": "ОПЕРАТОР",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "grade": 5,
-        "userId": "u1"
-      },
-      {
-        "id": "c103-2",
-        "roleInShoot": "ГАФФЕР",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "grade": 5,
-        "userId": "u2"
-      },
-      {
-        "id": "c103-3",
-        "roleInShoot": "АССИСТЕНТ ОСВЕТИТЕЛЯ",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "grade": 5,
-        "userId": "u3"
-      },
-      {
-        "id": "c103-4",
-        "roleInShoot": "ЗВУКООПЕРАТОР",
-        "status": "ACCEPTED",
-        "attendance": "PRESENT",
-        "grade": 5,
-        "userId": "u4"
       }
     ]
   }
