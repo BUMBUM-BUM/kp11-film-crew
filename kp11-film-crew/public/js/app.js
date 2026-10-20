@@ -771,26 +771,76 @@ function copyDismissalOrderText() {
 let globalInventory = [];
 let activeEquipmentTab = 'checkout'; // 'checkout' | 'registry'
 
+const DEMO_EQ_SERIALS = ['C200-884912', 'FX3-441209', 'AP-300D-1194', 'SH-SM7B-5501', 'RS3-903112', 'CNE-35-7781'];
+const DEMO_EQ_IDS = ['eq-1', 'eq-2', 'eq-3', 'eq-4', 'eq-5', 'eq-6'];
+function isDemoInventoryItem(item) {
+  if (!item) return false;
+  if (DEMO_EQ_IDS.includes(item.id)) return true;
+  if (item.serialNumber && DEMO_EQ_SERIALS.includes(item.serialNumber)) return true;
+  return false;
+}
+
 async function loadInventoryData() {
+  let serverItems = null;
   try {
     const res = await fetch('/api/inventory');
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.inventory)) {
-        globalInventory = data.inventory;
+        serverItems = data.inventory.filter(item => !isDemoInventoryItem(item));
       }
     }
   } catch (err) {
     console.warn('Inventory fetch offline, using fallback:', err.message);
   }
-  if (!globalInventory || !Array.isArray(globalInventory) || globalInventory.length === 0) {
-    try {
-      const stored = JSON.parse(localStorage.getItem('kp11_inventory') || '[]');
-      globalInventory = Array.isArray(stored) ? stored : [];
-    } catch (e) {
-      globalInventory = [];
+
+  // Извлекаем сохраненное оборудование пользователя из localStorage
+  let localItems = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem('kp11_inventory') || '[]');
+    if (Array.isArray(stored)) {
+      localItems = stored.filter(item => !isDemoInventoryItem(item));
     }
+  } catch (e) {
+    localItems = [];
   }
+
+  if (Array.isArray(serverItems)) {
+    globalInventory = serverItems;
+
+    // СИНХРОНИЗАЦИЯ ПОСЛЕ ПЕРЕЗАПУСКА RENDER:
+    // Если на сервере (в БД) пока 0 единиц техники, но в localStorage браузера сохранены созданные пользователем единицы,
+    // автоматически загружаем их на сервер в постоянную базу PostgreSQL!
+    if (serverItems.length === 0 && localItems.length > 0) {
+      console.log('[КП11 Синхронизация] Восстановление ' + localItems.length + ' единиц техники пользователя в базу данных PostgreSQL...');
+      for (const item of localItems) {
+        try {
+          const syncRes = await fetch('/api/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+            body: JSON.stringify(item)
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            if (Array.isArray(syncData.inventory)) {
+              globalInventory = syncData.inventory.filter(i => !isDemoInventoryItem(i));
+            }
+          }
+        } catch (syncErr) {
+          console.warn('[КП11 Синхронизация] Ошибка сохранения единицы в БД:', syncErr.message);
+        }
+      }
+    }
+  } else {
+    // Оффлайн fallback: берем только реальные единицы из localStorage
+    globalInventory = localItems;
+  }
+
+  // Фильтруем любые возможные остатки тестовых единиц и сохраняем чистый список
+  globalInventory = globalInventory.filter(item => !isDemoInventoryItem(item));
+  try {
+    localStorage.setItem('kp11_inventory', JSON.stringify(globalInventory));
+  } catch (e) {}
 }
 
 async function openEquipmentModal(shootId) {
@@ -4267,8 +4317,11 @@ async function handleAuth(e) {
   }
 }
 
-function getDefaultShoots() {
-  return [];
+function isDemoShootRecord(s) {
+  if (!s) return true;
+  if (s.id === 'shoot-prod-1' || s.id === 'shoot-1792450290828') return true;
+  if (s.title === 'ТЕСТОВОЕ СОБЫТИЕ') return true;
+  return false;
 }
 
 async function loadShoots() {
@@ -4283,8 +4336,8 @@ async function loadShoots() {
       const data = await res.json();
       const rawShoots = data.shoots;
       let fetchedShoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
-      // Исключаем устаревшие демонстрационные смены
-      shoots = fetchedShoots.filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
+      // Исключаем любые демонстрационные и тестовые смены
+      shoots = fetchedShoots.filter(s => !isDemoShootRecord(s));
       
       if (data.students) {
         const rawStudents = data.students;
@@ -4292,6 +4345,7 @@ async function loadShoots() {
       }
       stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
       userStats = data.userStats || null;
+      window._coldStartRetryCount = 0; // Сбрасываем счетчик повторов при успешной связи
       try {
         localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
       } catch (e) {}
@@ -4302,11 +4356,21 @@ async function loadShoots() {
     userStats = { rating: 4.8, completedParticipated: 4, totalParticipated: 5 };
     const stored = JSON.parse(localStorage.getItem('kp11_shoots') || 'null');
     if (Array.isArray(stored)) {
-      shoots = stored;
+      shoots = stored.filter(s => !isDemoShootRecord(s));
     } else {
       shoots = [];
     }
     stats = { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
+
+    // Автоматический retry при холодном старте Render (после 15 минут неактивности)
+    if (!window._coldStartRetryCount) window._coldStartRetryCount = 0;
+    if (window._coldStartRetryCount < 6) {
+      window._coldStartRetryCount++;
+      console.log(`[KP11 Cold-Start] Подключение к серверу (пробуждение Render). Попытка #${window._coldStartRetryCount} через 3 сек...`);
+      setTimeout(() => {
+        loadShoots();
+      }, 3000);
+    }
   }
 
   globalShoots = shoots;

@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -539,39 +541,88 @@ app.delete(['/api/admin/shoots/:id', '/api/shoots/:id'], optionalAuthToken, asyn
 });
 
 // ----------------- РЕЕСТР ПРЕСЕТОВ ЛОКАЦИЙ -----------------
-app.get('/api/locations', (req, res) => {
+// ----------------- РЕЕСТР ПРЕСЕТОВ ЛОКАЦИЙ -----------------
+app.get('/api/locations', async (req, res) => {
+  try {
+    if (prisma && prisma.location) {
+      const dbLocations = await prisma.location.findMany().catch(() => null);
+      if (dbLocations && dbLocations.length > 0) {
+        return res.json({ success: true, locations: dbLocations });
+      }
+    }
+  } catch (e) {}
   const locations = readJsonSafe(LOCATIONS_FILE, []);
   res.json({ success: true, locations });
 });
 
-app.post('/api/locations', optionalAuthToken, (req, res) => {
+app.post('/api/locations', optionalAuthToken, async (req, res) => {
   const { name, badge, type, latitude, longitude } = req.body;
   if (!name) return res.status(400).json({ error: 'Укажите название локации' });
 
-  const locations = readJsonSafe(LOCATIONS_FILE, []);
-  const newLoc = {
-    id: `loc-${Date.now().toString(36)}`,
-    name: name.trim(),
-    badge: badge ? badge.trim() : (type === 'ВЫЕЗД' ? '🚗 ' : '🎬 ') + name.trim(),
-    type: type || 'СТУДИЯ',
-    latitude: parseFloat(latitude) || 55.751244,
-    longitude: parseFloat(longitude) || 37.618423
-  };
+  let newLoc = null;
+  if (prisma && prisma.location) {
+    try {
+      newLoc = await prisma.location.create({
+        data: {
+          name: name.trim(),
+          badge: badge ? badge.trim() : (type === 'ВЫЕЗД' ? '🚗 ' : '🎬 ') + name.trim(),
+          type: type || 'СТУДИЯ',
+          latitude: parseFloat(latitude) || 55.751244,
+          longitude: parseFloat(longitude) || 37.618423
+        }
+      });
+    } catch (e) {}
+  }
 
+  if (!newLoc) {
+    newLoc = {
+      id: `loc-${Date.now().toString(36)}`,
+      name: name.trim(),
+      badge: badge ? badge.trim() : (type === 'ВЫЕЗД' ? '🚗 ' : '🎬 ') + name.trim(),
+      type: type || 'СТУДИЯ',
+      latitude: parseFloat(latitude) || 55.751244,
+      longitude: parseFloat(longitude) || 37.618423
+    };
+  }
+
+  const locations = readJsonSafe(LOCATIONS_FILE, []);
   locations.push(newLoc);
   writeJsonSafe(LOCATIONS_FILE, locations);
-  res.json({ success: true, location: newLoc, locations });
+
+  let allLocations = locations;
+  if (prisma && prisma.location) {
+    try {
+      const dbLocs = await prisma.location.findMany();
+      if (dbLocs && dbLocs.length > 0) allLocations = dbLocs;
+    } catch (e) {}
+  }
+  res.json({ success: true, location: newLoc, locations: allLocations });
 });
 
-app.put('/api/locations/:id', optionalAuthToken, (req, res) => {
+app.put('/api/locations/:id', optionalAuthToken, async (req, res) => {
   const { id } = req.params;
   const { name, badge, type, latitude, longitude } = req.body;
-  const locations = readJsonSafe(LOCATIONS_FILE, []);
-  let updatedLoc = null;
 
+  let updatedLoc = null;
+  if (prisma && prisma.location) {
+    try {
+      updatedLoc = await prisma.location.update({
+        where: { id },
+        data: {
+          name: name ? name.trim() : undefined,
+          badge: badge ? badge.trim() : undefined,
+          type: type || undefined,
+          latitude: latitude !== undefined ? parseFloat(latitude) : undefined,
+          longitude: longitude !== undefined ? parseFloat(longitude) : undefined
+        }
+      }).catch(() => null);
+    } catch (e) {}
+  }
+
+  const locations = readJsonSafe(LOCATIONS_FILE, []);
   const updated = locations.map(l => {
     if (l.id === id) {
-      updatedLoc = {
+      const up = {
         ...l,
         name: name ? name.trim() : l.name,
         badge: badge ? badge.trim() : l.badge,
@@ -579,79 +630,190 @@ app.put('/api/locations/:id', optionalAuthToken, (req, res) => {
         latitude: latitude !== undefined ? parseFloat(latitude) : l.latitude,
         longitude: longitude !== undefined ? parseFloat(longitude) : l.longitude
       };
-      return updatedLoc;
+      if (!updatedLoc) updatedLoc = up;
+      return up;
     }
     return l;
   });
 
   writeJsonSafe(LOCATIONS_FILE, updated);
-  res.json({ success: true, location: updatedLoc, locations: updated });
+  let allLocations = updated;
+  if (prisma && prisma.location) {
+    try {
+      const dbLocs = await prisma.location.findMany();
+      if (dbLocs && dbLocs.length > 0) allLocations = dbLocs;
+    } catch (e) {}
+  }
+  res.json({ success: true, location: updatedLoc, locations: allLocations });
 });
 
-app.delete('/api/locations/:id', optionalAuthToken, (req, res) => {
+app.delete('/api/locations/:id', optionalAuthToken, async (req, res) => {
   const { id } = req.params;
+  if (prisma && prisma.location) {
+    try {
+      await prisma.location.delete({ where: { id } }).catch(() => {});
+    } catch (e) {}
+  }
   const locations = readJsonSafe(LOCATIONS_FILE, []);
   const updated = locations.filter(l => l.id !== id);
   writeJsonSafe(LOCATIONS_FILE, updated);
-  res.json({ success: true, locations: updated, message: 'Локация удалена' });
+
+  let allLocations = updated;
+  if (prisma && prisma.location) {
+    try {
+      allLocations = await prisma.location.findMany();
+    } catch (e) {}
+  }
+  res.json({ success: true, locations: allLocations, message: 'Локация удалена' });
 });
 
-// ----------------- ПАРК ТЕХНИКИ И ОБОРУДОВАНИЯ -----------------
-app.get('/api/inventory', (req, res) => {
+// ----------------- ПАРК ТЕХНИКИ И ОБОРУДОВАНИЯ (ПОЛНАЯ БАЗА ДАННЫХ POSTGRESQL + JSON FALLBACK) -----------------
+app.get('/api/inventory', async (req, res) => {
+  try {
+    if (prisma && prisma.inventoryItem) {
+      const dbInventory = await prisma.inventoryItem.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => null);
+      if (dbInventory && dbInventory.length > 0) {
+        return res.json({ success: true, inventory: dbInventory });
+      }
+    }
+  } catch (e) {}
   const inventory = readJsonSafe(INVENTORY_FILE, []);
   res.json({ success: true, inventory });
 });
 
-app.post('/api/inventory', optionalAuthToken, (req, res) => {
-  const { name, serialNumber, category, notes, status } = req.body;
-  if (!name) return res.status(400).json({ error: 'Укажите название оборудования' });
+app.post('/api/inventory', optionalAuthToken, async (req, res) => {
+  try {
+    const { name, serialNumber, category, notes, status, location, signedBy } = req.body;
+    if (!name) return res.status(400).json({ error: 'Укажите название оборудования' });
 
-  const inventory = readJsonSafe(INVENTORY_FILE, []);
-  const newItem = {
-    id: `eq-${Date.now().toString(36)}`,
-    name: name.trim(),
-    serialNumber: serialNumber ? serialNumber.trim() : 'Б/Н',
-    category: category || 'Камеры',
-    notes: notes || 'В рабочем состоянии',
-    status: status || 'AVAILABLE'
-  };
-
-  inventory.push(newItem);
-  writeJsonSafe(INVENTORY_FILE, inventory);
-  res.json({ success: true, item: newItem, inventory });
-});
-
-app.put('/api/inventory/:id', optionalAuthToken, (req, res) => {
-  const { id } = req.params;
-  const { name, serialNumber, category, notes, status } = req.body;
-  const inventory = readJsonSafe(INVENTORY_FILE, []);
-  let updatedItem = null;
-
-  const updated = inventory.map(item => {
-    if (item.id === id) {
-      updatedItem = {
-        ...item,
-        name: name ? name.trim() : item.name,
-        serialNumber: serialNumber ? serialNumber.trim() : item.serialNumber,
-        category: category || item.category,
-        notes: notes !== undefined ? notes : item.notes,
-        status: status || item.status
-      };
-      return updatedItem;
+    let newItem = null;
+    if (prisma && prisma.inventoryItem) {
+      try {
+        newItem = await prisma.inventoryItem.create({
+          data: {
+            name: name.trim(),
+            serialNumber: serialNumber ? serialNumber.trim() : 'Б/Н',
+            category: category || 'Камеры',
+            notes: notes || 'В рабочем состоянии',
+            status: status || 'AVAILABLE',
+            location: location || 'Склад техники ЦКТ КП11',
+            signedBy: signedBy || 'Бадиков Семён Станиславович'
+          }
+        });
+      } catch (dbErr) {
+        console.warn('[Prisma] inventoryItem.create error:', dbErr.message);
+      }
     }
-    return item;
-  });
 
-  writeJsonSafe(INVENTORY_FILE, updated);
-  res.json({ success: true, item: updatedItem, inventory: updated });
+    if (!newItem) {
+      newItem = {
+        id: `eq-${Date.now().toString(36)}`,
+        name: name.trim(),
+        serialNumber: serialNumber ? serialNumber.trim() : 'Б/Н',
+        category: category || 'Камеры',
+        notes: notes || 'В рабочем состоянии',
+        status: status || 'AVAILABLE',
+        location: location || 'Склад техники ЦКТ КП11',
+        signedBy: signedBy || 'Бадиков Семён Станиславович'
+      };
+    }
+
+    const inventory = readJsonSafe(INVENTORY_FILE, []);
+    inventory.unshift(newItem);
+    writeJsonSafe(INVENTORY_FILE, inventory);
+
+    let allInventory = inventory;
+    if (prisma && prisma.inventoryItem) {
+      try {
+        const dbItems = await prisma.inventoryItem.findMany({ orderBy: { createdAt: 'desc' } });
+        if (dbItems && dbItems.length > 0) allInventory = dbItems;
+      } catch (e) {}
+    }
+
+    res.json({ success: true, item: newItem, inventory: allInventory });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.delete('/api/inventory/:id', optionalAuthToken, (req, res) => {
-  const { id } = req.params;
-  const inventory = readJsonSafe(INVENTORY_FILE, []);
-  const filtered = inventory.filter(item => item.id !== id);
-  writeJsonSafe(INVENTORY_FILE, filtered);
-  res.json({ success: true, message: 'Оборудование удалено', inventory: filtered });
+app.put('/api/inventory/:id', optionalAuthToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, serialNumber, category, notes, status, location, signedBy } = req.body;
+
+    let updatedItem = null;
+    if (prisma && prisma.inventoryItem) {
+      try {
+        updatedItem = await prisma.inventoryItem.update({
+          where: { id },
+          data: {
+            name: name ? name.trim() : undefined,
+            serialNumber: serialNumber ? serialNumber.trim() : undefined,
+            category: category || undefined,
+            notes: notes !== undefined ? notes : undefined,
+            status: status || undefined,
+            location: location || undefined,
+            signedBy: signedBy || undefined
+          }
+        }).catch(() => null);
+      } catch (e) {}
+    }
+
+    const inventory = readJsonSafe(INVENTORY_FILE, []);
+    const updated = inventory.map(item => {
+      if (item.id === id) {
+        const up = {
+          ...item,
+          name: name ? name.trim() : item.name,
+          serialNumber: serialNumber ? serialNumber.trim() : item.serialNumber,
+          category: category || item.category,
+          notes: notes !== undefined ? notes : item.notes,
+          status: status || item.status,
+          location: location || item.location,
+          signedBy: signedBy || item.signedBy
+        };
+        if (!updatedItem) updatedItem = up;
+        return up;
+      }
+      return item;
+    });
+
+    writeJsonSafe(INVENTORY_FILE, updated);
+    let allInventory = updated;
+    if (prisma && prisma.inventoryItem) {
+      try {
+        const dbItems = await prisma.inventoryItem.findMany({ orderBy: { createdAt: 'desc' } });
+        if (dbItems && dbItems.length > 0) allInventory = dbItems;
+      } catch (e) {}
+    }
+    res.json({ success: true, item: updatedItem, inventory: allInventory });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/inventory/:id', optionalAuthToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (prisma && prisma.inventoryItem) {
+      try {
+        await prisma.inventoryItem.delete({ where: { id } }).catch(() => {});
+      } catch (e) {}
+    }
+    const inventory = readJsonSafe(INVENTORY_FILE, []);
+    const filtered = inventory.filter(item => item.id !== id);
+    writeJsonSafe(INVENTORY_FILE, filtered);
+
+    let allInventory = filtered;
+    if (prisma && prisma.inventoryItem) {
+      try {
+        allInventory = await prisma.inventoryItem.findMany({ orderBy: { createdAt: 'desc' } });
+      } catch (e) {}
+    }
+    res.json({ success: true, message: 'Оборудование удалено', inventory: allInventory });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ----------------- ПОЛНОЕ РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЯ (АДМИН) -----------------
@@ -959,6 +1121,11 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
               description: description || '',
               type: type || 'СТУДИЯ',
               date: new Date(date),
+              callTime: callTime || '10:00',
+              startTime: startTime || '11:30',
+              endTime: endTime || '18:00',
+              timeline: Array.isArray(timeline) ? timeline : [],
+              equipment: Array.isArray(equipment) ? equipment : [],
               location: location || 'Студия КП11',
               latitude: latitude ? parseFloat(latitude) : 55.751244,
               longitude: longitude ? parseFloat(longitude) : 37.618423,
@@ -1349,5 +1516,17 @@ app.listen(PORT, () => {
     telegramBot.startPolling();
   } else {
     console.log('[Telegram Bot] Токен не задан. Бот работает в режиме автономного эмулятора API.');
+  }
+
+  // Автоматический keep-alive пинг для предотвращения засыпания контейнера Render (15 мин лимит)
+  const isProd = process.env.RENDER_EXTERNAL_URL || process.env.NODE_ENV === 'production' || process.env.RENDER;
+  if (isProd) {
+    const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || 'https://kp11-film-crew.onrender.com';
+    console.log(`[KP11 Keep-Alive] Активирован 10-минутный цикл поддержания активности сервера: ${keepAliveUrl}`);
+    setInterval(() => {
+      https.get(`${keepAliveUrl}/api/telegram/status`, (res) => {
+        res.resume();
+      }).on('error', () => {});
+    }, 10 * 60 * 1000);
   }
 });

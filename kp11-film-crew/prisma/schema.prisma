@@ -70,6 +70,11 @@ model Shoot {
   description String
   type        String       @default("СТУДИЯ")
   date        DateTime
+  callTime    String?      @default("10:00")
+  startTime   String?      @default("11:30")
+  endTime     String?      @default("18:00")
+  timeline    Json?        @default("[]")
+  equipment   Json?        @default("[]")
   location    String
   latitude    Float?       @default(55.751244)
   longitude   Float?       @default(37.618423)
@@ -91,3 +96,34 @@ model CrewMember {
   attendance    String     @default("PRESENT")
   invitedAt     DateTime   @default(now())
 }
+
+model InventoryItem {
+  id           String    @id @default(uuid())
+  name         String
+  category     String    @default("Камеры")
+  serialNumber String?   @default("Б/Н")
+  status       String    @default("AVAILABLE")
+  location     String?   @default("Склад техники ЦКТ КП11")
+  notes        String?   @default("В рабочем состоянии")
+  signedBy     String?
+  signedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String
+  badge     String?
+  type      String   @default("СТУДИЯ")
+  latitude  Float?   @default(55.751244)
+  longitude Float?   @default(37.618423)
+  createdAt DateTime @default(now())
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
