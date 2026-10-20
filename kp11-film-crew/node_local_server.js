@@ -221,7 +221,8 @@ const server = http.createServer(async (req, res) => {
 
     // 1. GET /api/shoots
     if (pathname === '/api/shoots' && req.method === 'GET') {
-      const shoots = readJsonFile(SHOOTS_FILE, []);
+      const rawShoots = readJsonFile(SHOOTS_FILE, []);
+      const shoots = rawShoots.filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
       const users = readJsonFile(USERS_FILE, []);
       const completed = shoots.filter(s => s.isCompleted).length;
 

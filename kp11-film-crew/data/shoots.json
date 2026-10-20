@@ -1,138 +1,317 @@
 [
   {
-    "id": "shoot-1792450290828",
-    "title": "Тестовая смена",
-    "description": "Тест",
-    "type": "СТУДИЯ",
-    "date": "2026-10-25T10:00:00",
-    "callTime": "10:00",
-    "startTime": "11:30",
-    "endTime": "18:00",
-    "timeline": [
-      {
-        "time": "10:00",
-        "label": "Сбор съёмочной группы"
-      },
-      {
-        "time": "11:30",
-        "label": "Мотор! Начало съёмки"
-      },
-      {
-        "time": "18:00",
-        "label": "Окончание смены"
-      }
-    ],
-    "location": "Онежская 3",
-    "latitude": 55.858244,
-    "longitude": 37.518423,
-    "isCompleted": false,
+    "id": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+    "title": "ТЕСТОВОЕ СОБЫТИЕ",
+    "description": "Здесь будет описание события",
+    "type": "ВЫЕЗД",
+    "date": "2026-10-19T10:00:00.000Z",
+    "location": "Адрес/Локация",
+    "latitude": 55.75743966637865,
+    "longitude": 37.44882960619735,
+    "isCompleted": true,
+    "creatorId": "8858ea26-5e76-40b6-917d-75db8e52582e",
+    "createdAt": "2026-10-19T23:08:46.991Z",
     "creator": {
-      "fullName": "Бадиков Семён Станиславович"
+      "fullName": "TESTADMIN"
     },
-    "equipment": [],
     "crew": [
       {
-        "id": "c-shoot-1792450290828-1",
+        "id": "962882f5-5b78-4745-86a3-70a3d8967764",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "12aa1ef9-1b0f-4356-a1b6-4f82ff9eec55",
         "roleInShoot": "Оператор",
-        "status": "PENDING",
+        "status": "ACCEPTED",
         "attendance": "PRESENT",
-        "userId": "u1",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
         "user": {
-          "id": "u1",
-          "fullName": "Ковалев Михаил Алексеевич",
-          "email": "mikhail.kovalev@kp11.ru",
-          "groupName": "ФВТ-22",
-          "rating": 5,
-          "telegram": "@mikhail_cam",
-          "telegramChatId": null,
-          "craftRank": "Камерный оператор // 1st AC",
-          "isSuspended": false,
-          "role": {
-            "name": "Студент"
-          },
-          "competencies": {
-            "camera": 95,
-            "sound": 82,
-            "light": 88,
-            "edit": 96
-          },
+          "id": "12aa1ef9-1b0f-4356-a1b6-4f82ff9eec55",
+          "fullName": "Соколова Анна Алексеевна",
+          "groupName": "КТ-15",
+          "rating": null,
           "skills": [
-            "ARRI Master Prime",
-            "Цветокоррекция",
-            "Стедикам",
-            "LUT Pipeline"
+            "Универсал"
           ],
-          "completedShoots": 1
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "8c25d1eb-d1c1-42b3-a8aa-2da0e6077e3e",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "b1c71a66-e9a6-4989-847a-570c30ffbc73",
+        "roleInShoot": "Звукорежиссёр",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
+        "user": {
+          "id": "b1c71a66-e9a6-4989-847a-570c30ffbc73",
+          "fullName": "Иванисова Мария Сергеевна",
+          "groupName": "КТ-15",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "479c5932-980d-4bd8-a5de-8e86e0d769df",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "90657700-af74-404e-94c0-3ae362287fd4",
+        "roleInShoot": "Осветитель",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
+        "user": {
+          "id": "90657700-af74-404e-94c0-3ae362287fd4",
+          "fullName": "Шальнева Любовь Игоревна ",
+          "groupName": "ФТ-21",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "60604576-8677-4fee-ad9e-5f3b1340093e",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "2330ecbb-34e0-460b-8c8e-dc67fa00cc54",
+        "roleInShoot": "Монтажёр",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
+        "user": {
+          "id": "2330ecbb-34e0-460b-8c8e-dc67fa00cc54",
+          "fullName": "Хамуд Юлий Мохамедович",
+          "groupName": "КТ-26",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "00e5dcc5-cc7d-4761-a8ee-f0240452e94f",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "85d32e10-d76b-4f07-b8df-18603ca60576",
+        "roleInShoot": "Гаффер",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
+        "user": {
+          "id": "85d32e10-d76b-4f07-b8df-18603ca60576",
+          "fullName": "Ковалев Михаил Алексеевич",
+          "groupName": "ФВТ-22",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "4cef7fa7-448e-49ea-8ef6-90d0d7a15e32",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "18dedc8e-b913-4c21-9e32-41260f5e8c76",
+        "roleInShoot": "Режиссёр",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
+        "user": {
+          "id": "18dedc8e-b913-4c21-9e32-41260f5e8c76",
+          "fullName": "Демидов Тимофей Дмитриевич",
+          "groupName": "ФВТ-22",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "e59470d5-fa00-4ae9-8967-514b884ad1f5",
+        "shootId": "58a3b32e-aaa6-406b-977b-1e05edbc491f",
+        "userId": "612f7341-7c2b-43df-8f5a-5a4cba556045",
+        "roleInShoot": "Продюсер",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:08:46.991Z",
+        "user": {
+          "id": "612f7341-7c2b-43df-8f5a-5a4cba556045",
+          "fullName": "Гусев Андрей  Алексеевич",
+          "groupName": "КТ-25",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
         }
       }
     ]
   },
   {
-    "id": "shoot-prod-1",
-    "title": "ПРОИЗВОДСТВЕННАЯ СМЕНА: ИНТЕРВЬЮ В СТУДИИ ПОДКАСТОВ",
-    "description": "Многокамерная запись интервью с экспертом индустрии. Настройка микрофонов Shure SM7B, световой схемы и поканального аудиотракта.",
+    "id": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+    "title": "ТЕСТОВОЕ СОБЫТИЕ",
+    "description": "Здесь будет описание события",
     "type": "СТУДИЯ",
-    "date": "2026-10-20",
-    "callTime": "10:00",
-    "startTime": "11:30",
-    "endTime": "17:00",
-    "timeline": [
-      {
-        "time": "10:00",
-        "title": "Сбор съёмочной группы и чеклист"
-      },
-      {
-        "time": "10:30",
-        "title": "Монтаж световой схемы и звука"
-      },
-      {
-        "time": "11:30",
-        "title": "Мотор! Запись интервью"
-      },
-      {
-        "time": "14:00",
-        "title": "Обед группы и перестановка"
-      },
-      {
-        "time": "17:00",
-        "title": "Шапка смены / Сдача техники"
-      }
-    ],
-    "location": "Павильон №1 ЦКТ (Онежская, 3)",
-    "latitude": 55.858244,
-    "longitude": 37.518423,
+    "date": "2026-10-19T10:00:00.000Z",
+    "location": "Адрес/Локация",
+    "latitude": 55.751244,
+    "longitude": 37.618423,
     "isCompleted": false,
+    "creatorId": "8858ea26-5e76-40b6-917d-75db8e52582e",
+    "createdAt": "2026-10-19T23:33:07.601Z",
     "creator": {
-      "fullName": "Бадиков Семён Станиславович"
+      "fullName": "TESTADMIN"
     },
-    "equipment": [
-      "eq-1",
-      "eq-4"
-    ],
     "crew": [
       {
-        "id": "c-prod-1",
-        "roleInShoot": "ОПЕРАТОР-ПОСТАНОВЩИК",
-        "status": "ACCEPTED",
+        "id": "fd6b6647-b494-40df-8b43-ccf755d12a86",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "12aa1ef9-1b0f-4356-a1b6-4f82ff9eec55",
+        "roleInShoot": "Оператор",
+        "status": "PENDING",
         "attendance": "PRESENT",
-        "userId": "u1",
-        "grade": 5
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "12aa1ef9-1b0f-4356-a1b6-4f82ff9eec55",
+          "fullName": "Соколова Анна Алексеевна",
+          "groupName": "КТ-15",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
       },
       {
-        "id": "c-prod-2",
-        "roleInShoot": "РЕЖИССЁР / МАСТЕР",
-        "status": "ACCEPTED",
+        "id": "d5a74ae2-5dcb-4c1a-99f8-ac610bb40d50",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "b1c71a66-e9a6-4989-847a-570c30ffbc73",
+        "roleInShoot": "Звукорежиссёр",
+        "status": "PENDING",
         "attendance": "PRESENT",
-        "userId": "master-1",
-        "grade": 5
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "b1c71a66-e9a6-4989-847a-570c30ffbc73",
+          "fullName": "Иванисова Мария Сергеевна",
+          "groupName": "КТ-15",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
       },
       {
-        "id": "c-prod-3",
-        "roleInShoot": "КУРАТОР СМЕНЫ",
-        "status": "ACCEPTED",
+        "id": "e1e185f0-d64f-49f6-aa45-835dfef214c2",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "90657700-af74-404e-94c0-3ae362287fd4",
+        "roleInShoot": "Осветитель",
+        "status": "PENDING",
         "attendance": "PRESENT",
-        "userId": "admin-1",
-        "grade": 5
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "90657700-af74-404e-94c0-3ae362287fd4",
+          "fullName": "Шальнева Любовь Игоревна ",
+          "groupName": "ФТ-21",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "29f94844-b666-4766-aa87-9de3e2d2d99a",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "2330ecbb-34e0-460b-8c8e-dc67fa00cc54",
+        "roleInShoot": "Монтажёр",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "2330ecbb-34e0-460b-8c8e-dc67fa00cc54",
+          "fullName": "Хамуд Юлий Мохамедович",
+          "groupName": "КТ-26",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассисте��т цеха"
+        }
+      },
+      {
+        "id": "e44cc5da-beb3-4102-9bba-026dff6aa277",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "85d32e10-d76b-4f07-b8df-18603ca60576",
+        "roleInShoot": "Гаффер",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "85d32e10-d76b-4f07-b8df-18603ca60576",
+          "fullName": "Ковалев Михаил Алексеевич",
+          "groupName": "ФВТ-22",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "cf56fb6a-aa75-434f-b86f-a8e78677847b",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "18dedc8e-b913-4c21-9e32-41260f5e8c76",
+        "roleInShoot": "Режиссёр",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "18dedc8e-b913-4c21-9e32-41260f5e8c76",
+          "fullName": "Демидов Тимофей Дмитриевич",
+          "groupName": "ФВТ-22",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
+      },
+      {
+        "id": "75780518-1e61-49a3-bf24-50383ddd9c1e",
+        "shootId": "105052d3-3ca7-4875-b2c4-96fc29d7afa6",
+        "userId": "612f7341-7c2b-43df-8f5a-5a4cba556045",
+        "roleInShoot": "Продюсер",
+        "status": "PENDING",
+        "attendance": "PRESENT",
+        "invitedAt": "2026-10-19T23:33:07.601Z",
+        "user": {
+          "id": "612f7341-7c2b-43df-8f5a-5a4cba556045",
+          "fullName": "Гусев Андрей  Алексеевич",
+          "groupName": "КТ-25",
+          "rating": null,
+          "skills": [
+            "Универсал"
+          ],
+          "telegram": null,
+          "craftRank": "Ассистент цеха"
+        }
       }
     ]
   }

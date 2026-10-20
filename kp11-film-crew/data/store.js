@@ -221,7 +221,8 @@ async function getShoots() {
     }
   }
 
-  const fileShoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS) || [];
+  const rawFileShoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS) || [];
+  const fileShoots = rawFileShoots.filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
   if (Array.isArray(dbShoots) && dbShoots.length > 0) {
     const dbIds = new Set(dbShoots.map(s => String(s.id)));
     const uniqueFileShoots = fileShoots.filter(s => !dbIds.has(String(s.id)));

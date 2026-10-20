@@ -84,6 +84,16 @@ let isRegister = false;
 let globalStudents = [];
 let globalAdminUsers = [];
 let globalShoots = [];
+try {
+  const cachedShoots = JSON.parse(localStorage.getItem('kp11_shoots') || '[]');
+  if (Array.isArray(cachedShoots)) {
+    const cleaned = cachedShoots.filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
+    if (cleaned.length !== cachedShoots.length) {
+      localStorage.setItem('kp11_shoots', JSON.stringify(cleaned));
+    }
+    globalShoots = cleaned;
+  }
+} catch (e) {}
 let activeCallsheetShootId = null;
 let activeCompetencyData = null;
 let fullMap = null;
@@ -4273,16 +4283,8 @@ async function loadShoots() {
       const data = await res.json();
       const rawShoots = data.shoots;
       let fetchedShoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
-      
-      // Preserve any local shoots not yet reflected in fetchedShoots
-      if (Array.isArray(globalShoots) && globalShoots.length > 0) {
-        const fetchedIds = new Set(fetchedShoots.map(s => String(s.id)));
-        const missingShoots = globalShoots.filter(s => s && s.id && !fetchedIds.has(String(s.id)));
-        if (missingShoots.length > 0) {
-          fetchedShoots = [...missingShoots, ...fetchedShoots];
-        }
-      }
-      shoots = fetchedShoots;
+      // Исключаем устаревшие демонстрационные смены
+      shoots = fetchedShoots.filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
       
       if (data.students) {
         const rawStudents = data.students;

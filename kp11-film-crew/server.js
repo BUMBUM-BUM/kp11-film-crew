@@ -861,7 +861,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       });
     } catch (dbErr) {}
 
-    const fileShoots = await store.getShoots();
+    const fileShoots = (await store.getShoots() || []).filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
     if (fileShoots && fileShoots.length > 0) {
       if (!shoots || shoots.length === 0) {
         shoots = fileShoots;
@@ -871,6 +871,7 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
         shoots = [...shoots, ...extraShoots];
       }
     }
+    shoots = (shoots || []).filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
     if (!students || students.length === 0) {
       const allUsers = await store.getUsers();
       students = allUsers.filter(u => u.role?.name === 'Студент' || !u.role);
