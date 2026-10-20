@@ -348,10 +348,16 @@ function updateNav() {
     } else if (isAdminUser(currentUser)) {
       if (actionContainer) {
         actionContainer.innerHTML = 
-          '<button onclick="switchTab(\'admin\')" class="btn-brand-beige px-4 py-2 text-xs flex items-center space-x-2 shadow-lg">' +
-            '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
-            '<span>Панель администрирования</span>' +
-          '</button>';
+          '<div class="flex items-center gap-2 flex-wrap">' +
+            '<button onclick="openShootModal()" class="btn-brand-primary px-3.5 py-2 text-xs flex items-center space-x-1.5 shadow-lg">' +
+              '<span class="font-bold text-sm leading-none">+</span>' +
+              '<span>Новая смена</span>' +
+            '</button>' +
+            '<button onclick="switchTab(\'admin\')" class="btn-brand-beige px-3.5 py-2 text-xs flex items-center space-x-1.5 shadow-lg">' +
+              '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
+              '<span>Панель админа</span>' +
+            '</button>' +
+          '</div>';
       }
       if (tabAdminBtn) {
         tabAdminBtn.classList.remove('hidden');
@@ -3358,6 +3364,12 @@ async function openShootModal() {
   const dateEl = document.getElementById('shootDate');
   if (dateEl && !dateEl.value) dateEl.value = todayStr;
 
+  const descEl = document.getElementById('shootDesc');
+  if (descEl && !descEl.value) descEl.value = 'Плановая съёмочная смена Медиацентра КП11';
+
+  const locEl = document.getElementById('shootLocation');
+  if (locEl && !locEl.value) locEl.value = 'Павильон №1 ЦКТ (Онежская, 3)';
+
   const callEl = document.getElementById('shootCallTime');
   if (callEl && !callEl.value) callEl.value = '10:00';
   const startEl = document.getElementById('shootStartTime');
@@ -3549,26 +3561,19 @@ async function handleCreateShoot(e) {
   const lonEl = document.getElementById('selectedLon');
 
   const title = titleEl ? titleEl.value.trim() : '';
-  const description = descEl ? descEl.value.trim() : '';
+  const description = (descEl && descEl.value.trim()) ? descEl.value.trim() : 'Плановая съёмочная смена Медиацентра КП11';
   const type = typeEl ? typeEl.value : 'СТУДИЯ';
-  const date = dateEl ? dateEl.value : '';
+  const date = (dateEl && dateEl.value) ? dateEl.value : (new Date().toISOString().split('T')[0]);
   const callTime = callEl ? callEl.value : '10:00';
   const startTime = startEl ? startEl.value : '11:30';
   const endTime = endEl ? endEl.value : '18:00';
-  const location = locEl ? locEl.value.trim() : '';
+  const location = (locEl && locEl.value.trim()) ? locEl.value.trim() : 'Павильон №1 ЦКТ (Онежская, 3)';
   const latitude = parseFloat(latEl ? latEl.value : '55.751244') || 55.751244;
   const longitude = parseFloat(lonEl ? lonEl.value : '37.618423') || 37.618423;
 
   if (!title) {
-    showToast('Укажите название проекта');
-    return;
-  }
-  if (!date) {
-    showToast('Укажите дату смены');
-    return;
-  }
-  if (!location) {
-    showToast('Укажите адрес или локацию объекта');
+    showToast('Укажите название проекта / смены');
+    if (titleEl) titleEl.focus();
     return;
   }
 
@@ -3632,8 +3637,15 @@ async function handleCreateShoot(e) {
         globalShoots = [newShoot, ...(globalShoots || []).filter(s => s.id !== newShoot.id)];
         localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
       }
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      const errMsg = errJson.error || ('Ошибка сервера: ' + res.status);
+      console.warn('POST /api/shoots error:', errMsg);
+      showToast(errMsg);
     }
-  } catch (err) {}
+  } catch (err) {
+    console.error('Fetch /api/shoots error:', err);
+  }
 
   if (!createdSuccessfully) {
     // Fallback локального сохранения:
@@ -4320,7 +4332,6 @@ async function handleAuth(e) {
 function isDemoShootRecord(s) {
   if (!s) return true;
   if (s.id === 'shoot-prod-1' || s.id === 'shoot-1792450290828') return true;
-  if (s.title === 'ТЕСТОВОЕ СОБЫТИЕ') return true;
   return false;
 }
 
@@ -4336,8 +4347,18 @@ async function loadShoots() {
       const data = await res.json();
       const rawShoots = data.shoots;
       let fetchedShoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
-      // Исключаем любые демонстрационные и тестовые смены
+      // Исключаем любые устаревшие демонстрационные смены по ID
       shoots = fetchedShoots.filter(s => !isDemoShootRecord(s));
+
+      // Сохраняем свежесозданные пользователем смены в памяти, если бэкенд их еще обрабатывает
+      const serverIds = new Set(shoots.map(s => String(s.id)));
+      if (globalShoots && Array.isArray(globalShoots)) {
+        for (const gs of globalShoots) {
+          if (gs && gs.id && !serverIds.has(String(gs.id)) && !isDemoShootRecord(gs)) {
+            shoots.unshift(gs);
+          }
+        }
+      }
       
       if (data.students) {
         const rawStudents = data.students;
@@ -4909,7 +4930,18 @@ function renderShootsList(shoots = globalShoots) {
 
   // 1. Отрисовка активных смен
   if (activeShoots.length === 0) {
-    container.innerHTML = '<div class="p-8 viewfinder-card text-center text-xs uppercase font-mono font-bold" style="color: var(--text-muted);">Нет активных смен в производстве. Все проекты завершены или в архиве.</div>';
+    container.innerHTML = 
+      '<div class="p-8 viewfinder-card text-center space-y-4" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+        '<div class="flex items-center justify-center space-x-2 text-xs font-mono uppercase font-bold" style="color: var(--brand-beige-text);">' +
+          '<span class="rec-dot"></span>' +
+          '<span>Нет активных смен в производстве</span>' +
+        '</div>' +
+        '<p class="text-xs text-[var(--text-muted)] max-w-md mx-auto">Создайте новую съёмочную смену, назначьте студентов по цехам и распределите кинооборудование.</p>' +
+        '<button onclick="openShootModal()" class="btn-brand-primary px-5 py-2.5 text-xs font-extrabold uppercase shadow-lg inline-flex items-center gap-2">' +
+          '<span class="text-sm font-bold leading-none">+</span>' +
+          '<span>Создать съёмочную смену</span>' +
+        '</button>' +
+      '</div>';
   } else {
     container.innerHTML = activeShoots.map(s => renderShootCard(s, false)).join('');
   }

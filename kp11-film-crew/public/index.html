@@ -222,8 +222,14 @@
       <section id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div class="lg:col-span-8 space-y-4">
           <div class="flex items-center justify-between px-4 py-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">
-            <span id="globalStatsText" class="text-xs font-bold uppercase tracking-wider font-mono" style="color: var(--text-muted);">Синхронизация графика производства...</span>
-            <span id="shootCount" class="text-xs px-2.5 py-1 font-extrabold font-mono border" style="background-color: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-color);">...</span>
+            <div class="flex items-center gap-2">
+              <span id="globalStatsText" class="text-xs font-bold uppercase tracking-wider font-mono" style="color: var(--text-muted);">Синхронизация графика производства...</span>
+              <span id="shootCount" class="text-xs px-2.5 py-1 font-extrabold font-mono border" style="background-color: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-color);">...</span>
+            </div>
+            <button type="button" onclick="openShootModal()" class="btn-brand-primary px-3.5 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow-sm" title="Создать новую съёмочную смену">
+              <span class="font-bold text-sm leading-none">+</span>
+              <span>Новая смена</span>
+            </button>
           </div>
           
           <div id="shootsList" class="space-y-4">
