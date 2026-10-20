@@ -4471,19 +4471,26 @@ function getShootLiveStatus(s) {
 function toggleArchiveShoots() {
   const list = document.getElementById('archiveShootsList');
   const btn = document.getElementById('archiveToggleBtn');
+  const icon = document.getElementById('archiveToggleIcon');
   if (!list) return;
   const isHidden = list.classList.contains('hidden') || list.style.display === 'none';
   if (isHidden) {
     list.classList.remove('hidden');
     list.style.display = 'block';
     if (btn) btn.innerText = 'Скрыть архив ▴';
+    if (icon) icon.innerText = '▲';
   } else {
     list.classList.add('hidden');
     list.style.display = 'none';
     if (btn) btn.innerText = 'Показать архив ▾';
+    if (icon) icon.innerText = '▼';
   }
 }
+function toggleArchiveVisibility() {
+  toggleArchiveShoots();
+}
 window.toggleArchiveShoots = toggleArchiveShoots;
+window.toggleArchiveVisibility = toggleArchiveVisibility;
 
 // ----------------- ОСНОВНАЯ ФУНКЦИЯ ОТРИСОВКИ СМЕН И АРХИВА -----------------
 function renderShootsList(shoots = globalShoots) {
