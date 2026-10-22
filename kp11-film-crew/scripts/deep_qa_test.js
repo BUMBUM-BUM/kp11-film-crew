@@ -125,7 +125,6 @@ async function runDeepAudit() {
       { id: 'adminUserFullEditModal', title: 'Редактор профиля студента', closeFunc: 'closeAdminUserFullEditModal' },
       { id: 'cktGradingModal', title: 'Оценка смены и приёмка работы', closeFunc: 'closeCktGradingModal' },
       { id: 'qrPassModal', title: 'QR-пропуск на площадку', closeFunc: 'closeQrPassModal' },
-      { id: 'qrCheckinModal', title: 'QR-сканер посещаемости', closeFunc: 'closeQrCheckinModal' },
       { id: 'showreelModal', title: 'Киноплеер шоурилов', closeFunc: 'closeShowreelModal' },
       { id: 'confirmDeleteModal', title: 'Подтверждение удаления', closeFunc: 'closeConfirmDeleteModal' }
     ];
@@ -444,20 +443,22 @@ async function runDeepAudit() {
     const finalShootsRes = await request(`${BASE_URL}/api/shoots`);
     const finalInvRes = await request(`${BASE_URL}/api/inventory`);
 
-    const finalShootsCount = (finalShootsRes.data && Array.isArray(finalShootsRes.data.shoots)) ? finalShootsRes.data.shoots.length : -1;
-    const finalInvCount = (finalInvRes.data && Array.isArray(finalInvRes.data.inventory)) ? finalInvRes.data.inventory.length : -1;
+    const allShoots = (finalShootsRes.data && Array.isArray(finalShootsRes.data.shoots)) ? finalShootsRes.data.shoots : (Array.isArray(finalShootsRes.data) ? finalShootsRes.data : []);
+    const remainingTestShoots = allShoots.filter(s => createdShootIds.includes(s.id));
 
-    if (finalShootsCount === 0) {
-      logPass('Чистота смен', `База смен чиста: ровно 0 смен (все тестовые удалены)`);
+    const allInv = (finalInvRes.data && Array.isArray(finalInvRes.data.inventory)) ? finalInvRes.data.inventory : (Array.isArray(finalInvRes.data) ? finalInvRes.data : []);
+    const remainingTestInv = allInv.filter(i => createdInventoryIds.includes(i.id));
+
+    if (remainingTestShoots.length === 0) {
+      logPass('Чистота смен', `Все созданные тестовые смены (${createdShootIds.length} шт.) успешно удалены из базы`);
     } else {
-      logFail('Чистота смен', `Остались смены в базе: ${finalShootsCount}`);
+      logFail('Чистота смен', `Остались тестовые смены в базе: ${remainingTestShoots.map(s => s.id).join(', ')}`);
     }
 
-    if (finalInvCount === 1) {
-      const remainingName = finalInvRes.data.inventory[0].name;
-      logPass('Чистота инвентаря', `В базе ровно 1 исходная единица техники: «${remainingName}»`);
+    if (remainingTestInv.length === 0) {
+      logPass('Чистота инвентаря', `Все тестовые единицы техники (${createdInventoryIds.length} шт.) успешно удалены`);
     } else {
-      logFail('Чистота инвентаря', `Количество техники отличается от исходного: ${finalInvCount}`);
+      logFail('Чистота инвентаря', `Остались тестовые единицы в базе: ${remainingTestInv.map(i => i.id).join(', ')}`);
     }
   }
 

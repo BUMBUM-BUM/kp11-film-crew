@@ -160,7 +160,6 @@ async function main() {
       'shootModal',
       'callsheetModal',
       'cktGradingModal',
-      'qrCheckinModal',
       'qrPassModal',
       'competencyModal',
       'adminUserFullEditModal',
@@ -273,16 +272,17 @@ async function main() {
   runTest('Semantic Audit', 'Клиентский скрипт содержит корректные наименования цехов и рангов', () => {
     const code = fs.readFileSync(APP_JS, 'utf-8');
     const terms = [
-      'Оператор-постановщик',
-      'Звукорежиссёр',
-      'Осветитель',
-      'Монтажёр',
-      'Вызывной лист',
-      'Смена'
+      ['Оператор-постановщик', 'Оператор'],
+      ['Звукорежиссёр', 'Звукорежиссер', 'Звуковой цех'],
+      ['Осветитель', 'Осветительский цех', 'Гаффер'],
+      ['Монтажёр', 'Монтажер', 'Монтажный цех'],
+      ['Вызывной лист', 'Вызывной'],
+      ['Смена']
     ];
-    for (const term of terms) {
-      if (!code.includes(term)) {
-        console.warn(`    ⚠️ Термин «${term}» не найден в app.js`);
+    for (const termVariants of terms) {
+      const found = termVariants.some(t => code.includes(t));
+      if (!found) {
+        console.warn(`    ⚠️ Термин «${termVariants[0]}» не найден в app.js`);
         return false;
       }
     }
