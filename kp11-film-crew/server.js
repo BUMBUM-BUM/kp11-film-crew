@@ -256,11 +256,55 @@ async function initDatabase() {
         }
       }).catch(err => console.warn(`[Prisma Init User ${u.id}]`, err.message));
     }
+
+    // Автоматическая дедупликация пользователей и проверка целостности данных
+    await store.deduplicateAllUsers();
+
+    // Синхронизация съёмочных смен в PostgreSQL
+    const scheduleShoots = await store.getShoots();
+    for (const sh of scheduleShoots) {
+      if (!sh || !sh.id) continue;
+      try {
+        const creator = await prisma.user.findFirst();
+        if (creator) {
+          const shootExists = await prisma.shoot.findUnique({ where: { id: sh.id } }).catch(() => null);
+          if (!shootExists) {
+            await prisma.shoot.create({
+              data: {
+                id: sh.id,
+                title: sh.title,
+                description: sh.description || '',
+                type: sh.type || 'СТУДИЯ',
+                date: new Date(sh.date),
+                callTime: sh.callTime || '10:00',
+                startTime: sh.startTime || '11:30',
+                endTime: sh.endTime || '18:00',
+                timeline: Array.isArray(sh.timeline) ? sh.timeline : [],
+                equipment: Array.isArray(sh.equipment) ? sh.equipment : [],
+                location: sh.location || 'Смольная 10А',
+                latitude: sh.latitude || 55.857321,
+                longitude: sh.longitude || 37.491244,
+                creatorId: creator.id
+              }
+            }).catch(() => {});
+          }
+        }
+      } catch (shErr) {}
+    }
   } catch (err) {
     console.error('DB Init Error:', err.message);
   }
 }
 initDatabase();
+
+app.post('/api/admin/users/deduplicate', optionalAuthToken, async (req, res) => {
+  try {
+    const result = await store.deduplicateAllUsers();
+    res.json({ success: true, message: 'Умная дедупликация базы пользователей выполнена', ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ----------------- NOTIFICATION ENDPOINTS -----------------
 app.get('/api/notifications/vapid-public-key', (req, res) => {
@@ -299,30 +343,74 @@ app.post('/api/notifications/subscribe', authenticateToken, async (req, res) => 
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, groupName, course, telegram } = req.body;
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) return res.status(400).json({ error: 'Email занят' });
+    if (!fullName || !email) {
+      return res.status(400).json({ error: 'Пожалуйста, заполните ФИО и Email' });
+    }
 
-    const studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
-    const passwordHash = await bcrypt.hash(password, 10);
-    
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        fullName,
-        groupName: groupName || 'КИТ-11',
-        roleId: studentRole ? studentRole.id : null,
-        course: course ? parseInt(course) : 1,
-        rating: null,
-        telegram: telegram ? telegram.replace(/^@/, '') : null,
-        craftRank: 'Ассистент цеха',
-        skills: ['Универсал']
-      },
-      include: { role: true }
+    // 1. Умная регистрация и связывание профиля через userManager
+    const regResult = await store.linkOrRegisterUser({
+      email,
+      password,
+      fullName,
+      groupName,
+      course,
+      telegram
     });
 
+    const user = regResult.user;
+
+    // 2. Синхронизация с PostgreSQL при наличии БД
+    if (prisma) {
+      try {
+        let studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
+        if (!studentRole) {
+          studentRole = await prisma.role.create({ data: { name: 'Студент', description: 'Студент направления' } });
+        }
+        await prisma.user.upsert({
+          where: { id: user.id },
+          update: {
+            email: user.email,
+            passwordHash: user.passwordHash,
+            fullName: user.fullName,
+            groupName: user.groupName || 'КТ-26',
+            telegram: user.telegram || null,
+            craftRank: user.craftRank || 'Ассистент цеха'
+          },
+          create: {
+            id: user.id,
+            email: user.email,
+            passwordHash: user.passwordHash,
+            fullName: user.fullName,
+            groupName: user.groupName || 'КТ-26',
+            roleId: studentRole.id,
+            telegram: user.telegram || null,
+            craftRank: user.craftRank || 'Ассистент цеха',
+            skills: user.skills || ['Универсал']
+          }
+        });
+      } catch (dbErr) {
+        console.warn('[Register DB Sync]', dbErr.message);
+      }
+    }
+
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, groupName: user.groupName, role: user.role?.name || 'Студент', telegram: user.telegram, craftRank: user.craftRank } });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        groupName: user.groupName,
+        role: user.role?.name || (typeof user.role === 'string' ? user.role : 'Студент'),
+        telegram: user.telegram,
+        craftRank: user.craftRank,
+        rating: user.rating
+      },
+      isLinkedExisting: regResult.isLinkedExisting,
+      message: regResult.isLinkedExisting 
+        ? 'Добро пожаловать! Ваш аккаунт успешно привязан к назначенным сменам.' 
+        : 'Регистрация успешно завершена.'
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1033,10 +1121,14 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
         shoots = [...shoots, ...extraShoots];
       }
     }
-    shoots = (shoots || []).filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
+    const allFileUsers = await store.getUsers();
+    const fileStudents = allFileUsers.filter(u => u.role?.name === 'Студент' || u.role === 'Студент' || !u.role);
     if (!students || students.length === 0) {
-      const allUsers = await store.getUsers();
-      students = allUsers.filter(u => u.role?.name === 'Студент' || !u.role);
+      students = fileStudents;
+    } else {
+      const dbStudentIds = new Set(students.map(s => String(s.id)));
+      const extraStudents = fileStudents.filter(s => !dbStudentIds.has(String(s.id)));
+      students = [...students, ...extraStudents];
     }
 
     const totalShoots = shoots.length;

@@ -17,6 +17,7 @@ const DATA_DIR = path.join(__dirname);
 const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const userManager = require('./user_manager');
 
 // Подключение к Prisma Client (если есть БД)
 let prisma = null;
@@ -28,144 +29,779 @@ try {
 // Начальные пользователи сайта (строго соответствующие реестру колледжа)
 const INITIAL_USERS = [
   {
-    id: 'admin-1',
-    fullName: 'Смирнов Алексей Викторович',
-    email: 'admin@kp11.ru',
-    groupName: 'ЦКТ',
-    rating: 5.0,
-    telegram: '@kp11_admin',
-    telegramChatId: null,
-    craftRank: 'Системный администратор // System Admin',
-    isSuspended: false,
-    role: { name: 'Администратор' },
-    competencies: { camera: 90, sound: 90, light: 90, edit: 90 },
-    skills: ['Управление платформой', 'Безопасность', 'Настройка оборудования', 'Инфраструктура ЦКТ']
+    "id": "admin-1",
+    "fullName": "Смирнов Алексей Викторович",
+    "email": "admin@kp11.ru",
+    "groupName": "ЦКТ",
+    "rating": 5,
+    "telegram": "@kp11_admin",
+    "telegramChatId": null,
+    "craftRank": "Системный администратор // System Admin",
+    "isSuspended": false,
+    "role": {
+      "name": "Администратор"
+    },
+    "competencies": {
+      "camera": 90,
+      "sound": 90,
+      "light": 90,
+      "edit": 90
+    },
+    "skills": [
+      "Управление платформой",
+      "Безопасность",
+      "Настройка оборудования",
+      "Инфраструктура ЦКТ"
+    ]
   },
   {
-    id: 'master-1',
-    fullName: 'Бадиков Семён Станиславович',
-    email: 'semyon.badikov@kp11.ru',
-    groupName: 'КТ-26',
-    rating: 4.8,
-    telegram: '@badikov_dop',
-    telegramChatId: null,
-    craftRank: 'Оператор-постановщик // Master DOP',
-    isSuspended: false,
-    role: { name: 'Мастер / Преподаватель' },
-    competencies: { camera: 96, sound: 98, light: 92, edit: 94 },
-    skills: ['Log-C', 'Shure SM7B', 'Aputure 300D', 'Sound Design', 'DaVinci Resolve']
+    "id": "master-1",
+    "fullName": "Бадиков Семён Станиславович",
+    "email": "semyon.badikov@kp11.ru",
+    "groupName": "КТ-26",
+    "rating": 5,
+    "telegram": "@badikov_dop",
+    "telegramChatId": null,
+    "craftRank": "Оператор-постановщик // Master DOP",
+    "isSuspended": false,
+    "role": {
+      "name": "Мастер / Преподаватель"
+    },
+    "competencies": {
+      "camera": 96,
+      "sound": 98,
+      "light": 92,
+      "edit": 94
+    },
+    "skills": [
+      "Log-C",
+      "Shure SM7B",
+      "Aputure 300D",
+      "Sound Design",
+      "DaVinci Resolve"
+    ],
+    "completedShoots": 1
   },
   {
-    id: 'u1',
-    fullName: 'Ковалев Михаил Алексеевич',
-    email: 'mikhail.kovalev@kp11.ru',
-    groupName: 'ФВТ-22',
-    rating: 4.7,
-    telegram: '@mikhail_cam',
-    telegramChatId: null,
-    craftRank: 'Камерный оператор // 1st AC',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 95, sound: 82, light: 88, edit: 96 },
-    skills: ['ARRI Master Prime', 'Цветокоррекция', 'Стедикам', 'LUT Pipeline']
+    "id": "u1",
+    "fullName": "Ковалев Михаил Алексеевич",
+    "email": "mikhail.kovalev@kp11.ru",
+    "groupName": "ФВТ-22",
+    "rating": 5,
+    "telegram": "@mikhail_cam",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // 1st AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 95,
+      "sound": 82,
+      "light": 88,
+      "edit": 96
+    },
+    "skills": [
+      "ARRI Master Prime",
+      "Цветокоррекция",
+      "Стедикам",
+      "LUT Pipeline"
+    ],
+    "completedShoots": 1
   },
   {
-    id: 'u2',
-    fullName: 'Демидов Тимофей Дмитриевич',
-    email: 'timofey.demidov@kp11.ru',
-    groupName: 'ФВТ-22',
-    rating: 4.5,
-    telegram: '@timofey_light',
-    telegramChatId: null,
-    craftRank: 'Гаффер смены // Chief Lighting',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 88, sound: 78, light: 94, edit: 80 },
-    skills: ['Dedolight', 'Светотеневой рисунок', 'Вольфрам 3200K', 'Электробезопасность']
+    "id": "u2",
+    "fullName": "Демидов Тимофей Дмитриевич",
+    "email": "timofey.demidov@kp11.ru",
+    "groupName": "ФВТ-22",
+    "rating": 5,
+    "telegram": "@timofey_light",
+    "telegramChatId": null,
+    "craftRank": "Гаффер смены // Chief Lighting",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 88,
+      "sound": 78,
+      "light": 94,
+      "edit": 80
+    },
+    "skills": [
+      "Dedolight",
+      "Светотеневой рисунок",
+      "Вольфрам 3200K",
+      "Электробезопасность"
+    ],
+    "completedShoots": 1
   },
   {
-    id: 'u3',
-    fullName: 'Гусев Андрей Алексеевич',
-    email: 'andrey.gusev@kp11.ru',
-    groupName: 'КТ-25',
-    rating: 3.5,
-    telegram: '@andrey_gaffer',
-    telegramChatId: null,
-    craftRank: 'Ассистент осветителя // Best Boy',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 75, sound: 70, light: 85, edit: 68 },
-    skills: ['Гаффер-сетап', 'Рассеиватели', 'Штативы C-Stand']
+    "id": "u3",
+    "fullName": "Гусев Андрей Алексеевич",
+    "email": "andrey.gusev@kp11.ru",
+    "groupName": "КТ-25",
+    "rating": 5,
+    "telegram": "@andrey_gaffer",
+    "telegramChatId": null,
+    "craftRank": "Ассистент осветителя // Best Boy",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 75,
+      "sound": 70,
+      "light": 85,
+      "edit": 68
+    },
+    "skills": [
+      "Гаффер-сетап",
+      "Рассеиватели",
+      "Штативы C-Stand"
+    ],
+    "completedShoots": 1
   },
   {
-    id: 'u4',
-    fullName: 'Соколова Анна Алексеевна',
-    email: 'anna.sokolova@kp11.ru',
-    groupName: 'КТ-15',
-    rating: 4.0,
-    telegram: '@anna_sound',
-    telegramChatId: null,
-    craftRank: 'Звукооператор // Boom Operator',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 84, sound: 92, light: 75, edit: 86 },
-    skills: ['Радиопетлички Sennheiser', 'Микрофонный бум', 'Синхронизация']
+    "id": "u4",
+    "fullName": "Соколова Анна Алексеевна",
+    "email": "anna.sokolova@kp11.ru",
+    "groupName": "КТ-15",
+    "rating": 5,
+    "telegram": "@anna_sound",
+    "telegramChatId": null,
+    "craftRank": "Звукооператор // Boom Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 84,
+      "sound": 92,
+      "light": 75,
+      "edit": 86
+    },
+    "skills": [
+      "Радиопетлички Sennheiser",
+      "Микрофонный бум",
+      "Синхронизация"
+    ],
+    "completedShoots": 1
   },
   {
-    id: 'u5',
-    fullName: 'Жемчужников Ярослав Станиславович',
-    email: 'yaroslav.zhemch@kp11.ru',
-    groupName: 'КТ-25',
-    rating: 4.5,
-    telegram: '@yaroslav_dop',
-    telegramChatId: null,
-    craftRank: 'Оператор-постановщик // Master DOP',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 97, sound: 85, light: 90, edit: 92 },
-    skills: ['Оператор-постановщик', 'Фокус-пуллинг', 'ARRI RAW', 'Стедикам']
+    "id": "u5",
+    "fullName": "Жемчужников Ярослав Станиславович",
+    "email": "yaroslav.zhemch@kp11.ru",
+    "groupName": "КТ-25",
+    "rating": 4.9,
+    "telegram": "@yaroslav_dop",
+    "telegramChatId": null,
+    "craftRank": "Оператор-постановщик // Master DOP",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 97,
+      "sound": 85,
+      "light": 90,
+      "edit": 92
+    },
+    "skills": [
+      "Оператор-постановщик",
+      "Фокус-пуллинг",
+      "ARRI RAW",
+      "Стедикам"
+    ]
   },
   {
-    id: 'u6',
-    fullName: 'Шальнева Любовь Игоревна',
-    email: 'lyubov.shalneva@kp11.ru',
-    groupName: 'ФТ-21-25',
-    rating: 4.7,
-    telegram: '@lyubov_photo',
-    telegramChatId: null,
-    craftRank: 'Фотограф // 2nd Unit DP',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 92, sound: 76, light: 89, edit: 90 },
-    skills: ['Canon R5', 'Студийный свет', 'Репортаж', 'Lightroom']
+    "id": "u6",
+    "fullName": "Шальнева Любовь Игоревна",
+    "email": "lyubov.shalneva@kp11.ru",
+    "groupName": "ФТ-21-25",
+    "rating": 4.7,
+    "telegram": "@lyubov_photo",
+    "telegramChatId": null,
+    "craftRank": "Фотограф // 2nd Unit DP",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 92,
+      "sound": 76,
+      "light": 89,
+      "edit": 90
+    },
+    "skills": [
+      "Canon R5",
+      "Студийный свет",
+      "Репортаж",
+      "Lightroom"
+    ]
   },
   {
-    id: 'u7',
-    fullName: 'Хамуд Юлий Мохамедович',
-    email: 'yuliy.khamud@kp11.ru',
-    groupName: 'КТ-26',
-    rating: 4.6,
-    telegram: '@yuliy_cam',
-    telegramChatId: null,
-    craftRank: 'Камерный оператор // 2nd AC',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 91, sound: 80, light: 84, edit: 88 },
-    skills: ['Canon C200', 'Стедикам', 'Оптика Prime', 'Полевая съёмка']
+    "id": "u7",
+    "fullName": "Хамуд Юлий Мохамедович",
+    "email": "yuliy.khamud@kp11.ru",
+    "groupName": "КТ-26",
+    "rating": 4.6,
+    "telegram": "@yuliy_cam",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // 2nd AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 91,
+      "sound": 80,
+      "light": 84,
+      "edit": 88
+    },
+    "skills": [
+      "Canon C200",
+      "Стедикам",
+      "Оптика Prime",
+      "Полевая съёмка"
+    ]
   },
   {
-    id: 'u8',
-    fullName: 'Журавлев Никита Дмитриевич',
-    email: 'nikita.zhuravlev@kp11.ru',
-    groupName: 'КТ-21',
-    rating: 4.5,
-    telegram: '@nikita_sound',
-    telegramChatId: null,
-    craftRank: 'Звукооператор // Boom Operator',
-    isSuspended: false,
-    role: { name: 'Студент' },
-    competencies: { camera: 80, sound: 95, light: 75, edit: 85 },
-    skills: ['Рекордер Zoom', 'Радиопетлички', 'Шумоподавление', 'Чистовой звук']
+    "id": "u8",
+    "fullName": "Журавлев Никита Дмитриевич",
+    "email": "nikita.zhuravlev@kp11.ru",
+    "groupName": "КТ-21",
+    "rating": 4.5,
+    "telegram": "@nikita_sound",
+    "telegramChatId": null,
+    "craftRank": "Звукооператор // Boom Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 80,
+      "sound": 95,
+      "light": 75,
+      "edit": 85
+    },
+    "skills": [
+      "Рекордер Zoom",
+      "Радиопетлички",
+      "Шумоподавление",
+      "Чистовой звук"
+    ]
+  },
+  {
+    "id": "u9",
+    "fullName": "Сафиулина Дарья Александровна",
+    "email": "daria.safiulina@kp11.film",
+    "groupName": "КТ-23",
+    "rating": 4.8,
+    "telegram": "@IifasDasha",
+    "telegramChatId": null,
+    "craftRank": "Режиссер монтажа // Lead Editor",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 82,
+      "sound": 85,
+      "light": 78,
+      "edit": 98
+    },
+    "skills": [
+      "DaVinci Resolve",
+      "Premiere Pro",
+      "Монтаж",
+      "Цветокоррекция"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u10",
+    "fullName": "Воронова Кристина Константиновна",
+    "email": "kristina.voronova@kp11.film",
+    "groupName": "КТ-25",
+    "rating": 4.7,
+    "telegram": "@eeesoxlevoi",
+    "telegramChatId": null,
+    "craftRank": "Монтажер // Editor",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 80,
+      "sound": 82,
+      "light": 75,
+      "edit": 94
+    },
+    "skills": [
+      "Монтаж",
+      "Premiere Pro",
+      "Черновая сборка",
+      "Синхронизация звука"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u11",
+    "fullName": "Борзых Ульяна Владимировна",
+    "email": "ulyana.borzykh@kp11.film",
+    "groupName": "КТ-25",
+    "rating": 4.9,
+    "telegram": "@werimer",
+    "telegramChatId": null,
+    "craftRank": "Линейный продюсер // Production Manager",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 88,
+      "sound": 84,
+      "light": 86,
+      "edit": 95
+    },
+    "skills": [
+      "Координация смен",
+      "Линейное продюсирование",
+      "Монтаж",
+      "Контроль вызывных"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u12",
+    "fullName": "Шахбазянц Клим Рубенович",
+    "email": "klim.shakhbazyants@kp11.film",
+    "groupName": "КТ-11",
+    "rating": 4.7,
+    "telegram": "@klim_shakh",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 92,
+      "sound": 76,
+      "light": 85,
+      "edit": 80
+    },
+    "skills": [
+      "Камерная съемка",
+      "Оптика Prime",
+      "Работа с подвесом",
+      "Фокус"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u13",
+    "fullName": "Данилова Варвара Васильевна",
+    "email": "varvara.danilova@kp11.film",
+    "groupName": "КТ-11",
+    "rating": 4.6,
+    "telegram": "@varvara_danilova",
+    "telegramChatId": null,
+    "craftRank": "Ассистент оператора // 1st AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 89,
+      "sound": 75,
+      "light": 82,
+      "edit": 81
+    },
+    "skills": [
+      "Фокус-пуллинг",
+      "Коммутация тракта",
+      "Смена оптики",
+      "Камерный журнал"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u14",
+    "fullName": "Тамбиева Диана Муслимовна",
+    "email": "diana.tambieva@kp11.film",
+    "groupName": "КТ-16",
+    "rating": 4.8,
+    "telegram": "@diana_tambieva",
+    "telegramChatId": null,
+    "craftRank": "Универсал цеха // Multi-Craft Specialist",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 90,
+      "sound": 85,
+      "light": 84,
+      "edit": 92
+    },
+    "skills": [
+      "Операторская съемка",
+      "Монтаж",
+      "DaVinci Resolve",
+      "Работа в студии"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u15",
+    "fullName": "Гудухина Полина Евгеньевна",
+    "email": "polina.gudukina@kp11.film",
+    "groupName": "КТ-16",
+    "rating": 4.9,
+    "telegram": "@polina_gudukina",
+    "telegramChatId": null,
+    "craftRank": "Режиссер монтажа // Lead Editor",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 82,
+      "sound": 88,
+      "light": 79,
+      "edit": 98
+    },
+    "skills": [
+      "Монтаж сложных сцен",
+      "Цветокоррекция",
+      "Final Cut",
+      "Premiere Pro"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u16",
+    "fullName": "Соломатникова Екатерина Владимировна",
+    "email": "ekaterina.solomatnikova@kp11.film",
+    "groupName": "КТ-16",
+    "rating": 4.8,
+    "telegram": "@ekaterina_solomatnikova",
+    "telegramChatId": null,
+    "craftRank": "Монтажер // Editor",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 80,
+      "sound": 85,
+      "light": 78,
+      "edit": 95
+    },
+    "skills": [
+      "Сборка проекта",
+      "Саунд-монтаж",
+      "Таймлайн-менеджмент",
+      "DaVinci"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u17",
+    "fullName": "Бадюл Глеб",
+    "email": "gleb.badyul@kp11.film",
+    "groupName": "МЗМ-23",
+    "rating": 4.8,
+    "telegram": "@gleb_badyul",
+    "telegramChatId": null,
+    "craftRank": "Звукорежиссер // Sound Engineer",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 75,
+      "sound": 98,
+      "light": 70,
+      "edit": 88
+    },
+    "skills": [
+      "Многоканальная запись",
+      "Микшерные пульты",
+      "Чистка звука",
+      "Сведение"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u18",
+    "fullName": "Чернышов Артем Андреевич",
+    "email": "artem.chernyshov@kp11.film",
+    "groupName": "КТ-24",
+    "rating": 4.9,
+    "telegram": "@catmenmilota",
+    "telegramChatId": null,
+    "craftRank": "Ответственный за смену // Production Lead",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 94,
+      "sound": 88,
+      "light": 90,
+      "edit": 91
+    },
+    "skills": [
+      "Управление сменой",
+      "Операторская постановка",
+      "130 павильон",
+      "Координация"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u19",
+    "fullName": "Байрикова Миланья Робертовна",
+    "email": "milanya.bayrikova@kp11.film",
+    "groupName": "КТ-27",
+    "rating": 4.7,
+    "telegram": "@Mila13B",
+    "telegramChatId": null,
+    "craftRank": "Видеоинженер эфира (кнопки) // Video Switcher Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 85,
+      "sound": 82,
+      "light": 80,
+      "edit": 92
+    },
+    "skills": [
+      "Видеомикшеры Blackmagic ATEM",
+      "Кнопки / переключение камер",
+      "Эфирный тракт"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u20",
+    "fullName": "Синицына Анастасия Сергеевна",
+    "email": "anastasia.sinitsyna@kp11.film",
+    "groupName": "КТ-26",
+    "rating": 4.7,
+    "telegram": "@verystupidman",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 93,
+      "sound": 79,
+      "light": 85,
+      "edit": 84
+    },
+    "skills": [
+      "Студийная съемка",
+      "Павильон 130",
+      "Композиция кадра",
+      "PTZ/Плечевые камеры"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u21",
+    "fullName": "Копылова Анна Геннадьевна",
+    "email": "anna.kopylova@kp11.film",
+    "groupName": "КТ-27",
+    "rating": 4.6,
+    "telegram": "@inkyliric",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 91,
+      "sound": 78,
+      "light": 84,
+      "edit": 82
+    },
+    "skills": [
+      "Студийная съемка",
+      "Многокамерный сетап",
+      "Фокусировка",
+      "Штативные системы"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u22",
+    "fullName": "Нуриманова Елизавета",
+    "email": "elizaveta.nurimanova@kp11.film",
+    "groupName": "КТ-26",
+    "rating": 4.6,
+    "telegram": "@monvayr",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 90,
+      "sound": 77,
+      "light": 83,
+      "edit": 83
+    },
+    "skills": [
+      "Многокамерная запись",
+      "Павильонная съемка",
+      "Студийный свет",
+      "Ракурсы"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u23",
+    "fullName": "Зимагоров Егор Денисович",
+    "email": "egor.zimagorov@kp11.film",
+    "groupName": "КТ-26",
+    "rating": 4.7,
+    "telegram": "@z1ma41",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 92,
+      "sound": 80,
+      "light": 85,
+      "edit": 86
+    },
+    "skills": [
+      "Камерная работа",
+      "Динамический план",
+      "Павильон 130",
+      "Sony FX/Canon"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u24",
+    "fullName": "Шарец Ярослав Алексеевич",
+    "email": "yaroslav.sharets@kp11.film",
+    "groupName": "КТ-26",
+    "rating": 4.6,
+    "telegram": "@yaroslav7sharets",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // Camera Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 91,
+      "sound": 79,
+      "light": 84,
+      "edit": 85
+    },
+    "skills": [
+      "Студийная съемка",
+      "Павильон 130",
+      "Баланс белого",
+      "Кадрирование"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u25",
+    "fullName": "Чернышова Вивея Владимировна",
+    "email": "viveya.chernyshova@kp11.film",
+    "groupName": "МЗМ-26",
+    "rating": 4.8,
+    "telegram": "@MoosePunkRock",
+    "telegramChatId": null,
+    "craftRank": "Звукооператор // Sound Operator",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 78,
+      "sound": 96,
+      "light": 74,
+      "edit": 87
+    },
+    "skills": [
+      "Студийный звук",
+      "Петличные системы",
+      "Мониторинг тракта",
+      "Шумоподавление"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u26",
+    "fullName": "Саломатова Анастасия",
+    "email": "anastasia.salomatova@kp11.film",
+    "groupName": "КТ-15",
+    "rating": 4.5,
+    "telegram": "@anastasia_salomatova",
+    "telegramChatId": null,
+    "craftRank": "Ассистент оператора // 2nd AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 87,
+      "sound": 75,
+      "light": 80,
+      "edit": 80
+    },
+    "skills": [
+      "Студийная помощь",
+      "Кабельный тракт",
+      "Подача оптики",
+      "Площадка"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u27",
+    "fullName": "Колесникова Ксения",
+    "email": "ksenia.kolesnikova@kp11.film",
+    "groupName": "КТ-15",
+    "rating": 4.5,
+    "telegram": "@ksenia_kolesnikova",
+    "telegramChatId": null,
+    "craftRank": "Ассистент оператора // 2nd AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 86,
+      "sound": 76,
+      "light": 81,
+      "edit": 79
+    },
+    "skills": [
+      "Студийная помощь",
+      "Кабельный менеджмент",
+      "Ассистирование оператору"
+    ],
+    "completedShoots": 0
   }
 ];
 
@@ -471,7 +1107,40 @@ function saveSettings(settings) {
   return updated;
 }
 
+
+// ------------------------------------------------------------------------------
+// УМНОЕ УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ И ДЕДУПЛИКАЦИЯ
+// ------------------------------------------------------------------------------
+async function deduplicateAllUsers() {
+  const users = readJsonFile(USERS_FILE, INITIAL_USERS);
+  const shoots = readJsonFile(SHOOTS_FILE, []);
+  const { cleanUsers, removedUsers, shoots: cleanShoots } = userManager.deduplicateUsers(users, shoots);
+  writeJsonFile(USERS_FILE, cleanUsers);
+  writeJsonFile(SHOOTS_FILE, cleanShoots);
+
+  if (prisma) {
+    for (const rem of removedUsers) {
+      try {
+        await prisma.user.delete({ where: { id: rem.id } }).catch(() => {});
+      } catch (e) {}
+    }
+  }
+  return { cleanUsers, removedUsers, count: removedUsers.length };
+}
+
+async function linkOrRegisterUser(registrationData) {
+  const users = readJsonFile(USERS_FILE, INITIAL_USERS);
+  const shoots = readJsonFile(SHOOTS_FILE, []);
+  const result = await userManager.linkOrRegisterUser(registrationData, users, shoots);
+  writeJsonFile(USERS_FILE, result.cleanUsers);
+  writeJsonFile(SHOOTS_FILE, result.shoots);
+  return result;
+}
+
 module.exports = {
+  deduplicateAllUsers,
+  linkOrRegisterUser,
+  userManager,
   getShoots,
   getShootById,
   saveShoot,

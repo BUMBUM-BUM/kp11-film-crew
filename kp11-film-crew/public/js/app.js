@@ -4298,11 +4298,13 @@ function logout() {
 async function handleAuth(e) {
   e.preventDefault();
   const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+  const tgEl = document.getElementById('registerTelegram');
   const body = {
     email: document.getElementById('email').value,
     password: document.getElementById('password').value,
     fullName: isRegister ? document.getElementById('fullName').value : undefined,
     groupName: isRegister ? document.getElementById('groupName').value : undefined,
+    telegram: isRegister && tgEl ? tgEl.value.trim() : undefined
   };
 
   try {
@@ -4324,6 +4326,9 @@ async function handleAuth(e) {
     closeModal();
     updateNav();
     await loadShoots();
+    if (data.message) {
+      showToast(data.message);
+    }
   } catch (err) {
     alert('Ошибка: ' + err.message);
   }
