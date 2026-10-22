@@ -31,12 +31,12 @@
     }
   </script>
   
-  <!-- Yandex Maps API -->
-  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+  <!-- Yandex Maps API (deferred to prevent render blocking) -->
+  <script defer src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
   
-  <!-- Leaflet OpenStreetMap Engine (Отказоустойчивый резервный картографический движок при блокировке Яндекса AdBlock/Браузером) -->
+  <!-- Leaflet OpenStreetMap Engine (deferred for instant first paint) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
   <!-- Google Fonts: Manrope + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1198,6 +1198,6 @@
   </script>
 
   <!-- Скрипт платформы -->
-  <script src="js/app.js?v=20261022_v7"></script>
+  <script src="js/app.js?v=20261023_v8"></script>
 </body>
 </html>

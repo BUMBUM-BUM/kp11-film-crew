@@ -573,7 +573,7 @@ function updateNav() {
       }
       if (tabAdminBtn) {
         tabAdminBtn.classList.remove('hidden');
-        loadAdminPanel();
+        if (typeof loadAdminPanel === 'function') loadAdminPanel();
       }
     } else {
       if (actionContainer) {
@@ -586,10 +586,10 @@ function updateNav() {
       if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
     }
 
-    loadNotifications();
-    loadShoots();
-    loadCinemaBoard();
-    registerPushNotifications();
+    if (typeof loadNotifications === 'function') loadNotifications();
+    if (typeof loadShoots === 'function') loadShoots();
+    if (typeof loadCinemaBoard === 'function') loadCinemaBoard();
+    if (typeof registerPushNotifications === 'function') registerPushNotifications();
   } else {
     if (actionContainer) {
       actionContainer.innerHTML = 
@@ -606,8 +606,8 @@ function updateNav() {
         '</div>';
     }
     renderGuestSidebar();
-    loadShoots();
-    loadCinemaBoard();
+    if (typeof loadShoots === 'function') loadShoots();
+    if (typeof loadCinemaBoard === 'function') loadCinemaBoard();
   }
 }
 
@@ -2526,6 +2526,7 @@ async function deleteStudentReview(commentId, studentId) {
     }
   } catch (err) {
     showToast('Ошибка сети');
+  }
 }
 
 
@@ -3135,6 +3136,7 @@ async function loadCinemaBoard() {
     }
   } catch (err) {}
 }
+window.loadCinemaBoard = loadCinemaBoard;
 
 if (!window._cinemaQuoteInterval) {
   window._cinemaQuoteInterval = setInterval(() => {
@@ -3339,6 +3341,7 @@ async function loadAdminPanel() {
 
   renderAdminUsers(globalAdminUsers);
 }
+window.loadAdminPanel = loadAdminPanel;
 
 let currentAdminRoleFilter = 'ALL';
 
@@ -3454,36 +3457,6 @@ function renderAdminUsers(users) {
   }).join('');
 }
 
-  try {
-    await fetch('/api/admin/users/' + userId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ 
-        fullName: newName, 
-        groupName: newGroup, 
-        rating: newRating !== '' ? parseFloat(newRating) : null,
-        telegram: newTg
-      })
-    });
-  } catch (err) {}
-
-  const user = (globalAdminUsers || []).find(u => u.id === userId);
-  if (user) {
-    user.fullName = newName;
-    user.groupName = newGroup;
-    user.rating = newRating !== '' ? parseFloat(newRating) : null;
-    user.telegram = newTg;
-  }
-  const student = (globalStudents || []).find(s => s.id === userId);
-  if (student) {
-    student.telegram = newTg;
-    student.fullName = newName;
-    student.groupName = newGroup;
-  }
-  localStorage.setItem('kp11_admin_users', JSON.stringify(globalAdminUsers));
-  showToast('Профиль ' + newName + ' успешно обновлен (Telegram: ' + (newTg || 'не указан') + ')!');
-  renderAdminUsers(globalAdminUsers);
-}
 
 async function saveTelegramSettings() {
   const tokenInput = document.getElementById('adminBotToken');
@@ -5162,7 +5135,7 @@ function renderShootsList(shoots = globalShoots) {
   });
 
   const canDeleteShoot = isAdminUser(currentUser) || isMasterUser(currentUser);
-  const canGradeAndManage = isMasterUser(currentUser);
+  const canGradeAndManage = isMasterOrAdminUser(currentUser);
 
   // Обновление карты объектов
   try {
@@ -5393,6 +5366,13 @@ function renderShootsList(shoots = globalShoots) {
       timelineMilestonesHtml +
     '</div>';
 
+    let finishShootHeaderBtn = '';
+    if (canGradeAndManage && !s.isCompleted) {
+      finishShootHeaderBtn = '<button onclick="saveShootGrades(\'' + s.id + '\')" class="btn-brand-primary px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 shadow-sm" title="Завершить смену, выставить оценки и отправить в архив">' +
+        '<span>✓ Завершить</span>' +
+      '</button>';
+    }
+
     return '<div class="viewfinder-card viewfinder-corners shoot-card ' + cardStateClass + ' p-5 sm:p-6 space-y-4">' +
       '<div class="flex flex-wrap justify-between items-center gap-2">' +
         '<div class="flex items-center space-x-2 flex-wrap gap-y-1">' +
@@ -5406,6 +5386,7 @@ function renderShootsList(shoots = globalShoots) {
             '<span>Вызывной</span>' +
           '</button>' +
           equipmentBtn +
+          finishShootHeaderBtn +
           '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
           deleteBtn +
         '</div>' +

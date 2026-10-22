@@ -104,12 +104,22 @@ async function sendWebPushNotification(userId, title, body, url = '/') {
 }
 
 app.use(cors());
+try {
+  const compression = require('compression');
+  app.use(compression());
+} catch (e) {
+  // compression will activate on Render when dependencies are installed
+}
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    }
   }
 }));
 
