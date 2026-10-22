@@ -1407,6 +1407,7 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
         return {
           id: 'c-' + Date.now() + '-' + (idx + 1),
           roleInShoot: item.craftRole || 'Оператор',
+          department: item.department || 'cinema',
           status: 'PENDING',
           attendance: 'PRESENT',
           userId: item.userId,

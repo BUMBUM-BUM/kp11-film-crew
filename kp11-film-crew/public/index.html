@@ -525,13 +525,18 @@
                 <!-- Имя, группа, ID пропуска -->
               </div>
 
-              <button type="button" onclick="openQrPassModal()" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
-                <span>Показать QR на весь экран</span>
-              </button>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button type="button" onclick="openQrPassModal()" class="w-full py-2 text-xs font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-1.5">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
+                  <span>QR на весь экран</span>
+                </button>
+                <button type="button" onclick="copyMyProfileLink()" class="w-full py-2 text-xs font-mono font-bold uppercase btn-brand-ghost text-cyan-400 flex items-center justify-center gap-1.5" title="Скопировать прямую ссылку на профиль">
+                  <span>🔗 Копировать ссылку</span>
+                </button>
+              </div>
               
               <p class="text-[10px] font-medium leading-relaxed" style="color: var(--text-muted);">
-                Предъявите данный QR-пропуск мастеру смены на площадке для автоматической фиксации присутствия.
+                QR-код содержит прямую ссылку на вашу персональную страницу в Медиацентре. Отсканируйте камерой смартфона для быстрого перехода к профилю.
               </p>
             </div>
           </div>
@@ -638,18 +643,21 @@
   </main>
 
   <!-- ================= МОДАЛЬНОЕ ОКНО: СОЗДАНИЕ СМЕНЫ ================= -->
-  <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-    <div class="studio-modal-box p-6 w-full max-w-2xl relative my-8">
-      <button onclick="closeShootModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-      
-      <div class="flex items-center space-x-2 border-b pb-3 mb-5" style="border-color: var(--border-color);">
-        <span class="rec-dot"></span>
-        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Создание производственной смены</h3>
+  <div id="shootModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-start justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box w-full max-w-2xl relative my-2 sm:my-4 max-h-[94vh] flex flex-col overflow-hidden shadow-2xl">
+      <!-- Фиксированная шапка модального окна -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b shrink-0" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+        <div class="flex items-center space-x-2">
+          <span class="rec-dot"></span>
+          <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Создание производственной смены</h3>
+        </div>
+        <button onclick="closeShootModal()" class="p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       
-      <form onsubmit="handleCreateShoot(event)" class="space-y-4">
+      <!-- Прокручиваемое тело формы -->
+      <form onsubmit="handleCreateShoot(event)" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         <div>
           <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Название проекта / смены</label>
           <input type="text" id="shootTitle" required class="w-full studio-input px-3 py-2 text-xs font-bold" placeholder="Напр. Подкаст Медиацентра №3">
@@ -741,10 +749,11 @@
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Назначение съёмочной группы:</label>
-            <span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И СПЕЦИАЛЬНОСТИ</span>
+            <span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И ЦЕХА С ОКАНТОВКОЙ</span>
           </div>
+          <p class="text-[10px] text-[var(--text-muted)]">Укажите индивидуальную роль участника и выберите его цех для цветной окантовки в карточке смены</p>
           <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр по ФИО или группе..." class="w-full studio-input px-3 py-1.5 text-xs font-medium">
-          <div id="studentsCheckboxes" class="max-h-48 overflow-y-auto space-y-2 p-2 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
+          <div id="studentsCheckboxes" class="max-h-56 overflow-y-auto space-y-2 p-2 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>
         </div>
 
         <!-- Парк техники смены (для вызывных листов) -->
@@ -786,8 +795,9 @@
           </div>
         </div>
 
-        <div class="pt-2">
-          <button type="submit" class="w-full py-3 text-xs font-extrabold uppercase btn-brand-primary">Опубликовать смену в производство</button>
+        <!-- Закреплённая внизу кнопка публикации -->
+        <div class="pt-3 sticky bottom-0 bg-[var(--bg-secondary)] pb-1 border-t" style="border-color: var(--border-color);">
+          <button type="submit" class="w-full py-3 text-xs font-extrabold uppercase btn-brand-primary shadow-lg">Опубликовать смену в производство</button>
         </div>
       </form>
     </div>
@@ -1105,37 +1115,6 @@
     </div>
   </div>
 
-  <!-- ================= МОДАЛЬНОЕ ОКНО: QR ЧЕК-ИН НА СМЕНУ (МАСТЕРА) ================= -->
-  <div id="qrCheckinModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-    <div class="studio-modal-box p-6 w-full max-w-md relative my-8">
-      <button onclick="closeQrCheckinModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-
-      <div class="flex items-center space-x-2 border-b pb-3 mb-4" style="border-color: var(--border-color);">
-        <span class="rec-dot"></span>
-        <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">QR Чек-ин на съёмочную площадку</h3>
-      </div>
-
-      <div class="space-y-4">
-        <div id="qrCheckinShootTitle" class="text-xs font-mono font-bold uppercase text-amber-400"></div>
-
-        <div>
-          <label class="block text-[11px] font-mono text-[var(--text-secondary)] mb-1">Код или ID студента из QR-пропуска:</label>
-          <div class="flex gap-2">
-            <input type="text" id="qrCheckinInput" placeholder="u1 или KP11-PASS:..." class="flex-grow studio-input text-xs font-mono px-3 py-2 font-bold">
-            <button type="button" onclick="handleQrCheckinSubmit()" class="btn-brand-primary px-4 py-2 text-xs font-extrabold uppercase">Отметить</button>
-          </div>
-          <span class="text-[10px] text-[var(--text-muted)]">Отсканируйте камерой смартфона или введите ID участника</span>
-        </div>
-
-        <div class="border-t pt-3" style="border-color: var(--border-color);">
-          <span class="text-[10px] font-mono uppercase text-[var(--text-muted)] block mb-2">Быстрая отметка по списку смены:</span>
-          <div id="qrCheckinCrewList" class="space-y-1.5 max-h-56 overflow-y-auto pr-1"></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- ================= МОДАЛЬНОЕ ОКНО: ПОЛНОЭКРАННЫЙ QR-ПРОПУСК ================= -->
   <div id="qrPassModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -1145,23 +1124,29 @@
       </button>
 
       <div class="border-b pb-2">
-        <span class="text-[10px] font-mono uppercase tracking-widest text-[var(--brand-red)] font-extrabold">ПРОИЗВОДСТВЕННЫЙ ПРОПУСК // МЕДИАЦЕНТР КП11</span>
+        <span class="text-[10px] font-mono uppercase tracking-widest text-[var(--brand-red)] font-extrabold">QR-ССЫЛКА НА ПРОФИЛЬ // МЕДИАЦЕНТР КП11</span>
         <h3 id="qrModalStudentName" class="text-sm font-extrabold uppercase mt-1"></h3>
         <p id="qrModalStudentGroup" class="text-[11px] font-mono text-[var(--brand-beige-text)] font-bold"></p>
+        <p class="text-[10px] text-[var(--text-muted)] mt-1">Отсканируйте камерой смартфона для перехода к странице профиля</p>
       </div>
 
       <div id="qrModalCodeContainer" class="p-4 bg-white rounded flex items-center justify-center shadow-lg my-3">
         <!-- SVG QR большой -->
       </div>
 
-      <div class="text-[10px] font-mono space-y-0.5 text-[var(--text-muted)]">
-        <div>СТАТУС: <span class="text-emerald-400 font-bold">АККРЕДИТОВАН // СЕЗОН 2026</span></div>
+      <div class="text-[10px] font-mono space-y-1 text-[var(--text-muted)]">
+        <div>СТАТУС: <span class="text-emerald-400 font-bold">АКТИВНЫЙ ПРОФИЛЬ // СЕЗОН 2026</span></div>
         <div id="qrModalCodeId" class="text-[9px]">ID: KP11-STUDENT-000</div>
       </div>
 
-      <button type="button" onclick="closeQrPassModal()" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary">
-        Закрыть
-      </button>
+      <div class="space-y-2 pt-2">
+        <button type="button" onclick="copyMyProfileLink()" class="w-full py-2 text-xs font-mono font-bold uppercase btn-brand-ghost text-cyan-400 flex items-center justify-center gap-1.5">
+          <span>🔗 Скопировать ссылку</span>
+        </button>
+        <button type="button" onclick="closeQrPassModal()" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary">
+          Закрыть
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1213,6 +1198,6 @@
   </script>
 
   <!-- Скрипт платформы -->
-  <script src="js/app.js?v=20261022_v6"></script>
+  <script src="js/app.js?v=20261022_v7"></script>
 </body>
 </html>

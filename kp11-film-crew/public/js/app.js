@@ -40,6 +40,214 @@ function safeFormatDate(dStr) {
   }
 }
 
+// Надёжный парсер даты и времени съёмки (поддерживает YYYY-MM-DD, DD.MM.YYYY, ISO и таймкоды)
+function parseShootDateTime(dateStr, timeStr) {
+  if (!dateStr) return null;
+  let y, m, d;
+  const sDate = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(sDate)) {
+    const datePart = sDate.split('T')[0];
+    const parts = datePart.split('-');
+    y = parseInt(parts[0], 10);
+    m = parseInt(parts[1], 10) - 1;
+    d = parseInt(parts[2], 10);
+    if (!timeStr && sDate.includes('T')) {
+      const timePart = sDate.split('T')[1];
+      if (timePart) timeStr = timePart.slice(0, 5);
+    }
+  } else if (/^\d{2}\.\d{2}\.\d{4}/.test(sDate)) {
+    const parts = sDate.split('.');
+    d = parseInt(parts[0], 10);
+    m = parseInt(parts[1], 10) - 1;
+    y = parseInt(parts[2], 10);
+  } else {
+    const parsed = new Date(sDate);
+    if (!isNaN(parsed.getTime())) {
+      y = parsed.getFullYear();
+      m = parsed.getMonth();
+      d = parsed.getDate();
+    } else {
+      return null;
+    }
+  }
+
+  let hours = 10, minutes = 0;
+  if (timeStr) {
+    const firstTimeMatch = String(timeStr).match(/(\d{1,2})[:.](\d{2})/);
+    if (firstTimeMatch) {
+      hours = parseInt(firstTimeMatch[1], 10);
+      minutes = parseInt(firstTimeMatch[2], 10);
+    }
+  }
+
+  return new Date(y, m, d, hours, minutes, 0);
+}
+
+// Парсер времени окончания смены (с поддержкой интервалов, напр. "10.00-21.00" или "18:00")
+function parseShootEndDateTime(dateStr, endTimeStr, startTimeStr) {
+  let timeStr = endTimeStr || '';
+  if (!timeStr && startTimeStr && startTimeStr.includes('-')) {
+    const parts = startTimeStr.split('-');
+    timeStr = parts[1];
+  } else if (timeStr && timeStr.includes('-')) {
+    const parts = timeStr.split('-');
+    timeStr = parts[1];
+  }
+  if (!timeStr) timeStr = '18:00';
+  return parseShootDateTime(dateStr, timeStr);
+}
+
+// Конфигурация цеха: название, цветная окантовка карточки участника, бейдж и иконка
+function getCraftDepartmentConfig(dept, roleName) {
+  const d = (dept || '').toLowerCase().trim();
+  const r = (roleName || '').toLowerCase().trim();
+
+  if (d === 'cinema' || d.includes('оператор') || d.includes('камер')) {
+    return {
+      id: 'cinema',
+      name: 'Операторский цех',
+      borderClass: 'crew-dept-border-cinema',
+      badgeClass: 'dept-badge-cinema',
+      icon: SVG_ICONS.camera
+    };
+  }
+  if (d === 'sound' || d.includes('звук')) {
+    return {
+      id: 'sound',
+      name: 'Звуковой цех',
+      borderClass: 'crew-dept-border-sound',
+      badgeClass: 'dept-badge-sound',
+      icon: SVG_ICONS.mic
+    };
+  }
+  if (d === 'light' || d.includes('свет') || d.includes('гафф') || d.includes('освет')) {
+    return {
+      id: 'light',
+      name: 'Осветительский цех',
+      borderClass: 'crew-dept-border-light',
+      badgeClass: 'dept-badge-light',
+      icon: SVG_ICONS.light
+    };
+  }
+  if (d === 'edit' || d.includes('монтаж') || d.includes('пост')) {
+    return {
+      id: 'edit',
+      name: 'Монтажный цех',
+      borderClass: 'crew-dept-border-edit',
+      badgeClass: 'dept-badge-edit',
+      icon: SVG_ICONS.scissors
+    };
+  }
+  if (d === 'prod' || d.includes('продюсер') || d.includes('дирекц') || d.includes('админ') || d.includes('ответственн')) {
+    return {
+      id: 'prod',
+      name: 'Продюсерский цех',
+      borderClass: 'crew-dept-border-prod',
+      badgeClass: 'dept-badge-prod',
+      icon: '<svg class="w-3 h-3 text-blue-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+    };
+  }
+  if (d === 'art' || d.includes('арт') || d.includes('худож') || d.includes('грим') || d.includes('реквизит')) {
+    return {
+      id: 'art',
+      name: 'Художественный цех',
+      borderClass: 'crew-dept-border-art',
+      badgeClass: 'dept-badge-art',
+      icon: SVG_ICONS.art
+    };
+  }
+
+  // Fallback по ключевым словам в названии роли:
+  if (r.includes('оператор') || r.includes('камер') || r.includes('фокус') || r.includes('dop') || r.includes('кино')) {
+    return {
+      id: 'cinema',
+      name: 'Операторский цех',
+      borderClass: 'crew-dept-border-cinema',
+      badgeClass: 'dept-badge-cinema',
+      icon: SVG_ICONS.camera
+    };
+  }
+  if (r.includes('звук') || r.includes('микрофон') || r.includes('бум')) {
+    return {
+      id: 'sound',
+      name: 'Звуковой цех',
+      borderClass: 'crew-dept-border-sound',
+      badgeClass: 'dept-badge-sound',
+      icon: SVG_ICONS.mic
+    };
+  }
+  if (r.includes('свет') || r.includes('освет') || r.includes('гафф')) {
+    return {
+      id: 'light',
+      name: 'Осветительский цех',
+      borderClass: 'crew-dept-border-light',
+      badgeClass: 'dept-badge-light',
+      icon: SVG_ICONS.light
+    };
+  }
+  if (r.includes('монтаж') || r.includes('склейк') || r.includes('цветокор') || r.includes('editor')) {
+    return {
+      id: 'edit',
+      name: 'Монтажный цех',
+      borderClass: 'crew-dept-border-edit',
+      badgeClass: 'dept-badge-edit',
+      icon: SVG_ICONS.scissors
+    };
+  }
+  if (r.includes('продюс') || r.includes('директор') || r.includes('ответственн') || r.includes('координат')) {
+    return {
+      id: 'prod',
+      name: 'Продюсерский цех',
+      borderClass: 'crew-dept-border-prod',
+      badgeClass: 'dept-badge-prod',
+      icon: '<svg class="w-3 h-3 text-blue-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+    };
+  }
+
+  return {
+    id: 'art',
+    name: 'Творческий цех',
+    borderClass: 'crew-dept-border-art',
+    badgeClass: 'dept-badge-art',
+    icon: SVG_ICONS.art
+  };
+}
+
+// Форматирование даты съёмки для отдельного блочного отображения
+function formatShootDateSeparate(dateStr) {
+  if (!dateStr) return { dateText: 'Дата не указана', dayOfWeek: '', fullFormatted: 'Дата не указана' };
+  try {
+    let d;
+    const sDate = String(dateStr).trim();
+    if (/^\d{2}\.\d{2}\.\d{4}/.test(sDate)) {
+      const parts = sDate.split('.');
+      d = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+    } else {
+      const isoPart = sDate.split('T')[0];
+      const p = isoPart.split('-');
+      if (p.length === 3) {
+        d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+      } else {
+        d = new Date(sDate);
+      }
+    }
+    if (isNaN(d.getTime())) return { dateText: String(dateStr), dayOfWeek: '', fullFormatted: String(dateStr) };
+
+    const dateFormatted = d.toLocaleDateString('ru-RU', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+    const weekday = d.toLocaleDateString('ru-RU', { weekday: 'long' });
+    const capitalizedWeekday = weekday ? (weekday.charAt(0).toUpperCase() + weekday.slice(1)) : '';
+    return {
+      dateText: dateFormatted,
+      dayOfWeek: capitalizedWeekday,
+      fullFormatted: dateFormatted + (capitalizedWeekday ? ' (' + capitalizedWeekday + ')' : '')
+    };
+  } catch (e) {
+    return { dateText: String(dateStr), dayOfWeek: '', fullFormatted: String(dateStr) };
+  }
+}
+
 
 function getUserRoleName(user) {
   if (!user) return 'Гость';
@@ -1960,14 +2168,14 @@ async function loadMyPortfolio() {
     }
   }
 
-  const qrData = 'KP11-PASS:' + currentUser.id + ':' + currentUser.fullName;
+  const userProfileUrl = window.location.origin + window.location.pathname + '?user=' + encodeURIComponent(currentUser.id);
   if (qrPreview) {
-    qrPreview.innerHTML = renderOfflineQrSvg(qrData, 160);
+    qrPreview.innerHTML = renderOfflineQrSvg(userProfileUrl, 160);
   }
   if (qrInfo) {
     qrInfo.innerHTML = '<div class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + currentUser.fullName + '</div>' +
-      '<div class="text-[11px] text-[var(--brand-beige-text)]">' + (currentUser.groupName || 'КТ-26') + '</div>' +
-      '<div class="text-[10px] text-[var(--text-muted)]">ID: KP11-STUDENT-' + currentUser.id + '</div>';
+      '<div class="text-[11px] text-[var(--brand-beige-text)] font-mono">' + (currentUser.groupName || 'КТ-26') + '</div>' +
+      '<div class="text-[9px] text-cyan-400 font-mono break-all mt-1">Ссылка: ' + userProfileUrl + '</div>';
   }
 }
 
@@ -2320,11 +2528,13 @@ function openQrPassModal() {
   const qrContainer = document.getElementById('qrModalCodeContainer');
   const codeIdEl = document.getElementById('qrModalCodeId');
 
+  const userProfileUrl = window.location.origin + window.location.pathname + '?user=' + encodeURIComponent(currentUser.id);
+
   if (nameEl) nameEl.innerText = currentUser.fullName;
   if (groupEl) groupEl.innerText = currentUser.groupName || 'КТ-26';
-  if (codeIdEl) codeIdEl.innerText = 'ID: KP11-STUDENT-' + currentUser.id;
+  if (codeIdEl) codeIdEl.innerText = userProfileUrl;
   if (qrContainer) {
-    qrContainer.innerHTML = renderOfflineQrSvg('KP11-PASS:' + currentUser.id + ':' + currentUser.fullName, 240);
+    qrContainer.innerHTML = renderOfflineQrSvg(userProfileUrl, 240);
   }
   if (modal) modal.classList.remove('hidden');
 }
@@ -2653,91 +2863,21 @@ async function toggleBlacklist(userId) {
   }
 }
 
-// ----------------- QR ЧЕК-ИН НА ПЛОЩАДКЕ (ДЛЯ МАСТЕРОВ) -----------------
-let activeQrCheckinShootId = null;
-
-function openQrCheckinModal(shootId) {
-  activeQrCheckinShootId = shootId;
-  const shoot = (globalShoots || []).find(s => s.id === shootId);
-  if (!shoot) return;
-
-  const modal = document.getElementById('qrCheckinModal');
-  const titleEl = document.getElementById('qrCheckinShootTitle');
-  const crewList = document.getElementById('qrCheckinCrewList');
-  const inputEl = document.getElementById('qrCheckinInput');
-
-  if (titleEl) titleEl.innerText = shoot.title + ' // ' + shoot.location;
-  if (inputEl) inputEl.value = '';
-
-  if (crewList) {
-    const crew = shoot.crew || [];
-    if (crew.length === 0) {
-      crewList.innerHTML = '<div class="text-[11px] font-mono text-[var(--text-muted)] text-center p-2">В смене нет участников</div>';
-    } else {
-      crewList.innerHTML = crew.map(c => {
-        const u = c.user || (globalStudents || []).find(s => s.id === c.userId || s.id === c.id) || { fullName: 'Участник', id: c.userId || c.id };
-        const isPresent = c.attendance === 'PRESENT';
-        return '<div class="flex items-center justify-between p-2 border" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
-          '<div>' +
-            '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + u.fullName + '</span>' +
-            '<div class="text-[10px] font-mono text-[var(--text-muted)]">' + c.roleInShoot + ' // ID: ' + (u.id || c.id) + '</div>' +
-          '</div>' +
-          '<button type="button" onclick="handleQrCheckinDirect(\'' + shoot.id + '\', \'' + (u.id || c.id || c.userId) + '\')" class="px-2.5 py-1 text-[10px] font-mono font-bold uppercase transition ' + (isPresent ? 'bg-emerald-600 text-white' : 'btn-brand-ghost text-amber-400') + '">' +
-            (isPresent ? '✓ Прибыл' : 'Отметить') +
-          '</button>' +
-        '</div>';
-      }).join('');
-    }
-  }
-
-  if (modal) modal.classList.remove('hidden');
-}
-
-function closeQrCheckinModal() {
-  const modal = document.getElementById('qrCheckinModal');
-  if (modal) modal.classList.add('hidden');
-}
-
-async function handleQrCheckinDirect(shootId, studentId) {
-  const shoot = (globalShoots || []).find(s => s.id === shootId);
-  if (!shoot) return;
-
-  try {
-    await fetch('/api/shoots/' + shootId + '/qr-checkin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-      body: JSON.stringify({ studentId })
+// ----------------- КОПИРОВАНИЕ ССЫЛКИ НА ПЕРСОНАЛЬНЫЙ ПРОФИЛЬ -----------------
+function copyMyProfileLink() {
+  if (!currentUser) return;
+  const url = window.location.origin + window.location.pathname + '?user=' + encodeURIComponent(currentUser.id);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('Ссылка на профиль скопирована!');
+    }).catch(() => {
+      prompt('Скопируйте ссылку на профиль:', url);
     });
-  } catch (e) {}
-
-  if (Array.isArray(shoot.crew)) {
-    const member = shoot.crew.find(c => c.userId === studentId || c.id === studentId || (c.user && c.user.id === studentId));
-    if (member) {
-      member.attendance = 'PRESENT';
-      member.status = 'ACCEPTED';
-      showToast('Участник ' + (member.user ? member.user.fullName : studentId) + ' отмечен на площадке!');
-    }
-  }
-  openQrCheckinModal(shootId);
-  renderShootsList(globalShoots);
-}
-
-function handleQrCheckinSubmit() {
-  const input = document.getElementById('qrCheckinInput');
-  const code = input ? input.value.trim() : '';
-  if (!code) {
-    showToast('Введите ID или отсканируйте QR-пропуск');
-    return;
-  }
-  let studentId = code;
-  if (code.startsWith('KP11-PASS:')) {
-    const parts = code.split(':');
-    studentId = parts[1];
-  }
-  if (activeQrCheckinShootId) {
-    handleQrCheckinDirect(activeQrCheckinShootId, studentId);
+  } else {
+    prompt('Скопируйте ссылку на профиль:', url);
   }
 }
+window.copyMyProfileLink = copyMyProfileLink;
 
 function openCompetencyModal(shootId, crewMemberId, craftRole, userName) {
   activeCompetencyData = { shootId, crewMemberId, craftRole, userName, scores: [5, 5, 5] };
@@ -3698,8 +3838,12 @@ function getSelectedCrewMap() {
   const map = {};
   const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
   checkboxes.forEach(cb => {
-    const select = document.querySelector('select[name="craftRole_' + cb.value + '"]');
-    map[cb.value] = select ? select.value : 'Оператор';
+    const roleInp = document.querySelector('input[name="customRole_' + cb.value + '"]');
+    const deptSel = document.querySelector('select[name="craftDept_' + cb.value + '"]');
+    map[cb.value] = {
+      role: (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : 'Оператор',
+      dept: deptSel ? deptSel.value : 'cinema'
+    };
   });
   return map;
 }
@@ -3831,8 +3975,10 @@ function renderModalStudents(students, preserveSelections = true) {
 
   box.innerHTML = list.map(s => {
     const isBlacklisted = !!s.isBlacklisted;
-    const isChecked = currentSelections[s.id] !== undefined;
-    const currentRole = currentSelections[s.id] || 'Оператор';
+    const selectedItem = currentSelections[s.id] || null;
+    const isChecked = selectedItem !== null;
+    const currentRole = selectedItem ? selectedItem.role : (s.craftRank || 'Оператор');
+    const currentDept = selectedItem ? selectedItem.dept : (s.craftDept || 'cinema');
     const likesCount = s.likes || 0;
     const dislikesCount = s.dislikes || 0;
 
@@ -3844,8 +3990,8 @@ function renderModalStudents(students, preserveSelections = true) {
       ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600/70 bg-red-950/60 inline-flex items-center gap-1">⛔ ЧЁРНЫЙ СПИСОК</span>' 
       : '';
 
-    return '<div class="flex items-center justify-between p-2.5 border text-xs transition ' + rowBorder + '">' +
-      '<label class="flex items-center space-x-2.5 cursor-pointer flex-grow select-none">' +
+    return '<div class="p-2.5 border text-xs space-y-2 transition ' + rowBorder + '">' +
+      '<label class="flex items-center space-x-2.5 cursor-pointer select-none">' +
         '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
           '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + (s.fullName || 'Без имени') + '</span>' +
@@ -3857,15 +4003,23 @@ function renderModalStudents(students, preserveSelections = true) {
           blacklistBadge +
         '</div>' +
       '</label>' +
-      '<select name="craftRole_' + s.id + '" class="studio-input text-xs font-bold px-2 py-1 ml-2">' +
-        '<option value="Оператор"' + (currentRole === 'Оператор' ? ' selected' : '') + '>Оператор</option>' +
-        '<option value="Звукорежиссёр"' + (currentRole === 'Звукорежиссёр' ? ' selected' : '') + '>Звукорежиссёр</option>' +
-        '<option value="Осветитель"' + (currentRole === 'Осветитель' ? ' selected' : '') + '>Осветитель</option>' +
-        '<option value="Монтажёр"' + (currentRole === 'Монтажёр' ? ' selected' : '') + '>Монтажёр</option>' +
-        '<option value="Гаффер"' + (currentRole === 'Гаффер' ? ' selected' : '') + '>Гаффер</option>' +
-        '<option value="Режиссёр"' + (currentRole === 'Режиссёр' ? ' selected' : '') + '>Режиссёр</option>' +
-        '<option value="Продюсер"' + (currentRole === 'Продюсер' ? ' selected' : '') + '>Продюсер</option>' +
-      '</select>' +
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">' +
+        '<div>' +
+          '<label class="text-[9px] font-mono text-[var(--text-muted)] uppercase block mb-0.5">Индивидуальная роль:</label>' +
+          '<input type="text" name="customRole_' + s.id + '" value="' + currentRole + '" placeholder="Своя роль (напр. Фокус-пуллер)" class="studio-input text-xs px-2.5 py-1 w-full">' +
+        '</div>' +
+        '<div>' +
+          '<label class="text-[9px] font-mono text-[var(--text-muted)] uppercase block mb-0.5">Цех (цветная окантовка):</label>' +
+          '<select name="craftDept_' + s.id + '" class="studio-input text-xs font-bold px-2 py-1 w-full">' +
+            '<option value="cinema"' + (currentDept === 'cinema' ? ' selected' : '') + '>🎬 Операторский цех (красная окантовка)</option>' +
+            '<option value="sound"' + (currentDept === 'sound' ? ' selected' : '') + '>🎙️ Звуковой цех (янтарная окантовка)</option>' +
+            '<option value="light"' + (currentDept === 'light' ? ' selected' : '') + '>💡 Осветительский цех (золотая окантовка)</option>' +
+            '<option value="edit"' + (currentDept === 'edit' ? ' selected' : '') + '>✂️ Монтажный цех (изумрудная окантовка)</option>' +
+            '<option value="prod"' + (currentDept === 'prod' ? ' selected' : '') + '>📋 Продюсерский цех (синяя окантовка)</option>' +
+            '<option value="art"' + (currentDept === 'art' ? ' selected' : '') + '>🎨 Художественный цех (терракотовая окантовка)</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -3904,8 +4058,11 @@ async function handleCreateShoot(e) {
   const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
   const crewAssignments = Array.from(checkboxes).map(cb => {
     const userId = cb.value;
-    const select = document.querySelector('select[name="craftRole_' + userId + '"]');
-    return { userId, craftRole: select ? select.value : 'Оператор' };
+    const roleInp = document.querySelector('input[name="customRole_' + userId + '"]');
+    const deptSel = document.querySelector('select[name="craftDept_' + userId + '"]');
+    const craftRole = (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : 'Оператор';
+    const department = deptSel ? deptSel.value : 'cinema';
+    return { userId, craftRole, department };
   });
 
   const titleEl = document.getElementById('shootTitle');
@@ -4029,6 +4186,7 @@ async function handleCreateShoot(e) {
         return {
           id: 'c-' + Date.now() + '-' + idx,
           roleInShoot: ca.craftRole,
+          department: ca.department || 'cinema',
           status: 'PENDING',
           attendance: 'PRESENT',
           userId: ca.userId,
@@ -4824,31 +4982,34 @@ function getShootLiveStatus(s) {
     return {
       code: 'ARCHIVED',
       label: 'В АРХИВЕ // ЗАВЕРШЕНО',
-      badgeClass: 'badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5',
+      badgeClass: 'badge-completed text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono',
       dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>',
       filmMarker: '<span class="film-slate-tag">■ WRAP</span>',
-      isLive: false
+      isLive: false,
+      isUpcoming: false,
+      isFinished: true
     };
   }
 
   const now = new Date();
-  const dateStr = (s.date && s.date.includes('T')) ? s.date.split('T')[0] : s.date;
   const callTimeStr = s.callTime || '10:00';
   const startTimeStr = s.startTime || '11:30';
   const endTimeStr = s.endTime || '18:00';
 
-  const callDate = new Date(dateStr + 'T' + callTimeStr + ':00');
-  const startDate = new Date(dateStr + 'T' + startTimeStr + ':00');
-  const endDate = new Date(dateStr + 'T' + endTimeStr + ':00');
+  const callDate = parseShootDateTime(s.date, callTimeStr);
+  const startDate = parseShootDateTime(s.date, startTimeStr);
+  const endDate = parseShootEndDateTime(s.date, endTimeStr, startTimeStr);
 
-  if (isNaN(callDate.getTime())) {
+  if (!callDate || isNaN(callDate.getTime())) {
     return {
       code: 'PLANNED',
       label: 'ЗАПЛАНИРОВАНО',
       badgeClass: 'badge-neutral text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono',
       dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>',
       filmMarker: '<span class="rec-pulse-badge">● СКОРО</span>',
-      isLive: false
+      isLive: false,
+      isUpcoming: true,
+      isFinished: false
     };
   }
 
@@ -4859,16 +5020,20 @@ function getShootLiveStatus(s) {
       badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-neutral-300 bg-neutral-900 border border-neutral-700',
       dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>',
       filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-neutral-400 border-neutral-700 bg-neutral-900">⏳ СБОР В ' + callTimeStr + '</span>',
-      isLive: false
+      isLive: false,
+      isUpcoming: true,
+      isFinished: false
     };
   } else if (now >= callDate && now < startDate) {
     return {
       code: 'CALL_TIME',
-      label: 'СБОР ГРУППЫ // ПОДГОТОВКА',
-      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-amber-300 bg-amber-950/70 border border-amber-600',
+      label: '⚡ СБОР ГРУППЫ // ПОДГОТОВКА',
+      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-amber-300 bg-amber-950/70 border border-amber-600 shadow-[0_0_8px_rgba(245,158,11,0.4)] animate-pulse',
       dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>',
       filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-amber-300 border-amber-600 bg-amber-950/60 animate-pulse">⚡ ПОДГОТОВКА</span>',
-      isLive: false
+      isLive: true,
+      isUpcoming: false,
+      isFinished: false
     };
   } else if (now >= startDate && now <= endDate) {
     return {
@@ -4877,16 +5042,20 @@ function getShootLiveStatus(s) {
       badgeClass: 'badge-rec text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-extrabold text-red-400 bg-red-950/90 border border-red-600 shadow-[0_0_12px_rgba(227,6,19,0.6)] animate-pulse',
       dotHtml: '<span class="rec-dot"></span>',
       filmMarker: '<span class="rec-pulse-badge">● ON AIR // 24FPS</span>',
-      isLive: true
+      isLive: true,
+      isUpcoming: false,
+      isFinished: false
     };
   } else {
     return {
-      code: 'FINISHED_PENDING',
-      label: 'ЗАКОНЧЕНА // ОЖИДАЕТ ОЦЕНОК',
-      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-yellow-300 bg-yellow-950/60 border border-yellow-600',
-      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>',
-      filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-yellow-300 border-yellow-600 bg-yellow-950/60">🏁 ЗАКОНЧЕНА</span>',
-      isLive: false
+      code: 'FINISHED',
+      label: '🏁 СМЕНА ЗАВЕРШЕНА',
+      badgeClass: 'text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1.5 font-mono font-bold text-neutral-400 bg-neutral-900/80 border border-neutral-700',
+      dotHtml: '<span class="w-1.5 h-1.5 rounded-full bg-neutral-500"></span>',
+      filmMarker: '<span class="text-[9px] font-mono px-1.5 py-0.5 border text-neutral-400 border-neutral-700 bg-neutral-900">🏁 ЗАВЕРШЕНА</span>',
+      isLive: false,
+      isUpcoming: false,
+      isFinished: true
     };
   }
 }
@@ -4921,19 +5090,67 @@ function renderShootsList(shoots = globalShoots) {
   if (!container) return;
 
   const allShoots = Array.isArray(shoots) ? shoots : [];
-  const activeShoots = allShoots.filter(s => !s.isCompleted);
-  const archivedShoots = allShoots.filter(s => s.isCompleted);
+  
+  // 1. Деление на явно завершённые в архив и смены в производственном цикле
+  const archivedShoots = allShoots.filter(s => !!s.isCompleted);
+  const unarchivedShoots = allShoots.filter(s => !s.isCompleted);
 
-  // Сортировка для текущего студента: смены, в которых он участвует, идут В САМОМ ВЕРХУ
-  if (currentUser) {
-    activeShoots.sort((a, b) => {
+  // 2. Распределение активных смен по трём строгим уровням приоритета:
+  //    Уровень 1: Съёмки, идущие прямо сейчас (Live / ON AIR / сбор)
+  //    Уровень 2: Ближайшие будущие съёмки (Upcoming, сортировка от ближней по времени к дальней)
+  //    Уровень 3: Завершённые смены (Finished, сортировка по дате и времени от недавних)
+  const nowShoots = [];
+  const upcomingShoots = [];
+  const finishedShoots = [];
+
+  unarchivedShoots.forEach(s => {
+    const status = getShootLiveStatus(s);
+    if (status.isLive) {
+      nowShoots.push(s);
+    } else if (status.isUpcoming) {
+      upcomingShoots.push(s);
+    } else {
+      finishedShoots.push(s);
+    }
+  });
+
+  // Сортировка уровня 1 (Идут сейчас):
+  // Если авторизован пользователь и он участник этой съёмки, она выше
+  nowShoots.sort((a, b) => {
+    if (currentUser) {
       const aMine = a.crew && a.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
       const bMine = b.crew && b.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id);
       if (aMine && !bMine) return -1;
       if (!aMine && bMine) return 1;
-      return new Date(a.date) - new Date(b.date);
-    });
-  }
+    }
+    const aTime = (parseShootDateTime(a.date, a.startTime || a.callTime) || 0).valueOf();
+    const bTime = (parseShootDateTime(b.date, b.startTime || b.callTime) || 0).valueOf();
+    return aTime - bTime;
+  });
+
+  // Сортировка уровня 2 (Ближайшие будущие съёмки: от ближней по времени до дальней хронологически):
+  upcomingShoots.sort((a, b) => {
+    const aTime = (parseShootDateTime(a.date, a.callTime || a.startTime) || 0).valueOf();
+    const bTime = (parseShootDateTime(b.date, b.callTime || b.startTime) || 0).valueOf();
+    return aTime - bTime;
+  });
+
+  // Сортировка уровня 3 (Завершённые смены: по дате и времени, самые свежие первыми):
+  finishedShoots.sort((a, b) => {
+    const aTime = (parseShootEndDateTime(a.date, a.endTime, a.startTime) || 0).valueOf();
+    const bTime = (parseShootEndDateTime(b.date, b.endTime, b.startTime) || 0).valueOf();
+    return bTime - aTime;
+  });
+
+  // Объединяем в строгом порядке, требуемом пользователем
+  const activeShoots = [...nowShoots, ...upcomingShoots, ...finishedShoots];
+
+  // Сортировка архивных смен (по дате и времени убывания)
+  archivedShoots.sort((a, b) => {
+    const aTime = (parseShootDateTime(a.date, a.endTime || a.startTime) || 0).valueOf();
+    const bTime = (parseShootDateTime(b.date, b.endTime || b.startTime) || 0).valueOf();
+    return bTime - aTime;
+  });
 
   const canDeleteShoot = isAdminUser(currentUser) || isMasterUser(currentUser);
   const canGradeAndManage = isMasterUser(currentUser);
@@ -5003,7 +5220,6 @@ function renderShootsList(shoots = globalShoots) {
 
   // Генератор карточки смены
   function renderShootCard(s, isArchive = false) {
-    const formattedDate = safeFormatDate(s.date);
     const locationText = s.location;
     const masterText = s.creator && s.creator.fullName ? s.creator.fullName : 'Не указан';
     const cardStateClass = s.isCompleted ? 'completed-shoot' : 'active-shoot';
@@ -5017,10 +5233,23 @@ function renderShootsList(shoots = globalShoots) {
 
     let deleteBtn = canDeleteShoot ? '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" class="btn-brand-ghost px-2 py-1 text-[10px] font-extrabold uppercase text-red-500 hover:bg-red-500/10 hover:border-red-500 transition flex items-center gap-1 cursor-pointer" title="Удалить смену"><svg class="w-3 h-3 text-red-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="pointer-events-none">Удалить</span></button>' : '';
 
-    // Кнопка QR Чек-ина для мастера/админа
-    let qrCheckinBtn = (isMasterOrAdminUser(currentUser) && !s.isCompleted) 
-      ? '<button onclick="openQrCheckinModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-cyan-400" title="QR Чек-ин участников на площадке"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg><span>QR Чек-ин</span></button>'
-      : '';
+    // Отдельный блок отображения даты смены
+    const parsedDateInfo = formatShootDateSeparate(s.date);
+    const separateDateBadge = '<div class="shoot-date-badge-box flex items-center justify-between p-2.5 px-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+      '<div class="flex items-center gap-2">' +
+        '<svg class="w-4 h-4 text-[var(--brand-red)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+          '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>' +
+          '<line x1="16" y1="2" x2="16" y2="6"/>' +
+          '<line x1="8" y1="2" x2="8" y2="6"/>' +
+          '<line x1="3" y1="10" x2="21" y2="10"/>' +
+        '</svg>' +
+        '<div class="flex flex-wrap items-baseline gap-x-2">' +
+          '<span class="text-xs sm:text-sm font-extrabold font-mono uppercase tracking-wide" style="color: var(--text-primary);">' + parsedDateInfo.dateText + '</span>' +
+          (parsedDateInfo.dayOfWeek ? '<span class="text-[11px] font-mono font-bold text-[var(--brand-beige-text)] uppercase">(' + parsedDateInfo.dayOfWeek + ')</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<span class="text-[10px] font-mono tracking-widest text-[var(--text-muted)] uppercase font-semibold">КАЛЕНДАРЬ СМЕНЫ</span>' +
+    '</div>';
 
     const crewList = s.crew || [];
     let crewHtml = '';
@@ -5085,26 +5314,12 @@ function renderShootsList(shoots = globalShoots) {
           attendanceSelect = '<span class="text-xs font-bold font-mono" style="color: ' + attColor + ';">' + attText + '</span>';
         }
 
-        let roleClass = 'dept-badge-art';
-        let roleSvg = SVG_ICONS.art;
-        const rUpper = (c.roleInShoot || '').toUpperCase();
-        if (rUpper.includes('ОПЕРАТОР') || rUpper.includes('КИНО') || rUpper.includes('РЕЖИСС')) {
-          roleClass = 'dept-badge-cinema';
-          roleSvg = SVG_ICONS.camera;
-        } else if (rUpper.includes('ЗВУК')) {
-          roleClass = 'dept-badge-sound';
-          roleSvg = SVG_ICONS.mic;
-        } else if (rUpper.includes('ГАФФЕР') || rUpper.includes('СВЕТ') || rUpper.includes('ОСВЕТ')) {
-          roleClass = 'dept-badge-light';
-          roleSvg = SVG_ICONS.light;
-        } else if (rUpper.includes('МОНТАЖ')) {
-          roleClass = 'dept-badge-edit';
-          roleSvg = SVG_ICONS.scissors;
-        }
+        // Окантовка карточки участника по цеху и бейдж
+        const deptCfg = getCraftDepartmentConfig(c.department, c.roleInShoot);
 
-        return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
+        return '<div class="crew-member-row ' + deptCfg.borderClass + ' p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
           '<div class="flex items-center flex-wrap gap-2">' +
-            '<span class="crew-dept-tag ' + roleClass + '"><span class="inline-flex items-center">' + roleSvg + c.roleInShoot + '</span></span>' +
+            '<span class="crew-dept-tag ' + deptCfg.badgeClass + '"><span class="inline-flex items-center">' + deptCfg.icon + ' ' + (c.roleInShoot || 'Участник') + '</span></span>' +
             '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + cUserName + '</span>' +
             '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
             myBadge +
@@ -5177,17 +5392,17 @@ function renderShootsList(shoots = globalShoots) {
           myShootHighlightBadge +
         '</div>' +
         '<div class="flex items-center flex-wrap gap-1.5 sm:gap-2 text-xs font-mono">' +
-          '<span class="font-semibold hidden sm:inline" style="color: var(--text-muted);">' + formattedDate + '</span>' +
           '<button onclick="openCallsheetModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1" title="Оперативный вызывной лист">' +
             SVG_ICONS.telegram +
             '<span>Вызывной</span>' +
           '</button>' +
-          qrCheckinBtn +
           equipmentBtn +
           '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
           deleteBtn +
         '</div>' +
       '</div>' +
+
+      separateDateBadge +
 
       '<div>' +
         '<h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">' + s.title + '</h4>' +
@@ -5205,9 +5420,8 @@ function renderShootsList(shoots = globalShoots) {
         '<div class="space-y-2 pt-1">' +
           '<div class="flex items-center justify-between">' +
             '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +
-            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">ОЦЕНКИ И ПОСЕЩАЕМОСТЬ</span>' +
+            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И ЦЕХА</span>' +
           '</div>' +
-          globalGradeControl +
           '<div class="space-y-1.5 mt-2">' + crewHtml + '</div>' +
           saveGradesBtn +
         '</div>' +
@@ -5265,7 +5479,36 @@ function renderShootsList(shoots = globalShoots) {
 
 window.renderShootsList = renderShootsList;
 
+// Фоновый таймер автообновления статусов смен в реальном времени (каждые 30 секунд)
+if (!window._shootStatusInterval) {
+  window._shootStatusInterval = setInterval(() => {
+    const shootsView = document.getElementById('viewShoots');
+    if (shootsView && !shootsView.classList.contains('hidden') && Array.isArray(globalShoots) && globalShoots.length > 0) {
+      renderShootsList(globalShoots);
+    }
+  }, 30000);
+}
+
 updateNav();
+
+// Обработка перехода по прямой ссылке с QR-кода на профиль пользователя (?user=...)
+const targetUserParam = urlParams.get('user');
+if (targetUserParam) {
+  setTimeout(() => {
+    if (currentUser && currentUser.id === targetUserParam) {
+      if (typeof switchTab === 'function') switchTab('portfolio');
+    } else {
+      if (typeof openAdminUserDossier === 'function') {
+        openAdminUserDossier(targetUserParam);
+      } else if (typeof switchTab === 'function') {
+        switchTab('reviews');
+        if (typeof selectStudentForReviews === 'function') {
+          selectStudentForReviews(targetUserParam);
+        }
+      }
+    }
+  }, 400);
+}
 
 if (urlParams.get('expand') === '1' && globalShoots && globalShoots[0]) {
   setTimeout(() => toggleShootExpand(globalShoots[0].id), 300);
@@ -5276,3 +5519,4 @@ if (urlParams.get('tab')) {
 if (urlParams.get('create') === '1') {
   setTimeout(() => openShootModal(), 400);
 }
+

@@ -300,6 +300,7 @@ const server = http.createServer(async (req, res) => {
           return {
             id: `c-${shootId}-${idx + 1}`,
             roleInShoot: ca.craftRole || 'Специалист цеха',
+            department: ca.department || 'cinema',
             status: 'PENDING',
             attendance: 'PRESENT',
             userId: ca.userId,

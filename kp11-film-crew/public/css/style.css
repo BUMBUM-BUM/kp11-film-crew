@@ -660,6 +660,32 @@ body {
   border: 1px solid var(--dept-art);
 }
 
+.dept-badge-prod {
+  color: #60A5FA;
+  background-color: rgba(59, 130, 246, 0.18);
+  border: 1px solid #3B82F6;
+}
+
+/* Окантовка цехов в списке участников съёмки */
+.crew-dept-border-cinema {
+  border-left: 4px solid var(--dept-cinema) !important;
+}
+.crew-dept-border-sound {
+  border-left: 4px solid var(--dept-sound) !important;
+}
+.crew-dept-border-light {
+  border-left: 4px solid var(--dept-light) !important;
+}
+.crew-dept-border-edit {
+  border-left: 4px solid var(--dept-edit) !important;
+}
+.crew-dept-border-prod {
+  border-left: 4px solid #3B82F6 !important;
+}
+.crew-dept-border-art {
+  border-left: 4px solid var(--dept-art) !important;
+}
+
 /* Бейджи статусов */
 .badge-rec {
   background-color: var(--brand-red-subtle);

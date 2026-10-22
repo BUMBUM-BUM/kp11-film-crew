@@ -1,5 +1,346 @@
 [
   {
+    "id": "shoot-20261022-podcast",
+    "title": "Запись студийного подкаста «ЦКТ КП11» (Прямой эфир)",
+    "description": "22.10.2026 Студийная многокамерная запись авторского подкаста Медиацентра КП11 в 130 павильоне. Смольная 10А. Прямой эфир, работа эфирной аппаратной, запись чистового звука и видеоряда.",
+    "type": "СТУДИЯ",
+    "date": "2026-10-22",
+    "callTime": "18:00",
+    "startTime": "18:30",
+    "endTime": "23:59",
+    "location": "Смольная 10А, 130 павильон",
+    "latitude": 55.857321,
+    "longitude": 37.491244,
+    "isCompleted": false,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "timeline": [
+      {
+        "time": "18:00",
+        "title": "Сбор съёмочной группы, расстановка света и камер"
+      },
+      {
+        "time": "18:30",
+        "title": "🔴 Мотор! Старт многокамерной записи подкаста"
+      },
+      {
+        "time": "21:30",
+        "title": "Завершение записи, бэкап исходников на NAS"
+      },
+      {
+        "time": "23:59",
+        "title": "Сдача павильона 130, отчёт смены"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "Кинокамера Canon Cinema EOS C200 Kit EF",
+        "category": "Камеры"
+      },
+      {
+        "name": "Видеомикшер Blackmagic ATEM Television Studio Pro 4K",
+        "category": "Видеомикшеры"
+      },
+      {
+        "name": "Осветительный комплект Aputure Light Storm LS 300X",
+        "category": "Свет"
+      },
+      {
+        "name": "Аудиоинтерфейс Focusrite Scarlett 18i20",
+        "category": "Звук"
+      }
+    ],
+    "crew": [
+      {
+        "id": "c-pod22-1",
+        "userId": "u18",
+        "roleInShoot": "Продюсер эфира // Ответственный (@catmenmilota)",
+        "department": "prod",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u18",
+          "fullName": "Чернышов Артем Андреевич",
+          "groupName": "КТ-24",
+          "rating": 4.9,
+          "telegram": "@catmenmilota",
+          "craftRank": "Ответственный за смену // Production Lead"
+        }
+      },
+      {
+        "id": "c-pod22-2",
+        "userId": "u5",
+        "roleInShoot": "Оператор-постановщик // 1-я камера (@yaroslav_dop)",
+        "department": "cinema",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u5",
+          "fullName": "Жемчужников Ярослав Станиславович",
+          "groupName": "КТ-25",
+          "rating": 4.9,
+          "telegram": "@yaroslav_dop",
+          "craftRank": "Оператор-постановщик // Master DOP"
+        }
+      },
+      {
+        "id": "c-pod22-3",
+        "userId": "u17",
+        "roleInShoot": "Звукорежиссёр прямого эфира (@gleb_badyul)",
+        "department": "sound",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u17",
+          "fullName": "Бадюл Глеб",
+          "groupName": "МЗМ-23",
+          "rating": 4.8,
+          "telegram": "@gleb_badyul",
+          "craftRank": "Звукорежиссер // Sound Engineer"
+        }
+      },
+      {
+        "id": "c-pod22-4",
+        "userId": "u19",
+        "roleInShoot": "Видеоинженер эфира (кнопки) (@Mila13B)",
+        "department": "light",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u19",
+          "fullName": "Байрикова Миланья Робертовна",
+          "groupName": "КТ-27",
+          "rating": 4.7,
+          "telegram": "@Mila13B",
+          "craftRank": "Видеоинженер эфира (кнопки) // Video Switcher"
+        }
+      },
+      {
+        "id": "c-pod22-5",
+        "userId": "u15",
+        "roleInShoot": "Режиссер оперативного монтажа (@polina_gudukina)",
+        "department": "edit",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u15",
+          "fullName": "Гудухина Полина Евгеньевна",
+          "groupName": "КТ-16",
+          "rating": 4.9,
+          "telegram": "@polina_gudukina",
+          "craftRank": "Режиссер монтажа // Lead Editor"
+        }
+      }
+    ]
+  },
+  {
+    "id": "shoot-20261023-docfilm",
+    "title": "Выездная экспедиция: Документальный фильм «Мастера КП11»",
+    "description": "23.10.2026 Выездная натурная съёмка документального фильма. Локация: Парк Дружбы / Северный речной вокзал. Сбор группы в 10:00, мотор в 11:00, окончание в 18:00.",
+    "type": "ВЫЕЗД",
+    "date": "2026-10-23",
+    "callTime": "10:00",
+    "startTime": "11:00",
+    "endTime": "18:00",
+    "location": "Парк Дружбы (м. Речной Вокзал)",
+    "latitude": 55.858244,
+    "longitude": 37.518423,
+    "isCompleted": false,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "timeline": [
+      {
+        "time": "10:00",
+        "title": "Сбор съёмочной группы на локации, проверка оборудования"
+      },
+      {
+        "time": "11:00",
+        "title": "Мотор! Натурные кадры, проходки, интервью на открытом воздухе"
+      },
+      {
+        "time": "15:00",
+        "title": "Перерыв на обед, отсмотр материала"
+      },
+      {
+        "time": "18:00",
+        "title": "Окончание съёмочной смены, сдача оборудования в ЦКТ"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "Кинокамера Canon Cinema EOS C200 Kit EF",
+        "category": "Камеры"
+      },
+      {
+        "name": "Комплект светодиодных панелей Aputure Nova P300c",
+        "category": "Свет"
+      },
+      {
+        "name": "Беспроводной микрофонный комплект Sennheiser EW 100 G4",
+        "category": "Звук"
+      }
+    ],
+    "crew": [
+      {
+        "id": "c-doc23-1",
+        "userId": "u5",
+        "roleInShoot": "Оператор-постановщик // Натура (@yaroslav_dop)",
+        "department": "cinema",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u5",
+          "fullName": "Жемчужников Ярослав Станиславович",
+          "groupName": "КТ-25",
+          "rating": 4.9,
+          "telegram": "@yaroslav_dop",
+          "craftRank": "Оператор-постановщик // Master DOP"
+        }
+      },
+      {
+        "id": "c-doc23-2",
+        "userId": "u11",
+        "roleInShoot": "Линейный продюсер экспедиции (@werimer)",
+        "department": "prod",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u11",
+          "fullName": "Борзых Ульяна Владимировна",
+          "groupName": "КТ-25",
+          "rating": 4.9,
+          "telegram": "@werimer",
+          "craftRank": "Линейный продюсер // Production Manager"
+        }
+      },
+      {
+        "id": "c-doc23-3",
+        "userId": "u12",
+        "roleInShoot": "Камерный оператор // Ronin Gimbal",
+        "department": "cinema",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u12",
+          "fullName": "Шахбазянц Клим Рубенович",
+          "groupName": "КТ-11",
+          "rating": 4.7,
+          "telegram": "@klim_shakh",
+          "craftRank": "Камерный оператор // Camera Operator"
+        }
+      },
+      {
+        "id": "c-doc23-4",
+        "userId": "u17",
+        "roleInShoot": "Полевой звукооператор (бум / петлицы)",
+        "department": "sound",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u17",
+          "fullName": "Бадюл Глеб",
+          "groupName": "МЗМ-23",
+          "rating": 4.8,
+          "telegram": "@gleb_badyul",
+          "craftRank": "Звукорежиссер // Sound Engineer"
+        }
+      }
+    ]
+  },
+  {
+    "id": "shoot-20261024-interview",
+    "title": "Спецпроект: Серия интервью с выпускниками ЦКТ",
+    "description": "24.10.2026 Студийные съёмки серии интервью. 130 павильон Смольная 10А. Портретный свет, 3 камеры 4K, телесуфлёр.",
+    "type": "СТУДИЯ",
+    "date": "2026-10-24",
+    "callTime": "12:00",
+    "startTime": "13:00",
+    "endTime": "17:00",
+    "location": "Смольная 10А, 130 павильон",
+    "latitude": 55.857321,
+    "longitude": 37.491244,
+    "isCompleted": false,
+    "creator": {
+      "fullName": "Бадиков Семён Станиславович"
+    },
+    "timeline": [
+      {
+        "time": "12:00",
+        "title": "Вызывной: постановка студийного рисунка света"
+      },
+      {
+        "time": "13:00",
+        "title": "Мотор! Спикер №1 и №2"
+      },
+      {
+        "time": "17:00",
+        "title": "Окончание записи, сдача павильона"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "Кинокамера Canon Cinema EOS C200 Kit EF",
+        "category": "Камеры"
+      },
+      {
+        "name": "Студийный телесуфлер Datavideo TP-650",
+        "category": "Студия"
+      }
+    ],
+    "crew": [
+      {
+        "id": "c-int24-1",
+        "userId": "u18",
+        "roleInShoot": "Ответственный за смену // Режиссёр (@catmenmilota)",
+        "department": "prod",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u18",
+          "fullName": "Чернышов Артем Андреевич",
+          "groupName": "КТ-24",
+          "rating": 4.9,
+          "telegram": "@catmenmilota",
+          "craftRank": "Ответственный за смену // Production Lead"
+        }
+      },
+      {
+        "id": "c-int24-2",
+        "userId": "u13",
+        "roleInShoot": "Ассистент оператора // 1st AC",
+        "department": "cinema",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u13",
+          "fullName": "Данилова Варвара Васильевна",
+          "groupName": "КТ-11",
+          "rating": 4.6,
+          "telegram": "@varvara_danilova",
+          "craftRank": "Ассистент оператора // 1st AC"
+        }
+      },
+      {
+        "id": "c-int24-3",
+        "userId": "u9",
+        "roleInShoot": "Режиссер монтажа // DIT станция",
+        "department": "edit",
+        "status": "ACCEPTED",
+        "attendance": "PRESENT",
+        "user": {
+          "id": "u9",
+          "fullName": "Сафиулина Дарья Александровна",
+          "groupName": "КТ-23",
+          "rating": 4.8,
+          "telegram": "@IifasDasha",
+          "craftRank": "Режиссер монтажа // Lead Editor"
+        }
+      }
+    ]
+  },
+  {
     "id": "shoot-20261019-zoom",
     "title": "Проект «Зумеры». Монтаж (19 октября)",
     "description": "19.10.2026 10.00-21.00 Смольная 10А. Проект \"Зумеры\". Монтаж. Сафиулина Дарья Александровна (@IifasDasha, КТ-23), Воронова Кристина Константиновна (@eeesoxlevoi, КТ-25), Борзых Ульяна Владимировна (@werimer, КТ-25).",
@@ -63,7 +404,8 @@
           ],
           "telegram": "@IifasDasha",
           "craftRank": "Режиссер монтажа // Lead Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-zoom19-2",
@@ -84,7 +426,8 @@
           ],
           "telegram": "@eeesoxlevoi",
           "craftRank": "Монтажер // Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-zoom19-3",
@@ -105,7 +448,8 @@
           ],
           "telegram": "@werimer",
           "craftRank": "Линейный продюсер // Production Manager"
-        }
+        },
+        "department": "edit"
       }
     ]
   },
@@ -165,7 +509,8 @@
           ],
           "telegram": "@IifasDasha",
           "craftRank": "Режиссер монтажа // Lead Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-zoom20-2",
@@ -186,7 +531,8 @@
           ],
           "telegram": "@eeesoxlevoi",
           "craftRank": "Монтажер // Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-zoom20-3",
@@ -207,7 +553,8 @@
           ],
           "telegram": "@werimer",
           "craftRank": "Линейный продюсер // Production Manager"
-        }
+        },
+        "department": "edit"
       }
     ]
   },
@@ -275,7 +622,8 @@
           ],
           "telegram": "@yaroslav_dop",
           "craftRank": "Оператор-постановщик // Master DOP"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-mus20-2",
@@ -296,7 +644,8 @@
           ],
           "telegram": "@werimer",
           "craftRank": "Линейный продюсер // Production Manager"
-        }
+        },
+        "department": "prod"
       },
       {
         "id": "c-mus20-3",
@@ -317,7 +666,8 @@
           ],
           "telegram": "@klim_shakh",
           "craftRank": "Камерный оператор // Camera Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-mus20-4",
@@ -338,7 +688,8 @@
           ],
           "telegram": "@varvara_danilova",
           "craftRank": "Ассистент оператора // 1st AC"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-mus20-5",
@@ -359,7 +710,8 @@
           ],
           "telegram": "@diana_tambieva",
           "craftRank": "Универсал цеха // Multi-Craft Specialist"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-mus20-6",
@@ -380,7 +732,8 @@
           ],
           "telegram": "@polina_gudukina",
           "craftRank": "Режиссер монтажа // Lead Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-mus20-7",
@@ -401,7 +754,8 @@
           ],
           "telegram": "@ekaterina_solomatnikova",
           "craftRank": "Монтажер // Editor"
-        }
+        },
+        "department": "edit"
       }
     ]
   },
@@ -469,7 +823,8 @@
           ],
           "telegram": "@polina_gudukina",
           "craftRank": "Режиссер монтажа // Lead Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-mus21-2",
@@ -490,7 +845,8 @@
           ],
           "telegram": "@ekaterina_solomatnikova",
           "craftRank": "Монтажер // Editor"
-        }
+        },
+        "department": "edit"
       },
       {
         "id": "c-mus21-3",
@@ -511,7 +867,8 @@
           ],
           "telegram": "@gleb_badyul",
           "craftRank": "Звукорежиссер // Sound Engineer"
-        }
+        },
+        "department": "sound"
       }
     ]
   },
@@ -587,7 +944,8 @@
           ],
           "telegram": "@catmenmilota",
           "craftRank": "Ответственный за смену // Production Lead"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-2",
@@ -607,7 +965,8 @@
           ],
           "telegram": "@Mila13B",
           "craftRank": "Видеоинженер эфира (кнопки) // Video Switcher Operator"
-        }
+        },
+        "department": "light"
       },
       {
         "id": "c-tochka-3",
@@ -628,7 +987,8 @@
           ],
           "telegram": "@verystupidman",
           "craftRank": "Камерный оператор // Camera Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-4",
@@ -649,7 +1009,8 @@
           ],
           "telegram": "@inkyliric",
           "craftRank": "Камерный оператор // Camera Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-5",
@@ -670,7 +1031,8 @@
           ],
           "telegram": "@monvayr",
           "craftRank": "Камерный оператор // Camera Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-6",
@@ -691,7 +1053,8 @@
           ],
           "telegram": "@z1ma41",
           "craftRank": "Камерный оператор // Camera Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-7",
@@ -712,7 +1075,8 @@
           ],
           "telegram": "@yaroslav7sharets",
           "craftRank": "Камерный оператор // Camera Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-8",
@@ -733,7 +1097,8 @@
           ],
           "telegram": "@MoosePunkRock",
           "craftRank": "Звукооператор // Sound Operator"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-9",
@@ -754,7 +1119,8 @@
           ],
           "telegram": "@anastasia_salomatova",
           "craftRank": "Ассистент оператора // 2nd AC"
-        }
+        },
+        "department": "cinema"
       },
       {
         "id": "c-tochka-10",
@@ -774,7 +1140,8 @@
           ],
           "telegram": "@ksenia_kolesnikova",
           "craftRank": "Ассистент оператора // 2nd AC"
-        }
+        },
+        "department": "cinema"
       }
     ]
   }
