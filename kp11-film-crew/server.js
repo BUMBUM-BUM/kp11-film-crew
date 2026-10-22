@@ -1640,7 +1640,26 @@ app.post('/api/telegram/webhook', async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error('Ошибка обработки Telegram Webhook:', err.message);
-    res.sendStatus(500);
+    res.sendStatus(200);
+  }
+});
+
+app.get('/api/telegram/webhook/info', async (req, res) => {
+  try {
+    const info = await telegramBot.getWebhookInfo();
+    res.json(info);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/telegram/webhook/setup', optionalAuthToken, async (req, res) => {
+  try {
+    const publicUrl = req.body?.url || process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || 'https://kp11-film-crew.onrender.com';
+    const result = await telegramBot.setupWebhook(publicUrl);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1745,7 +1764,15 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Production server running on port ${PORT}`);
   if (process.env.TELEGRAM_BOT_TOKEN) {
-    telegramBot.startPolling();
+    const publicUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || 'https://kp11-film-crew.onrender.com';
+    if (publicUrl && !process.env.FORCE_POLLING) {
+      console.log(`[Telegram Bot] Подключение Webhook к ${publicUrl}...`);
+      telegramBot.setupWebhook(publicUrl).catch(e => console.error('[Server Webhook Error]', e.message));
+    } else {
+      telegramBot.startPolling();
+    }
+    // Запуск личных напоминаний за 15 минут до сбора и мотора
+    telegramBot.startMilestoneNotifier();
   } else {
     console.log('[Telegram Bot] Токен не задан. Бот работает в режиме автономного эмулятора API.');
   }

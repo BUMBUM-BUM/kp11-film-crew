@@ -1978,7 +1978,7 @@ function openShowreelModal(userId) {
       '</div>' +
       '<div class="min-w-0 flex-grow">' +
         '<div class="flex items-center justify-between mb-1">' +
-          '<span class="gaffer-tape-sticker">ДОСЬЕ УЧАСТНИКА // АДМИН-ПАНЕЛЬ</span>' +
+          '<span class="gaffer-tape-sticker">ЦИФРОВОЙ ПАСПОРТ // ПОРТФОЛИО СТУДЕНТА</span>' +
           '<span class="text-[10px] font-mono text-[#229ED9] font-bold">' + (student.telegram || '—') + '</span>' +
         '</div>' +
         '<h3 class="text-sm sm:text-base font-extrabold uppercase leading-tight truncate" style="color: var(--text-primary);">' + student.fullName + '</h3>' +
@@ -2018,12 +2018,21 @@ function openShowreelModal(userId) {
     '</div>' +
 
     '<div class="pt-2 border-t flex flex-col sm:flex-row gap-2" style="border-color: var(--border-color);">' +
-      '<button onclick="openAdminUserFullEditModal(\'' + student.id + '\'); closeShowreelModal();" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-beige">' +
-        '✎ Редактировать профиль' +
-      '</button>' +
-      '<button onclick="closeShowreelModal()" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-primary">' +
-        'Закрыть' +
-      '</button>' +
+      ((currentUser && (currentUser.role === 'admin' || currentUser.role === 'master' || currentUser.role === 'teacher')) ? (
+        '<button onclick="openAdminUserFullEditModal(\'' + student.id + '\'); closeShowreelModal();" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-beige">' +
+          '✎ Редактировать профиль' +
+        '</button>' +
+        '<button onclick="closeShowreelModal()" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-primary">' +
+          'Закрыть' +
+        '</button>'
+      ) : (
+        '<div class="flex-1 py-2 text-[11px] font-mono font-bold text-center border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 flex items-center justify-center gap-1.5">' +
+          '<span>✓</span> АККРЕДИТАЦИЯ ВЕРИФИЦИРОВАНА // ЦКТ КП11' +
+        '</div>' +
+        '<button onclick="closeShowreelModal()" class="flex-1 py-2 text-xs font-extrabold uppercase btn-brand-primary">' +
+          'Закрыть' +
+        '</button>'
+      )) +
     '</div>';
 
   modal.classList.remove('hidden');
@@ -5494,20 +5503,21 @@ updateNav();
 // Обработка перехода по прямой ссылке с QR-кода на профиль пользователя (?user=...)
 const targetUserParam = urlParams.get('user');
 if (targetUserParam) {
-  setTimeout(() => {
-    if (currentUser && currentUser.id === targetUserParam) {
-      if (typeof switchTab === 'function') switchTab('portfolio');
-    } else {
-      if (typeof openAdminUserDossier === 'function') {
-        openAdminUserDossier(targetUserParam);
-      } else if (typeof switchTab === 'function') {
-        switchTab('reviews');
-        if (typeof selectStudentForReviews === 'function') {
-          selectStudentForReviews(targetUserParam);
-        }
+  let attempts = 0;
+  const tryOpenUserPortfolio = () => {
+    attempts++;
+    const allKnown = (globalStudents && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+    const found = allKnown.find(s => s.id === targetUserParam) ||
+                  (globalAdminUsers || []).find(u => u.id === targetUserParam);
+    if (found || attempts > 10) {
+      if (typeof openShowreelModal === 'function') {
+        openShowreelModal(targetUserParam);
       }
+    } else {
+      setTimeout(tryOpenUserPortfolio, 200);
     }
-  }, 400);
+  };
+  setTimeout(tryOpenUserPortfolio, 300);
 }
 
 if (urlParams.get('expand') === '1' && globalShoots && globalShoots[0]) {

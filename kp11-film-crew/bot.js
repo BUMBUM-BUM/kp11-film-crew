@@ -845,9 +845,148 @@ function stopPolling() {
   console.log('[KP11 Bot] Polling остановлен.');
 }
 
+// ------------------------------------------------------------------------------
+// WEBHOOK МЕХАНИЗМ (ДЛЯ RENDER / SERVER DEPLOYMENT)
+// ------------------------------------------------------------------------------
+async function setupWebhook(baseUrl) {
+  const token = getBotToken();
+  if (!token) {
+    console.log('[KP11 Bot Webhook] Токен не настроен, вебхук пропущен.');
+    return { ok: false, error: 'Токен бота не настроен' };
+  }
+
+  stopPolling();
+  const cleanUrl = String(baseUrl).replace(/\/+$/, '');
+  const webhookUrl = `${cleanUrl}/api/telegram/webhook`;
+  console.log(`[KP11 Bot Webhook] Регистрация Webhook: ${webhookUrl}...`);
+  const res = await callTelegramApi('setWebhook', {
+    url: webhookUrl,
+    allowed_updates: ['message', 'callback_query']
+  });
+  console.log(`[KP11 Bot Webhook] Результат setWebhook:`, res);
+  return res;
+}
+
+async function getWebhookInfo() {
+  return callTelegramApi('getWebhookInfo');
+}
+
+// ------------------------------------------------------------------------------
+// АВТОМАТИЧЕСКИЕ НАПОМИНАНИЯ ЗА 15 МИНУТ ДО СБОРА И МОТОРА В ЛИЧНЫЕ СООБЩЕНИЯ
+// ------------------------------------------------------------------------------
+const sentMilestoneReminders = new Set();
+let milestoneInterval = null;
+
+function parseShootDateTimeMsk(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  const dPart = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+  const tPart = timeStr.trim();
+  const isoWithTz = `${dPart}T${tPart.length === 5 ? tPart + ':00' : tPart}+03:00`;
+  const time = Date.parse(isoWithTz);
+  return isNaN(time) ? null : time;
+}
+
+async function checkAndSendMilestoneReminders() {
+  try {
+    const token = getBotToken();
+    if (!token) return;
+
+    const shoots = store.getShoots ? store.getShoots() : [];
+    if (!Array.isArray(shoots) || shoots.length === 0) return;
+
+    const allUsers = store.getUsers ? store.getUsers() : [];
+    const settings = store.getSettings();
+    const now = Date.now();
+
+    for (const shoot of shoots) {
+      if (shoot.isCompleted) continue;
+      if (!shoot.crew || !Array.isArray(shoot.crew) || shoot.crew.length === 0) continue;
+
+      const milestones = [
+        { type: 'CALL', label: 'СБОР ГРУППЫ', time: shoot.callTime || '10:00' },
+        { type: 'START', label: 'МОТОР / НАЧАЛО СЪЁМОК', time: shoot.startTime || '10:30' }
+      ];
+
+      for (const ms of milestones) {
+        const targetMs = parseShootDateTimeMsk(shoot.date, ms.time);
+        if (!targetMs) continue;
+
+        const diffMinutes = (targetMs - now) / (60 * 1000);
+
+        // Проверяем окно: от 0 до 15.5 минут до наступления этапа
+        if (diffMinutes >= 0 && diffMinutes <= 15.5) {
+          for (const member of shoot.crew) {
+            const uId = member.userId || member.user?.id || member.id;
+            const reminderKey = `ms_${shoot.id}_${ms.type}_${uId}`;
+            if (sentMilestoneReminders.has(reminderKey)) continue;
+
+            const matchedUser = allUsers.find(u => u.id === uId) || member.user;
+            const tgChatId = matchedUser?.telegramChatId || (member.telegramChatId ? String(member.telegramChatId) : null);
+
+            // Отправляем ТОЛЬКО в личные сообщения участникам, у кого привязан Telegram
+            if (tgChatId) {
+              let text = '';
+              if (ms.type === 'CALL') {
+                text = `🎬 <b>НАПОМИНАНИЕ О СМЕНЕ // МЕДИАЦЕНТР КП11</b>\n\n` +
+                  `⏰ <b>Через 15 минут: СБОР ГРУППЫ (${ms.time})!</b>\n\n` +
+                  `📹 Проект: <b>«${escapeHtml(shoot.title)}»</b>\n` +
+                  `🎭 Ваша роль: <b>${escapeHtml(member.roleInShoot || 'Участник')}</b>\n` +
+                  `📍 Локация: <b>${escapeHtml(shoot.location || 'Площадка ЦКТ КП11')}</b>\n\n` +
+                  `<i>Пожалуйста, подтвердите готовность и не опаздывайте на площадку!</i>`;
+              } else {
+                text = `🔴 <b>ВНИМАНИЕ: ДО МОТОРА 15 МИНУТ! // МЕДИАЦЕНТР КП11</b>\n\n` +
+                  `🎬 <b>Старт съёмок (МОТОР) в ${ms.time}!</b>\n\n` +
+                  `📹 Проект: <b>«${escapeHtml(shoot.title)}»</b>\n` +
+                  `🎭 Ваша роль: <b>${escapeHtml(member.roleInShoot || 'Участник')}</b>\n` +
+                  `📍 Локация: <b>${escapeHtml(shoot.location || 'Площадка ЦКТ КП11')}</b>\n\n` +
+                  `<i>Готовность всех цехов номер один. Проверьте аппаратуру и чистовой звук!</i>`;
+              }
+
+              const res = await sendMessage(tgChatId, text, {
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: '📋 Открыть вызывной лист', url: `https://t.me/${settings.botUsername || 'KP11_FilmCrew_Bot'}?start=call_${shoot.id}` }
+                    ]
+                  ]
+                }
+              });
+
+              if (res && res.ok) {
+                console.log(`[KP11 Bot Milestones] Личное напоминание (${ms.type}) отправлено: ${matchedUser?.fullName || uId} (Chat ID: ${tgChatId})`);
+              }
+              sentMilestoneReminders.add(reminderKey);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[KP11 Bot Milestones Error]:', err.message);
+  }
+}
+
+function startMilestoneNotifier() {
+  if (milestoneInterval) return;
+  milestoneInterval = setInterval(checkAndSendMilestoneReminders, 30000);
+  console.log('[KP11 Bot] Запущен таймер личных напоминаний за 15 минут до сбора и мотора.');
+}
+
+function stopMilestoneNotifier() {
+  if (milestoneInterval) {
+    clearInterval(milestoneInterval);
+    milestoneInterval = null;
+  }
+}
+
 module.exports = {
   startPolling,
   stopPolling,
+  setupWebhook,
+  getWebhookInfo,
+  startMilestoneNotifier,
+  stopMilestoneNotifier,
+  checkAndSendMilestoneReminders,
   handleUpdate,
   sendMessage,
   sendLocation,
@@ -859,3 +998,4 @@ module.exports = {
 if (require.main === module) {
   startPolling();
 }
+
