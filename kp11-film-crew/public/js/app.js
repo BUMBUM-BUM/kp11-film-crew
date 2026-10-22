@@ -311,6 +311,7 @@ function updateNav() {
   const nav = document.getElementById('userNav');
   const tabAdminBtn = document.getElementById('tabAdminBtn');
   const tabPortfolioBtn = document.getElementById('tabPortfolioBtn');
+  const tabReviewsBtn = document.getElementById('tabReviewsBtn');
   const tabEquipmentBtn = document.getElementById('tabEquipmentBtn');
   const actionContainer = document.getElementById('actionButtonContainer');
 
@@ -318,6 +319,9 @@ function updateNav() {
 
   if (tabPortfolioBtn) {
     tabPortfolioBtn.classList.toggle('hidden', !currentUser);
+  }
+  if (tabReviewsBtn) {
+    tabReviewsBtn.classList.toggle('hidden', !isMasterOrAdminUser(currentUser));
   }
   if (tabEquipmentBtn) {
     tabEquipmentBtn.classList.toggle('hidden', !isMasterOrAdminUser(currentUser));
@@ -415,7 +419,7 @@ function renderGuestSidebar() {
         '</div>' +
       '</div>' +
       '<p class="text-xs font-medium leading-relaxed" style="color: #444;">' +
-        'Войдите со своим корпоративным аккаунтом для подтверждения вызовов цехов, оценивания работы на площадке и получения рейтинговых баллов.' +
+        'Войдите со своим корпоративным аккаунтом для подтверждения вызовов цехов, просмотра отзывов мастеров и личного кабинета.' +
       '</p>' +
       '<div class="pt-1 flex gap-2">' +
         '<button onclick="openModal(\'login\')" class="w-1/2 py-2 text-xs font-extrabold uppercase btn-brand-primary">Войти</button>' +
@@ -430,14 +434,21 @@ function renderGuestSidebar() {
 function switchTab(tab) {
   const isShoots = tab === 'shoots';
   const isMap = tab === 'map';
-  const isPortfolio = tab === 'portfolio';
+  const isPortfolio = tab === 'portfolio' || tab === 'cabinet';
+  const isReviews = tab === 'reviews';
   const isEquipment = tab === 'equipment';
   const isAdmin = tab === 'admin';
   const isStats = tab === 'stats';
 
   if (isPortfolio && !currentUser) {
-    showToast('Войдите в систему для просмотра личного портфолио');
+    showToast('Войдите в систему для доступа в личный кабинет');
     openModal('login');
+    return;
+  }
+
+  if (isReviews && !isMasterOrAdminUser(currentUser)) {
+    showToast('Раздел «Отзывы» доступен Мастерам и Администраторам системы.');
+    switchTab('shoots');
     return;
   }
 
@@ -459,6 +470,9 @@ function switchTab(tab) {
   if (document.getElementById('viewPortfolio')) {
     document.getElementById('viewPortfolio').classList.toggle('hidden', !isPortfolio);
   }
+  if (document.getElementById('viewReviews')) {
+    document.getElementById('viewReviews').classList.toggle('hidden', !isReviews);
+  }
   if (document.getElementById('viewEquipmentTracker')) {
     document.getElementById('viewEquipmentTracker').classList.toggle('hidden', !isEquipment);
   }
@@ -477,6 +491,9 @@ function switchTab(tab) {
   
   const tabPortBtn = document.getElementById('tabPortfolioBtn');
   if (tabPortBtn) tabPortBtn.className = isPortfolio ? activeTabClass : baseTabClass;
+
+  const tabRevBtn = document.getElementById('tabReviewsBtn');
+  if (tabRevBtn) tabRevBtn.className = isReviews ? activeTabClass : baseTabClass;
 
   const tabEqBtn = document.getElementById('tabEquipmentBtn');
   if (tabEqBtn) tabEqBtn.className = isEquipment ? activeTabClass : baseTabClass;
@@ -502,6 +519,9 @@ function switchTab(tab) {
   }
   if (isPortfolio) {
     loadMyPortfolio();
+  }
+  if (isReviews) {
+    loadReviewsTab();
   }
   if (isEquipment) {
     loadEquipmentTracker();
@@ -1810,126 +1830,108 @@ function openAdminUserDossier(userId) {
   openShowreelModal(userId);
 }
 
-// ----------------- ЛИЧНОЕ ПОРТФОЛИО СТУДЕНТА (ВКЛАДКА «МОЁ ПОРТФОЛИО») -----------------
+// ----------------- ЛИЧНЫЙ КАБИНЕТ СТУДЕНТА / СОТРУДНИКА -----------------
 async function loadMyPortfolio() {
   if (!currentUser) return;
 
   const header = document.getElementById('myPortfolioHeader');
-  const radarContainer = document.getElementById('skillsRadarChartContainer');
-  const metersContainer = document.getElementById('skillsCompetencyMeters');
-  const standardsContainer = document.getElementById('myCktStandardsGrid');
+  const commentsContainer = document.getElementById('myCommentsList');
+  const likesCountEl = document.getElementById('myCabinetLikesCount');
+  const dislikesCountEl = document.getElementById('myCabinetDislikesCount');
   const filmographyContainer = document.getElementById('myFilmographyList');
   const shootsCountEl = document.getElementById('myShootsCount');
   const qrPreview = document.getElementById('qrPassPreviewContainer');
   const qrInfo = document.getElementById('qrPassInfo');
+  const tgInp = document.getElementById('cabinetTelegramInput');
 
-  const comp = currentUser.competencies || { camera: 95, sound: 92, light: 88, edit: 94 };
-  const userRank = getCraftRankBadge(currentUser.completedShoots || 4, currentUser.rating || 4.8);
-  const userRating = currentUser.rating !== null && currentUser.rating !== undefined ? currentUser.rating : '4.8';
+  if (tgInp) {
+    tgInp.value = (currentUser.telegram || '').replace(/^@/, '');
+  }
+
+  // Загружаем актуальные отзывы студента за последние 6 месяцев
+  let comments = [];
+  try {
+    const res = await fetch('/api/comments?studentId=' + currentUser.id, {
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      comments = await res.json();
+    }
+  } catch (err) {
+    console.warn('Error loading cabinet comments:', err);
+  }
+
+  const likes = comments.filter(c => c.type === 'POSITIVE').length;
+  const dislikes = comments.filter(c => c.type === 'NEGATIVE').length;
+  if (likesCountEl) likesCountEl.innerText = likes;
+  if (dislikesCountEl) dislikesCountEl.innerText = dislikes;
+
+  // Обновляем локальный объект пользователя
+  currentUser.likes = likes;
+  currentUser.dislikes = dislikes;
+
+  const userRank = getCraftRankBadge(currentUser.completedShoots || 4, 4.8);
+  const roleName = (currentUser.role && currentUser.role.name) ? currentUser.role.name : (currentUser.role || 'Студент');
+  const isBlacklisted = !!currentUser.isBlacklisted;
 
   if (header) {
     header.innerHTML = '<div class="flex items-center space-x-4">' +
-      '<div class="relative w-16 h-16 sm:w-20 sm:h-20 border-2 border-[var(--brand-red)] overflow-hidden shadow-md flex-shrink-0">' +
-        '<img src="img/student.jpg" alt="Student" class="w-full h-full object-cover">' +
+      '<div class="relative w-16 h-16 sm:w-20 sm:h-20 border-2 ' + (isBlacklisted ? 'border-red-600' : 'border-[var(--brand-red)]') + ' overflow-hidden shadow-md flex-shrink-0">' +
+        '<img src="img/student.jpg" alt="User" class="w-full h-full object-cover">' +
         '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[8px] font-mono font-bold px-1.5">КП11</span>' +
       '</div>' +
       '<div>' +
         '<div class="flex items-center flex-wrap gap-2 mb-1">' +
-          '<span class="gaffer-tape-sticker">ЦИФРОВОЙ ПАСПОРТ СТУДЕНТА // 2026</span>' +
-          '<span class="text-[10px] font-mono text-[#229ED9] font-bold">' + (currentUser.telegram || '@student') + '</span>' +
+          '<span class="gaffer-tape-sticker">ЛИЧНЫЙ КАБИНЕТ // 2026</span>' +
+          (currentUser.telegram ? '<a href="https://t.me/' + currentUser.telegram.replace(/^@/, '') + '" target="_blank" class="text-[10px] font-mono text-[#229ED9] font-bold hover:underline">' + currentUser.telegram + '</a>' : '') +
+          (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600/70 bg-red-950/60">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '') +
         '</div>' +
         '<h2 class="text-base sm:text-xl font-extrabold uppercase leading-tight" style="color: var(--text-primary);">' + currentUser.fullName + '</h2>' +
         '<div class="flex items-center flex-wrap gap-2 mt-1.5">' +
           '<span class="font-mono text-xs font-bold px-2 py-0.5 border" style="background-color: var(--bg-elevated); border-color: var(--border-color); color: var(--brand-beige-text);">' + (currentUser.groupName || 'КТ-26') + '</span>' +
+          '<span class="font-mono text-xs font-bold px-2 py-0.5 border border-neutral-700 text-neutral-300">' + roleName + '</span>' +
           '<span class="' + userRank.className + '">' + userRank.icon + ' ' + userRank.title + '</span>' +
-          '<span class="text-emerald-400 font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + ' ' + userRating + '</span>' +
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="text-left sm:text-right font-mono text-xs text-[var(--text-muted)]">' +
+    '<div class="text-left sm:text-right font-mono text-xs text-[var(--text-muted)] space-y-0.5">' +
       '<div>ID: <span class="text-[var(--text-primary)] font-bold">' + currentUser.id + '</span></div>' +
-      '<div>СТАТУС: <span class="text-emerald-400 font-bold">АКТИВНЫЙ ПРОДАКШН</span></div>' +
+      '<div>EMAIL: <span class="text-[var(--text-secondary)] font-bold">' + (currentUser.email || '—') + '</span></div>' +
+      '<div>АККРЕДИТАЦИЯ: <span class="' + (isBlacklisted ? 'text-red-400' : 'text-emerald-400') + ' font-bold">' + (isBlacklisted ? 'ОГРАНИЧЕНА (ЧС)' : 'АКТИВНА') + '</span></div>' +
     '</div>';
   }
 
-  if (radarContainer) {
-    radarContainer.innerHTML = renderSkillsRadarSvg(comp);
-  }
-
-  if (metersContainer) {
-    metersContainer.innerHTML = '<div class="space-y-1">' +
-      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
-        '<span>' + SVG_ICONS.camera + ' Операторский цех</span>' +
-        '<span class="text-[var(--brand-red)]">' + comp.camera + '%</span>' +
-      '</div>' +
-      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.camera + '%;"></div></div>' +
-    '</div>' +
-    '<div class="space-y-1">' +
-      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
-        '<span>' + SVG_ICONS.mic + ' Звуковой цех</span>' +
-        '<span class="text-amber-400">' + comp.sound + '%</span>' +
-      '</div>' +
-      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.sound + '%;"></div></div>' +
-    '</div>' +
-    '<div class="space-y-1">' +
-      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
-        '<span>' + SVG_ICONS.light + ' Осветительский цех</span>' +
-        '<span class="text-amber-400">' + comp.light + '%</span>' +
-      '</div>' +
-      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.light + '%;"></div></div>' +
-    '</div>' +
-    '<div class="space-y-1">' +
-      '<div class="flex justify-between text-[11px] font-mono font-bold">' +
-        '<span>' + SVG_ICONS.scissors + ' Монтаж & Цветокоррекция</span>' +
-        '<span class="text-emerald-400">' + comp.edit + '%</span>' +
-      '</div>' +
-      '<div class="competency-meter-track"><div class="competency-meter-fill" style="width: ' + comp.edit + '%;"></div></div>' +
-    '</div>';
-  }
-
-  let totalFrames = 0, totalGear = 0, totalTime = 0, totalEthics = 0, critCount = 0;
-  (globalShoots || []).forEach(sh => {
-    if (sh.isCompleted && Array.isArray(sh.crew)) {
-      const cm = sh.crew.find(c => c.userId === currentUser.id || c.id === currentUser.id);
-      if (cm && cm.cktCriteria) {
-        totalFrames += Number(cm.cktCriteria.frames || 5);
-        totalGear += Number(cm.cktCriteria.gear || 5);
-        totalTime += Number(cm.cktCriteria.time || 5);
-        totalEthics += Number(cm.cktCriteria.ethics || 5);
-        critCount++;
-      }
-    }
-  });
-
-  const fAvg = critCount > 0 ? (totalFrames / critCount).toFixed(1) : (currentUser.rating || '5.0');
-  const gAvg = critCount > 0 ? (totalGear / critCount).toFixed(1) : (currentUser.rating || '5.0');
-  const tAvg = critCount > 0 ? (totalTime / critCount).toFixed(1) : (currentUser.rating || '5.0');
-  const eAvg = critCount > 0 ? (totalEthics / critCount).toFixed(1) : (currentUser.rating || '5.0');
-
-  if (standardsContainer) {
-    standardsContainer.innerHTML = 
-      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
-        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">🎞️ КАДРЫ</span>' +
-        '<span class="text-lg font-mono font-extrabold text-amber-400">' + fAvg + '</span>' +
-        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Композиция & фокус</span>' +
-      '</div>' +
-      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
-        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">🛡️ ТЕХНИКА</span>' +
-        '<span class="text-lg font-mono font-extrabold text-amber-400">' + gAvg + '</span>' +
-        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Бережный чек-аут</span>' +
-      '</div>' +
-      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
-        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">⏱️ ВРЕМЯ</span>' +
-        '<span class="text-lg font-mono font-extrabold text-amber-400">' + tAvg + '</span>' +
-        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Пунктуальность</span>' +
-      '</div>' +
-      '<div class="p-3 border text-center" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
-        '<span class="text-[10px] font-mono text-[var(--text-muted)] block">🤝 ЭТИКА</span>' +
-        '<span class="text-lg font-mono font-extrabold text-amber-400">' + eAvg + '</span>' +
-        '<span class="text-[9px] font-mono text-[var(--text-muted)] block">Командный дух</span>' +
+  // Отрисовка списка отзывов в кабинете
+  if (commentsContainer) {
+    if (comments.length === 0) {
+      commentsContainer.innerHTML = '<div class="p-6 text-center text-xs font-mono border border-dashed" style="color: var(--text-muted); border-color: var(--border-subtle);">' +
+        'У вас пока нет отзывов или замечаний от мастеров за последние 6 месяцев.' +
       '</div>';
+    } else {
+      commentsContainer.innerHTML = comments.map(c => {
+        const isPos = c.type === 'POSITIVE';
+        const tagClass = isPos 
+          ? 'border-emerald-600/50 bg-emerald-950/25 text-emerald-300' 
+          : 'border-red-600/50 bg-red-950/25 text-red-300';
+        const tagText = isPos ? '👍 Положительный отзыв' : '👎 Замечание';
+        const authorText = c.authorName || 'Мастер производственной практики';
+        const dateStr = safeFormatDate(c.createdAt);
+
+        return '<div class="p-3 border space-y-1.5 ' + (isPos ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-red-900/40 bg-red-950/10') + '">' +
+          '<div class="flex items-center justify-between flex-wrap gap-2">' +
+            '<span class="font-mono text-[10px] font-extrabold uppercase px-2 py-0.5 border ' + tagClass + '">' + tagText + '</span>' +
+            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">' + dateStr + '</span>' +
+          '</div>' +
+          '<p class="text-xs font-medium leading-relaxed" style="color: var(--text-primary);">' + (c.text || '') + '</p>' +
+          '<div class="text-[10px] font-mono text-[var(--brand-beige-text)] pt-1 border-t border-[var(--border-subtle)]">' +
+            'Автор: <b>' + authorText + '</b>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
   }
 
+  // Фильмография и смены
   const myShoots = (globalShoots || []).filter(sh => 
     sh.crew && sh.crew.some(c => c.userId === currentUser.id || c.id === currentUser.id)
   );
@@ -1968,6 +1970,347 @@ async function loadMyPortfolio() {
       '<div class="text-[10px] text-[var(--text-muted)]">ID: KP11-STUDENT-' + currentUser.id + '</div>';
   }
 }
+
+// Смена пароля из личного кабинета
+async function handleCabinetPasswordChange(e) {
+  e.preventDefault();
+  const newPass = document.getElementById('cabinetNewPassword').value;
+  const confPass = document.getElementById('cabinetConfirmPassword').value;
+
+  if (!newPass || newPass.length < 4) {
+    showToast('Пароль должен содержать минимум 4 символа');
+    return;
+  }
+  if (newPass !== confPass) {
+    showToast('Пароли не совпадают!');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({ newPassword: newPass })
+    });
+    if (res.ok) {
+      showToast('Пароль успешно обновлён!');
+      document.getElementById('cabinetNewPassword').value = '';
+      document.getElementById('cabinetConfirmPassword').value = '';
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Ошибка при смене пароля');
+    }
+  } catch (err) {
+    showToast('Ошибка сети при смене пароля');
+  }
+}
+
+// Обновление Telegram никнейма из личного кабинета
+async function handleCabinetTelegramChange(e) {
+  e.preventDefault();
+  const rawTg = document.getElementById('cabinetTelegramInput').value.trim();
+  const cleanTg = rawTg ? (rawTg.startsWith('@') ? rawTg : '@' + rawTg) : '';
+
+  try {
+    const res = await fetch('/api/users/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({ telegram: cleanTg })
+    });
+    if (res.ok) {
+      currentUser.telegram = cleanTg;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      showToast('Telegram контакт успешно сохранён!');
+      loadMyPortfolio();
+    } else {
+      // Fallback через админский роут
+      await fetch('/api/admin/users/' + currentUser.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({ telegram: cleanTg })
+      });
+      currentUser.telegram = cleanTg;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      showToast('Telegram контакт успешно сохранён!');
+      loadMyPortfolio();
+    }
+  } catch (err) {
+    currentUser.telegram = cleanTg;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+    showToast('Telegram контакт сохранён локально');
+    loadMyPortfolio();
+  }
+}
+
+// ================= ВКЛАДКА: ОТЗЫВЫ О СТУДЕНТАХ (ДЛЯ МАСТЕРОВ И АДМИНОВ) =================
+let globalReviewsStudents = [];
+let selectedReviewStudentId = null;
+let currentReviewType = 'POSITIVE';
+
+async function loadReviewsTab() {
+  const container = document.getElementById('reviewsStudentsList');
+  if (container) container.innerHTML = '<div class="p-4 text-xs font-mono text-[var(--text-muted)] text-center">Загрузка студентов...</div>';
+
+  try {
+    const res = await fetch('/api/shoots', {
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const raw = data.students || [];
+      globalReviewsStudents = Array.isArray(raw) ? raw : (raw.value || []);
+    }
+  } catch (err) {
+    console.warn('Error loading reviews tab students:', err);
+  }
+
+  if (!globalReviewsStudents || globalReviewsStudents.length === 0) {
+    globalReviewsStudents = globalStudents || getStudentDirectory();
+  }
+
+  renderReviewsStudentsList(globalReviewsStudents);
+
+  if (!selectedReviewStudentId && globalReviewsStudents.length > 0) {
+    selectStudentForReviews(globalReviewsStudents[0].id);
+  }
+}
+
+function filterReviewsStudents() {
+  const q = (document.getElementById('reviewsStudentSearch')?.value || '').toLowerCase().trim();
+  const filtered = (globalReviewsStudents || []).filter(s => 
+    (s.fullName && s.fullName.toLowerCase().includes(q)) ||
+    (s.groupName && s.groupName.toLowerCase().includes(q)) ||
+    (s.telegram && s.telegram.toLowerCase().includes(q))
+  );
+  renderReviewsStudentsList(filtered);
+}
+
+function renderReviewsStudentsList(students) {
+  const container = document.getElementById('reviewsStudentsList');
+  if (!container) return;
+
+  if (!students || students.length === 0) {
+    container.innerHTML = '<div class="p-6 text-center text-xs font-mono border border-dashed" style="color: var(--text-muted); border-color: var(--border-subtle);">Студенты не найдены</div>';
+    return;
+  }
+
+  container.innerHTML = students.map(s => {
+    const isSelected = s.id === selectedReviewStudentId;
+    const isBlacklisted = !!s.isBlacklisted;
+    const likes = s.likes || 0;
+    const dislikes = s.dislikes || 0;
+
+    let borderClass = isSelected ? 'border-[var(--brand-red)] bg-[#1e1e1e]' : 'border-[var(--border-subtle)] bg-[var(--bg-card)]';
+    if (isBlacklisted) {
+      borderClass += ' border-red-800/80 bg-red-950/20';
+    }
+
+    return '<div onclick="selectStudentForReviews(\'' + s.id + '\')" class="p-3 border cursor-pointer transition hover:border-[var(--brand-red)] ' + borderClass + '">' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<div class="min-w-0 flex-grow">' +
+          '<div class="flex items-center flex-wrap gap-1.5">' +
+            '<span class="font-bold text-xs uppercase text-[var(--text-primary)]">' + (s.fullName || 'Без имени') + '</span>' +
+            '<span class="font-mono text-[10px] text-[var(--text-muted)]">[' + (s.groupName || 'КТ') + ']</span>' +
+            (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[9px] px-1 border border-red-600 bg-red-950/60">⛔ ЧС</span>' : '') +
+          '</div>' +
+          (s.telegram ? '<div class="text-[10px] font-mono text-[#229ED9] mt-0.5">' + s.telegram + '</div>' : '') +
+        '</div>' +
+        '<div class="flex items-center gap-2 font-mono text-xs shrink-0">' +
+          '<span class="text-emerald-400 font-extrabold inline-flex items-center gap-0.5" title="Положительные отзывы">👍 ' + likes + '</span>' +
+          '<span class="text-red-400 font-extrabold inline-flex items-center gap-0.5" title="Замечания">👎 ' + dislikes + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function selectStudentForReviews(studentId) {
+  selectedReviewStudentId = studentId;
+  renderReviewsStudentsList(globalReviewsStudents);
+
+  const container = document.getElementById('reviewsSelectedStudentContainer');
+  if (!container) return;
+
+  const student = (globalReviewsStudents || []).find(s => s.id === studentId) || { id: studentId, fullName: 'Студент', groupName: 'КТ' };
+
+  container.innerHTML = '<div class="p-6 text-center text-xs font-mono text-[var(--text-muted)]">Загрузка отзывов студента...</div>';
+
+  let comments = [];
+  try {
+    const res = await fetch('/api/comments?studentId=' + studentId, {
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      comments = await res.json();
+    }
+  } catch (err) {
+    console.warn('Error loading student comments:', err);
+  }
+
+  const likes = comments.filter(c => c.type === 'POSITIVE').length;
+  const dislikes = comments.filter(c => c.type === 'NEGATIVE').length;
+  student.likes = likes;
+  student.dislikes = dislikes;
+
+  const isBlacklisted = !!student.isBlacklisted;
+
+  let commentsHtml = '';
+  if (comments.length === 0) {
+    commentsHtml = '<div class="p-6 text-center text-xs font-mono border border-dashed" style="color: var(--text-muted); border-color: var(--border-subtle);">' +
+      'За последние 6 месяцев отзывов нет. Будьте первым, кто оставит комментарий!' +
+    '</div>';
+  } else {
+    commentsHtml = comments.map(c => {
+      const isPos = c.type === 'POSITIVE';
+      const tagClass = isPos ? 'border-emerald-600/50 bg-emerald-950/25 text-emerald-300' : 'border-red-600/50 bg-red-950/25 text-red-300';
+      const tagText = isPos ? '👍 Положительный отзыв' : '👎 Замечание';
+      const dateStr = safeFormatDate(c.createdAt);
+      const canDelete = isMasterOrAdminUser(currentUser);
+
+      return '<div class="p-3.5 border space-y-2 ' + (isPos ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-red-900/40 bg-red-950/10') + '">' +
+        '<div class="flex items-center justify-between flex-wrap gap-2">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="font-mono text-[10px] font-extrabold uppercase px-2 py-0.5 border ' + tagClass + '">' + tagText + '</span>' +
+            '<span class="text-xs font-bold text-[var(--text-primary)]">' + (c.authorName || 'Мастер') + '</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-3">' +
+            '<span class="text-[10px] font-mono text-[var(--text-muted)]">' + dateStr + '</span>' +
+            (canDelete ? '<button onclick="deleteStudentReview(\'' + c.id + '\', \'' + studentId + '\')" class="text-[10px] font-mono text-red-400 hover:text-red-300 hover:underline">Удалить</button>' : '') +
+          '</div>' +
+        '</div>' +
+        '<p class="text-xs font-medium leading-relaxed" style="color: var(--text-secondary);">' + (c.text || '') + '</p>' +
+      '</div>';
+    }).join('');
+  }
+
+  container.innerHTML = 
+    '<!-- Заголовок выбранного студента -->' +
+    '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b" style="border-color: var(--border-color);">' +
+      '<div>' +
+        '<div class="flex items-center flex-wrap gap-2">' +
+          '<h4 class="text-sm font-extrabold uppercase text-[var(--text-primary)]">' + student.fullName + '</h4>' +
+          '<span class="font-mono text-xs font-bold text-[var(--brand-beige-text)]">[' + (student.groupName || 'КТ') + ']</span>' +
+          (student.telegram ? '<span class="font-mono text-xs text-[#229ED9]">' + student.telegram + '</span>' : '') +
+          (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600 bg-red-950/60">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '') +
+        '</div>' +
+        '<div class="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">ID: ' + student.id + '</div>' +
+      '</div>' +
+      '<div class="flex items-center gap-3 font-mono text-sm px-3 py-1.5 border" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+        '<span class="text-emerald-400 font-extrabold">👍 ' + likes + '</span>' +
+        '<span class="text-red-400 font-extrabold">👎 ' + dislikes + '</span>' +
+      '</div>' +
+    '</div>' +
+
+    '<!-- Форма добавления нового отзыва -->' +
+    '<div class="p-4 border space-y-3" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+      '<span class="text-xs font-mono font-extrabold uppercase text-[var(--brand-red)] block">Добавить отзыв к работе студента:</span>' +
+      
+      '<div class="flex items-center gap-3">' +
+        '<button type="button" id="reviewBtnPositive" onclick="setReviewType(\'POSITIVE\')" class="flex-1 py-2 text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 border transition ' + (currentReviewType === 'POSITIVE' ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 font-black' : 'border-neutral-700 bg-neutral-900/40 text-neutral-400') + '">' +
+          '<span>👍 Положительный (лайк)</span>' +
+        '</button>' +
+        '<button type="button" id="reviewBtnNegative" onclick="setReviewType(\'NEGATIVE\')" class="flex-1 py-2 text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 border transition ' + (currentReviewType === 'NEGATIVE' ? 'border-red-500 bg-red-950/40 text-red-300 font-black' : 'border-neutral-700 bg-neutral-900/40 text-neutral-400') + '">' +
+          '<span>👎 Замечание (дизлайк)</span>' +
+        '</button>' +
+      '</div>' +
+
+      '<div>' +
+        '<textarea id="reviewCommentText" rows="3" placeholder="Опишите работу студента на смене, пунктуальность, отношение к оборудованию, соблюдение техники безопасности..." class="w-full studio-input text-xs font-medium p-3 focus:outline-none"></textarea>' +
+      '</div>' +
+
+      '<div class="flex items-center justify-between">' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)]">Отзыв будет виден студенту, мастерам и админам 6 месяцев</span>' +
+        '<button type="button" onclick="submitStudentReview(\'' + studentId + '\')" class="btn-brand-primary px-5 py-2 text-xs font-extrabold uppercase shadow">' +
+          'Опубликовать отзыв' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<!-- Лента отзывов за 6 месяцев -->' +
+    '<div class="space-y-2.5 pt-2">' +
+      '<div class="flex items-center justify-between">' +
+        '<span class="text-xs font-extrabold uppercase font-mono text-[var(--text-secondary)]">История отзывов за 6 месяцев (' + comments.length + '):</span>' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)]">Автоочистка старше 180 дней</span>' +
+      '</div>' +
+      '<div class="space-y-2.5 max-h-80 overflow-y-auto pr-1">' +
+        commentsHtml +
+      '</div>' +
+    '</div>';
+}
+
+function setReviewType(type) {
+  currentReviewType = type;
+  const posBtn = document.getElementById('reviewBtnPositive');
+  const negBtn = document.getElementById('reviewBtnNegative');
+  if (posBtn && negBtn) {
+    if (type === 'POSITIVE') {
+      posBtn.className = 'flex-1 py-2 text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 border transition border-emerald-500 bg-emerald-950/40 text-emerald-300 font-black';
+      negBtn.className = 'flex-1 py-2 text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 border transition border-neutral-700 bg-neutral-900/40 text-neutral-400';
+    } else {
+      posBtn.className = 'flex-1 py-2 text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 border transition border-neutral-700 bg-neutral-900/40 text-neutral-400';
+      negBtn.className = 'flex-1 py-2 text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 border transition border-red-500 bg-red-950/40 text-red-300 font-black';
+    }
+  }
+}
+
+async function submitStudentReview(studentId) {
+  const textInp = document.getElementById('reviewCommentText');
+  const text = textInp ? textInp.value.trim() : '';
+
+  if (!text) {
+    showToast('Пожалуйста, напишите текст комментария');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+      body: JSON.stringify({
+        studentId,
+        type: currentReviewType,
+        text
+      })
+    });
+    if (res.ok) {
+      showToast('Отзыв успешно опубликован!');
+      if (textInp) textInp.value = '';
+      await selectStudentForReviews(studentId);
+      // Обновляем общий реестр
+      try {
+        const sRes = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') } });
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          if (sData.students) globalStudents = sData.students;
+        }
+      } catch (e) {}
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Ошибка при сохранении отзыва');
+    }
+  } catch (err) {
+    showToast('Ошибка сети при сохранении отзыва');
+  }
+}
+
+async function deleteStudentReview(commentId, studentId) {
+  if (!confirm('Вы уверены, что хотите удалить данный отзыв?')) return;
+
+  try {
+    const res = await fetch('/api/comments/' + commentId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      showToast('Отзыв удалён');
+      await selectStudentForReviews(studentId);
+    } else {
+      showToast('Ошибка при удалении отзыва');
+    }
+  } catch (err) {
+    showToast('Ошибка сети');
+}
+
 
 function openQrPassModal() {
   if (!currentUser) return;
@@ -2173,13 +2516,8 @@ function openAdminUserFullEditModal(userId) {
   const rankEl = document.getElementById('fullEditCraftRank');
   const tgEl = document.getElementById('fullEditTelegram');
   const chatEl = document.getElementById('fullEditChatId');
-  const ratingEl = document.getElementById('fullEditRating');
-  const shootsEl = document.getElementById('fullEditCompletedShoots');
-  const camEl = document.getElementById('fullEditCompCamera');
-  const sndEl = document.getElementById('fullEditCompSound');
-  const ligEl = document.getElementById('fullEditCompLight');
-  const edtEl = document.getElementById('fullEditCompEdit');
-  const suspEl = document.getElementById('fullEditSuspended');
+  const passEl = document.getElementById('fullEditNewPassword');
+  const blackEl = document.getElementById('fullEditBlacklisted');
 
   if (idEl) idEl.value = user.id;
   if (nameEl) nameEl.value = user.fullName || '';
@@ -2189,15 +2527,8 @@ function openAdminUserFullEditModal(userId) {
   if (rankEl) rankEl.value = user.craftRank || '';
   if (tgEl) tgEl.value = user.telegram || '';
   if (chatEl) chatEl.value = user.telegramChatId || '';
-  if (ratingEl) ratingEl.value = user.rating !== null && user.rating !== undefined ? user.rating : '4.5';
-  if (shootsEl) shootsEl.value = user.completedShoots !== undefined ? user.completedShoots : (user.participations || 0);
-
-  const comp = user.competencies || { camera: 85, sound: 85, light: 85, edit: 85 };
-  if (camEl) camEl.value = comp.camera || 85;
-  if (sndEl) sndEl.value = comp.sound || 85;
-  if (ligEl) ligEl.value = comp.light || 85;
-  if (edtEl) edtEl.value = comp.edit || 85;
-  if (suspEl) suspEl.checked = !!user.isSuspended;
+  if (passEl) passEl.value = '';
+  if (blackEl) blackEl.checked = !!user.isBlacklisted;
 
   modal.classList.remove('hidden');
 }
@@ -2219,57 +2550,107 @@ async function handleSaveAdminUserFull(e) {
   const craftRank = document.getElementById('fullEditCraftRank').value.trim();
   const telegram = document.getElementById('fullEditTelegram').value.trim();
   const telegramChatId = document.getElementById('fullEditChatId').value.trim();
-  const rating = parseFloat(document.getElementById('fullEditRating').value) || 4.5;
-  const completedShoots = parseInt(document.getElementById('fullEditCompletedShoots').value, 10) || 0;
-  const competencies = {
-    camera: parseInt(document.getElementById('fullEditCompCamera').value, 10) || 85,
-    sound: parseInt(document.getElementById('fullEditCompSound').value, 10) || 85,
-    light: parseInt(document.getElementById('fullEditCompLight').value, 10) || 85,
-    edit: parseInt(document.getElementById('fullEditCompEdit').value, 10) || 85
-  };
-  const isSuspended = document.getElementById('fullEditSuspended').checked;
+  const newPassword = document.getElementById('fullEditNewPassword') ? document.getElementById('fullEditNewPassword').value : '';
+  const isBlacklisted = document.getElementById('fullEditBlacklisted') ? document.getElementById('fullEditBlacklisted').checked : false;
 
   const payload = {
     fullName,
     groupName,
     email,
     role: { name: roleName },
+    roleName,
     craftRank,
-    telegram: telegram.startsWith('@') ? telegram : ('@' + telegram),
+    telegram: telegram ? (telegram.startsWith('@') ? telegram : ('@' + telegram)) : '',
     telegramChatId,
-    rating,
-    completedShoots,
-    competencies,
-    isSuspended
+    newPassword: newPassword || undefined,
+    isBlacklisted
   };
 
   try {
     const res = await fetch('/api/admin/users/' + userId + '/full', {
-      method: 'POST',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify(payload)
     });
     if (!res.ok) {
       await fetch('/api/admin/users/' + userId, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
         body: JSON.stringify(payload)
       });
     }
-  } catch (err) {}
+  } catch (err) {
+    console.warn('Update user error:', err);
+  }
 
   const idx = (globalAdminUsers || []).findIndex(u => u.id === userId);
   if (idx !== -1) {
-    globalAdminUsers[idx] = { ...globalAdminUsers[idx], ...payload };
+    globalAdminUsers[idx] = { ...globalAdminUsers[idx], ...payload, role: { name: roleName } };
   }
   const stIdx = (globalStudents || []).findIndex(s => s.id === userId);
   if (stIdx !== -1) {
-    globalStudents[stIdx] = { ...globalStudents[stIdx], ...payload };
+    globalStudents[stIdx] = { ...globalStudents[stIdx], ...payload, role: { name: roleName } };
   }
 
-  showToast('Профиль участника «' + fullName + '» успешно обновлен!');
+  showToast('Профиль пользователя «' + fullName + '» успешно обновлён!');
   closeAdminUserFullEditModal();
   renderAdminUsers(globalAdminUsers);
+  if (typeof loadShoots === 'function') loadShoots();
+}
+
+async function handleDeleteUserFromModal() {
+  const userId = document.getElementById('fullEditUserId').value;
+  if (!userId) return;
+
+  if (!confirm('Вы уверены, что хотите навсегда удалить этот аккаунт пользователя? Это действие необратимо.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/users/' + userId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      showToast('Аккаунт успешно удалён');
+      closeAdminUserFullEditModal();
+      globalAdminUsers = (globalAdminUsers || []).filter(u => u.id !== userId);
+      globalStudents = (globalStudents || []).filter(s => s.id !== userId);
+      renderAdminUsers(globalAdminUsers);
+      if (typeof loadShoots === 'function') loadShoots();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Ошибка при удалении аккаунта');
+    }
+  } catch (e) {
+    showToast('Ошибка сети при удалении');
+  }
+}
+
+async function toggleBlacklist(userId) {
+  try {
+    const res = await fetch('/api/admin/users/' + userId + '/blacklist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const isBl = !!data.isBlacklisted;
+      showToast(isBl ? 'Пользователь добавлен в чёрный список' : 'Пользователь удалён из чёрного списка');
+      
+      const u = (globalAdminUsers || []).find(x => x.id === userId);
+      if (u) u.isBlacklisted = isBl;
+      const s = (globalStudents || []).find(x => x.id === userId);
+      if (s) s.isBlacklisted = isBl;
+
+      renderAdminUsers(globalAdminUsers);
+      if (typeof loadShoots === 'function') loadShoots();
+    } else {
+      showToast('Ошибка изменения статуса чёрного списка');
+    }
+  } catch (err) {
+    showToast('Ошибка сети');
+  }
 }
 
 // ----------------- QR ЧЕК-ИН НА ПЛОЩАДКЕ (ДЛЯ МАСТЕРОВ) -----------------
@@ -2826,7 +3207,7 @@ function renderAdminUsers(users) {
   const studentsCount = allList.filter(u => (u.role && u.role.name === 'Студент') || (!u.role || !u.role.name)).length;
   const mastersCount = allList.filter(u => u.role && u.role.name === 'Мастер / Преподаватель').length;
   const adminsCount = allList.filter(u => u.role && u.role.name === 'Администратор').length;
-  const suspendedCount = allList.filter(u => u.isSuspended).length;
+  const blacklistedCount = allList.filter(u => u.isBlacklisted).length;
 
   const btnActiveClass = 'btn-brand-beige shadow-md font-extrabold';
   const btnInactiveClass = 'btn-brand-ghost text-[var(--text-muted)]';
@@ -2846,22 +3227,22 @@ function renderAdminUsers(users) {
         '<div class="text-[10px] font-mono uppercase text-[var(--text-muted)]">Мастера</div>' +
         '<div class="text-xl font-extrabold font-mono text-amber-400 mt-0.5">' + mastersCount + '</div>' +
       '</div>' +
-      '<div onclick="setAdminRoleFilter(\'SUSPENDED\')" class="cursor-pointer p-3 border transition hover:border-red-500 ' + (currentAdminRoleFilter === 'SUSPENDED' ? 'border-red-500 bg-red-950/20' : 'border-[var(--border-color)] bg-[var(--bg-elevated)]') + '">' +
-        '<div class="text-[10px] font-mono uppercase text-red-400">Отстранены</div>' +
-        '<div class="text-xl font-extrabold font-mono text-red-500 mt-0.5">' + suspendedCount + '</div>' +
+      '<div onclick="setAdminRoleFilter(\'BLACKLIST\')" class="cursor-pointer p-3 border transition hover:border-red-500 ' + (currentAdminRoleFilter === 'BLACKLIST' ? 'border-red-500 bg-red-950/40' : 'border-[var(--border-color)] bg-[var(--bg-elevated)]') + '">' +
+        '<div class="text-[10px] font-mono uppercase text-red-400">Чёрный список</div>' +
+        '<div class="text-xl font-extrabold font-mono text-red-500 mt-0.5">' + blacklistedCount + '</div>' +
       '</div>' +
     '</div>' +
 
-    '<!-- Фильтр-пилюли и сброс рейтинга -->' +
+    '<!-- Фильтр-пилюли -->' +
     '<div class="flex flex-wrap items-center justify-between gap-2.5 p-2.5 border" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
       '<div class="flex flex-wrap items-center gap-1.5">' +
         '<button onclick="setAdminRoleFilter(\'ALL\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'ALL' ? btnActiveClass : btnInactiveClass) + '">Все (' + totalCount + ')</button>' +
         '<button onclick="setAdminRoleFilter(\'STUDENT\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'STUDENT' ? btnActiveClass : btnInactiveClass) + '">Студенты (' + studentsCount + ')</button>' +
         '<button onclick="setAdminRoleFilter(\'MASTER\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'MASTER' ? btnActiveClass : btnInactiveClass) + '">Мастера (' + mastersCount + ')</button>' +
         '<button onclick="setAdminRoleFilter(\'ADMIN\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'ADMIN' ? btnActiveClass : btnInactiveClass) + '">Админы (' + adminsCount + ')</button>' +
-        '<button onclick="setAdminRoleFilter(\'SUSPENDED\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'SUSPENDED' ? 'bg-red-700 text-white font-extrabold' : btnInactiveClass) + '">Отстранены (' + suspendedCount + ')</button>' +
+        '<button onclick="setAdminRoleFilter(\'BLACKLIST\')" class="px-2.5 py-1 text-[11px] uppercase transition ' + (currentAdminRoleFilter === 'BLACKLIST' ? 'bg-red-700 text-white font-extrabold' : btnInactiveClass) + '">Чёрный список (' + blacklistedCount + ')</button>' +
       '</div>' +
-      '<button onclick="resetAllRatings()" class="px-3 py-1.5 text-[11px] font-extrabold uppercase btn-brand-primary shrink-0" title="Обнулить звёздные оценки всех пользователей">Сбросить весь рейтинг</button>' +
+      '<span class="text-[10px] font-mono text-[var(--text-muted)]">Управление аккаунтами ЦКТ</span>' +
     '</div>' +
   '</div>';
 
@@ -2873,11 +3254,10 @@ function renderAdminUsers(users) {
   container.innerHTML = adminTopBar + users.map(u => {
     const currentRole = u.role && u.role.name ? u.role.name : 'Студент';
     const isMe = currentUser && currentUser.id === u.id;
-    const ratingText = u.rating !== null && u.rating !== undefined ? u.rating : '';
-    const colorClass = getRatingBadgeColor(u.rating);
-    const suspendedText = u.isSuspended ? '<span class="text-red-500 font-extrabold ml-1.5 px-1.5 py-0.5 border border-red-600/50 bg-red-950/30 text-[10px] uppercase font-mono">[ОТСТРАНЁН]</span>' : '';
-    const borderClass = u.isSuspended ? 'border-red-600/60 bg-red-950/20' : 'border';
-    const rowBg = u.isSuspended ? '' : 'style="background-color: var(--bg-card); border-color: var(--border-color);"';
+    const isBlacklisted = !!u.isBlacklisted;
+    const blacklistBadge = isBlacklisted ? '<span class="text-red-400 font-extrabold ml-1.5 px-1.5 py-0.5 border border-red-600/70 bg-red-950/60 text-[10px] uppercase font-mono">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '';
+    const borderClass = isBlacklisted ? 'border-red-600/70 bg-red-950/15' : 'border';
+    const rowBg = isBlacklisted ? '' : 'style="background-color: var(--bg-card); border-color: var(--border-color);"';
     
     let roleBadgeTag = '';
     if (currentRole === 'Администратор') {
@@ -2890,72 +3270,40 @@ function renderAdminUsers(users) {
 
     const cleanTg = u.telegram ? (u.telegram.startsWith('@') ? u.telegram : '@' + u.telegram) : '';
     const tgBadge = cleanTg 
-      ? '<a href="https://t.me/' + cleanTg.replace(/^@/, '') + '" target="_blank" class="font-mono text-[11px] font-bold px-1.5 py-0.5 border border-[#229ED9]/50 bg-[#229ED9]/10 text-[#229ED9] inline-flex items-center gap-1 hover:underline" title="Открыть профиль Telegram">' + SVG_ICONS.telegram + '<span id="display_tg_' + u.id + '">' + cleanTg + '</span></a>'
-      : '<span class="font-mono text-[10px] text-amber-400 border border-amber-500/30 px-1 py-0.5" id="display_tg_' + u.id + '">[TG не указан]</span>';
+      ? '<a href="https://t.me/' + cleanTg.replace(/^@/, '') + '" target="_blank" class="font-mono text-[11px] font-bold px-1.5 py-0.5 border border-[#229ED9]/50 bg-[#229ED9]/10 text-[#229ED9] inline-flex items-center gap-1 hover:underline" title="Открыть профиль Telegram">' + SVG_ICONS.telegram + '<span>' + cleanTg + '</span></a>'
+      : '<span class="font-mono text-[10px] text-amber-400 border border-amber-500/30 px-1 py-0.5">[TG не указан]</span>';
 
-    let deleteBtn = '';
-    if (!isMe) {
-      deleteBtn = '<button onclick="deleteUser(\'' + u.id + '\')" class="px-2.5 py-1 text-xs font-extrabold uppercase bg-red-700/80 hover:bg-red-600 text-white transition">Удалить</button>';
-    }
+    const likesCount = u.likes || 0;
+    const dislikesCount = u.dislikes || 0;
 
     return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3.5 gap-3 border ' + borderClass + ' transition" ' + rowBg + '>' +
       '<div id="user_info_' + u.id + '" class="flex-grow">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
-          '<span id="display_name_' + u.id + '" onclick="openAdminUserDossier(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" title="Открыть цифровой паспорт / досье участника">' + u.fullName + '</span> ' +
+          '<span onclick="openAdminUserFullEditModal(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" title="Редактировать профиль">' + u.fullName + '</span> ' +
           roleBadgeTag + ' ' +
-          '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span id="display_group_' + u.id + '" style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
+          '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
           tgBadge + ' ' +
-          '<span class="' + colorClass + ' font-mono text-xs inline-flex items-center gap-1">' + SVG_ICONS.star + '<span id="display_rating_' + u.id + '">' + (ratingText !== '' ? ratingText : 'Нет') + '</span></span> ' +
-          suspendedText +
+          '<span class="inline-flex items-center gap-1.5 font-mono text-xs px-2 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg-primary)]">' +
+            '<span class="text-emerald-400 font-bold" title="Положительные отзывы">👍 ' + likesCount + '</span>' +
+            '<span class="text-red-400 font-bold" title="Замечания">👎 ' + dislikesCount + '</span>' +
+          '</span>' +
+          blacklistBadge +
         '</div>' +
         '<p class="text-[11px] font-mono mt-1" style="color: var(--text-muted);">' + u.email + (isMe ? ' <span class="text-[var(--brand-beige-text)] font-bold ml-1">(Вы)</span>' : '') + '</p>' +
       '</div>' +
-      '<div id="user_edit_form_' + u.id + '" class="hidden flex items-center space-x-2 flex-grow flex-wrap gap-y-2">' +
-        '<input type="text" id="edit_name_' + u.id + '" value="' + u.fullName.replace(/"/g, '&quot;') + '" class="studio-input px-2 py-1 text-xs" placeholder="ФИО">' +
-        '<input type="text" id="edit_group_' + u.id + '" value="' + (u.groupName || '') + '" class="studio-input px-2 py-1 text-xs w-24" placeholder="Группа">' +
-        '<div class="flex items-center gap-1">' +
-          '<span class="text-[#229ED9] text-xs font-mono font-bold">@</span>' +
-          '<input type="text" id="edit_tg_' + u.id + '" value="' + (cleanTg.replace(/^@/, '')) + '" class="studio-input px-2 py-1 text-xs w-36 font-mono text-[#229ED9]" placeholder="username">' +
-        '</div>' +
-        '<input type="number" min="0" max="5" step="0.1" id="edit_rating_' + u.id + '" value="' + (ratingText !== '' ? ratingText : '') + '" class="studio-input px-2 py-1 text-xs w-20 font-mono" placeholder="Рейтинг">' +
-        '<button onclick="saveUserProfile(\'' + u.id + '\')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 text-xs font-extrabold uppercase transition">Сохранить</button>' +
-        '<button onclick="toggleUserEdit(\'' + u.id + '\', false)" class="btn-brand-ghost px-2 py-1 text-xs font-extrabold uppercase">Отмена</button>' +
-      '</div>' +
-      '<div class="flex items-center space-x-2 flex-wrap gap-y-2" id="user_actions_' + u.id + '">' +
-        '<button onclick="openAdminUserDossier(\'' + u.id + '\')" class="px-2 py-1 text-xs font-extrabold uppercase btn-brand-ghost" title="Посмотреть досье и радар компетенций">Досье</button>' +
-        '<button onclick="openAdminUserFullEditModal(\'' + u.id + '\')" class="px-2.5 py-1 text-xs font-extrabold uppercase btn-brand-beige" title="Полное редактирование всех параметров и компетенций">✎ Все поля</button>' +
-        '<button onclick="toggleUserEdit(\'' + u.id + '\', true)" class="px-2.5 py-1 text-xs font-extrabold uppercase btn-brand-ghost">Изменить</button>' +
-        '<select onchange="changeUserRole(\'' + u.id + '\', this.value)" class="studio-input px-2 py-1 text-xs font-bold">' +
-          '<option value="Студент" ' + (currentRole === 'Студент' ? 'selected' : '') + '>Студент</option>' +
-          '<option value="Мастер / Преподаватель" ' + (currentRole === 'Мастер / Преподаватель' ? 'selected' : '') + '>Мастер</option>' +
-          '<option value="Администратор" ' + (currentRole === 'Администратор' ? 'selected' : '') + '>Администратор</option>' +
-        '</select>' +
-        (!isMe ? '<button onclick="toggleSuspend(\'' + u.id + '\', ' + (!u.isSuspended) + ')" class="px-2.5 py-1 text-xs font-extrabold uppercase transition ' + (u.isSuspended ? 'bg-emerald-600 text-white' : 'btn-brand-primary') + '">' +
-          (u.isSuspended ? 'Восстановить' : 'Отстранить') +
-        '</button>' : '') +
-        deleteBtn +
+      
+      '<!-- Ровно две кнопки для каждого пользователя: Изменить и Черный список -->' +
+      '<div class="flex items-center space-x-2 flex-wrap gap-y-2 shrink-0" id="user_actions_' + u.id + '">' +
+        '<button onclick="openAdminUserFullEditModal(\'' + u.id + '\')" class="px-3 py-1.5 text-xs font-extrabold uppercase btn-brand-beige shadow-sm" title="Редактировать данные и доступ">' +
+          'Изменить' +
+        '</button>' +
+        '<button onclick="toggleBlacklist(\'' + u.id + '\')" class="px-3 py-1.5 text-xs font-extrabold uppercase transition shadow-sm ' + (isBlacklisted ? 'bg-emerald-700 hover:bg-emerald-600 text-white' : 'bg-red-700/80 hover:bg-red-600 text-white') + '">' +
+          (isBlacklisted ? 'Убрать из ЧС' : 'Черный список') +
+        '</button>' +
       '</div>' +
     '</div>';
   }).join('');
 }
-
-function toggleUserEdit(userId, show) {
-  const infoBlock = document.getElementById('user_info_' + userId);
-  const editBlock = document.getElementById('user_edit_form_' + userId);
-  const actionsBlock = document.getElementById('user_actions_' + userId);
-  if (infoBlock && editBlock && actionsBlock) {
-    infoBlock.classList.toggle('hidden', show);
-    editBlock.classList.toggle('hidden', !show);
-    actionsBlock.classList.toggle('hidden', show);
-  }
-}
-
-async function saveUserProfile(userId) {
-  const newName = document.getElementById('edit_name_' + userId).value;
-  const newGroup = document.getElementById('edit_group_' + userId).value;
-  const newRating = document.getElementById('edit_rating_' + userId).value;
-  const tgInput = document.getElementById('edit_tg_' + userId) ? document.getElementById('edit_tg_' + userId).value.trim() : '';
-  const newTg = tgInput ? (tgInput.startsWith('@') ? tgInput : '@' + tgInput) : '';
 
   try {
     await fetch('/api/admin/users/' + userId, {
@@ -3203,8 +3551,8 @@ function filterAdminUsers() {
       matchRole = roleName === 'Мастер / Преподаватель';
     } else if (currentAdminRoleFilter === 'ADMIN') {
       matchRole = roleName === 'Администратор';
-    } else if (currentAdminRoleFilter === 'SUSPENDED') {
-      matchRole = !!u.isSuspended;
+    } else if (currentAdminRoleFilter === 'BLACKLIST') {
+      matchRole = !!u.isBlacklisted;
     }
     
     if (!matchRole) return false;
@@ -3482,21 +3830,32 @@ function renderModalStudents(students, preserveSelections = true) {
   }
 
   box.innerHTML = list.map(s => {
-    const ratingText = s.rating !== null && s.rating !== undefined ? s.rating : 'Нет';
-    const colorClass = getRatingBadgeColor(s.rating);
-    const isSuspended = !!s.isSuspended;
+    const isBlacklisted = !!s.isBlacklisted;
     const isChecked = currentSelections[s.id] !== undefined;
     const currentRole = currentSelections[s.id] || 'Оператор';
+    const likesCount = s.likes || 0;
+    const dislikesCount = s.dislikes || 0;
 
-    return '<div class="flex items-center justify-between p-2.5 border text-xs transition ' + (isSuspended ? 'opacity-50' : '') + '" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+    const rowBorder = isBlacklisted 
+      ? 'border-red-600/80 bg-red-950/25 shadow-[0_0_8px_rgba(239,68,68,0.2)]' 
+      : 'border-[var(--border-subtle)] bg-[var(--bg-card)]';
+
+    const blacklistBadge = isBlacklisted 
+      ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600/70 bg-red-950/60 inline-flex items-center gap-1">⛔ ЧЁРНЫЙ СПИСОК</span>' 
+      : '';
+
+    return '<div class="flex items-center justify-between p-2.5 border text-xs transition ' + rowBorder + '">' +
       '<label class="flex items-center space-x-2.5 cursor-pointer flex-grow select-none">' +
-        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' ' + (isSuspended ? 'disabled' : '') + ' class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
-        '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + 
-          (s.fullName || 'Без имени') + 
-          ' <span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (s.groupName || 'Группа') + ']</span> ' + 
-          '<span class="' + colorClass + ' font-mono inline-flex items-center gap-1">' + (SVG_ICONS?.star || '★') + ' ' + ratingText + '</span>' +
-          (isSuspended ? ' <span class="text-red-500 font-mono text-[10px]">[ОТСТРАНЁН]</span>' : '') +
-        '</span>' +
+        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
+        '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
+          '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + (s.fullName || 'Без имени') + '</span>' +
+          '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (s.groupName || 'Группа') + ']</span>' +
+          '<span class="inline-flex items-center gap-1.5 font-mono text-[11px]">' +
+            '<span class="text-emerald-400 font-bold" title="Положительные отзывы">👍 ' + likesCount + '</span>' +
+            '<span class="text-red-400 font-bold" title="Замечания">👎 ' + dislikesCount + '</span>' +
+          '</span>' +
+          blacklistBadge +
+        '</div>' +
       '</label>' +
       '<select name="craftRole_' + s.id + '" class="studio-input text-xs font-bold px-2 py-1 ml-2">' +
         '<option value="Оператор"' + (currentRole === 'Оператор' ? ' selected' : '') + '>Оператор</option>' +
@@ -3851,39 +4210,17 @@ function recalculateAllStudentRatings() {
   localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
 }
 
-async function saveShootGrades(shootId, crewMemberIds) {
+async function saveShootGrades(shootId) {
   const target = (globalShoots || []).find(s => s.id === shootId);
-  const targetCrew = (target && Array.isArray(target.crew)) ? target.crew : [];
-  const memberList = (Array.isArray(crewMemberIds) && crewMemberIds.length > 0) ? crewMemberIds : targetCrew.map(c => c.id);
-
-  const grades = {};
-  for (const memberId of memberList) {
-    const inputEl = document.getElementById('grade_input_' + memberId);
-    if (inputEl) {
-      grades[memberId] = parseFloat(inputEl.value) || 5;
-    }
-  }
-
   if (target) {
     target.isCompleted = true;
-    if (target.crew) {
-      target.crew.forEach(m => {
-        if (grades[m.id] !== undefined) {
-          m.grade = grades[m.id];
-        } else if (grades[m.userId] !== undefined) {
-          m.grade = grades[m.userId];
-        } else if (!m.grade) {
-          m.grade = 5;
-        }
-      });
-    }
   }
 
   try {
     const res = await fetch('/api/shoots/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-      body: JSON.stringify({ shootId, grades, shoot: target })
+      body: JSON.stringify({ shootId })
     });
     if (res.ok) {
       const data = await res.json();
@@ -3895,11 +4232,7 @@ async function saveShootGrades(shootId, crewMemberIds) {
     console.warn('API /api/shoots/complete error, using local fallback:', err.message);
   }
 
-  if (typeof recalculateAllStudentRatings === 'function') {
-    recalculateAllStudentRatings();
-  }
-
-  showToast('Смена завершена! Все оценки утверждены в производственный журнал.');
+  showToast('Смена успешно завершена и перенесена в архив!');
   await loadShoots();
   if (typeof loadStatisticsData === 'function') {
     loadStatisticsData();
@@ -4711,9 +5044,7 @@ function renderShootsList(shoots = globalShoots) {
         c.user = actualUser;
         let cUserName = actualUser.fullName || 'Участник';
         let cGroupName = actualUser.groupName || 'Группа';
-        let cRating = (actualUser.rating !== null && actualUser.rating !== undefined && actualUser.rating !== 'Нет') ? actualUser.rating : (c.grade ? c.grade : 'Нет');
-        let cRatingColor = getRatingBadgeColor(cRating !== 'Нет' ? cRating : null);
-        let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : (actualUser.completedShoots || 3), typeof cRating === 'number' ? cRating : 4.5);
+        let cRank = getCraftRankBadge(actualUser.participations ? actualUser.participations : (actualUser.completedShoots || 3), 4.8);
         
         const isMe = currentUser && (c.userId === currentUser.id || c.id === currentUser.id);
         const rowClassExtra = isMe ? ' student-my-row' : '';
@@ -4740,42 +5071,18 @@ function renderShootsList(shoots = globalShoots) {
           }
         }
 
-        let competencyMatrixBtn = '';
-        if (canGradeAndManage && !s.isCompleted) {
-          competencyMatrixBtn = '<button onclick="openCompetencyModal(\'' + s.id + '\', \'' + c.id + '\', \'' + c.roleInShoot + '\', \'' + cUserName.replace(/'/g, "\\'") + '\')" class="btn-brand-ghost px-2 py-0.5 text-[9px] font-extrabold uppercase" title="Оценить по цеховой матрице">Матрица цеха</button>';
-        }
-
         let attendanceSelect = '';
-        let starsBlock = '';
-        const currentGrade = c.grade !== undefined && c.grade !== null ? c.grade : 5;
-
         if (canGradeAndManage && !s.isCompleted) {
           let selPresent = c.attendance === 'PRESENT' ? 'selected' : '';
           let selAbsent = c.attendance === 'ABSENT' ? 'selected' : '';
           attendanceSelect = '<select onchange="updateAttendance(\'' + c.id + '\', this.value)" class="studio-input text-xs font-bold px-2 py-0.5 ml-2">' +
             '<option value="PRESENT" ' + selPresent + '>Присутствовал</option>' +
-            '<option value="ABSENT" ' + selAbsent + '>Прогул (-0.3 балла)</option>' +
+            '<option value="ABSENT" ' + selAbsent + '>Не явился</option>' +
           '</select>';
-
-          if (c.status === 'ACCEPTED') {
-            let starsHTML = '';
-            for (let i = 1; i <= 5; i++) {
-              let isFilled = i <= currentGrade;
-              starsHTML += '<span data-star-idx="' + i + '" onclick="setStarRating(\'' + c.id + '\', ' + i + ')" class="rating-star-btn cursor-pointer inline-flex items-center p-0.5 hover:scale-125 transition ' + (isFilled ? 'golden-star-glow opacity-100' : 'opacity-40') + '">' + (isFilled ? SVG_ICONS.star : SVG_ICONS.starEmpty) + '</span>';
-            }
-            starsBlock = '<div class="flex items-center space-x-1 ml-auto" id="stars_container_' + c.id + '">' +
-              '<span class="text-[10px] uppercase font-bold mr-1 font-mono" style="color: var(--text-muted);">Оценка:</span>' +
-              starsHTML +
-              '<input type="hidden" id="grade_input_' + c.id + '" value="' + currentGrade + '">' +
-            '</div>';
-          }
         } else {
-          const attText = c.attendance === 'ABSENT' ? 'Прогул' : 'Присутствовал';
+          const attText = c.attendance === 'ABSENT' ? 'Не явился' : 'Присутствовал';
           const attColor = c.attendance === 'ABSENT' ? '#f87171' : 'var(--text-muted)';
           attendanceSelect = '<span class="text-xs font-bold font-mono" style="color: ' + attColor + ';">' + attText + '</span>';
-          if (s.isCompleted || c.grade !== undefined) {
-            starsBlock = '<span class="text-xs font-mono font-bold golden-star-glow">★ ' + currentGrade + '</span>';
-          }
         }
 
         let roleClass = 'dept-badge-art';
@@ -4795,7 +5102,6 @@ function renderShootsList(shoots = globalShoots) {
           roleSvg = SVG_ICONS.scissors;
         }
 
-        // Внимание: имя отображается обычным текстом БЕЗ открытия своего профиля (по указанию пользователя)
         return '<div class="crew-member-row p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
           '<div class="flex items-center flex-wrap gap-2">' +
             '<span class="crew-dept-tag ' + roleClass + '"><span class="inline-flex items-center">' + roleSvg + c.roleInShoot + '</span></span>' +
@@ -4803,39 +5109,21 @@ function renderShootsList(shoots = globalShoots) {
             '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
             myBadge +
             '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
-            '<span id="member_rating_' + c.id + '" class="' + cRatingColor + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + cRating + '</span>' +
             statusBadgeCrew +
             manualAcceptBtn +
-            competencyMatrixBtn +
           '</div>' +
           '<div class="flex items-center space-x-2 ml-auto">' +
             attendanceSelect +
-            starsBlock +
           '</div>' +
         '</div>';
       }).join('');
     }
 
-    let globalGradeControl = '';
     let saveGradesBtn = '';
     if (canGradeAndManage && !s.isCompleted) {
-      let globalStarsHTML = '';
-      for (let i = 1; i <= 5; i++) {
-        globalStarsHTML += '<span onclick="applyGlobalGrade(\'' + s.id + '\', ' + i + ')" class="rating-star-btn golden-star-glow cursor-pointer inline-flex items-center p-1 hover:scale-125 transition" title="Оценить всех на ' + i + '">' + SVG_ICONS.star + '</span>';
-      }
-
-      globalGradeControl = '<div class="flex flex-wrap items-center justify-between p-3 border gap-2 mb-2" style="background-color: var(--bg-elevated); border-color: var(--border-color);">' +
-        '<span class="text-xs uppercase font-extrabold font-mono" style="color: var(--text-primary);">Быстрая оценка для всех участников:</span>' +
-        '<div class="flex space-x-1">' + globalStarsHTML + '</div>' +
-      '</div>';
-      
-      const allMemberIds = crewList.map(c => '\'' + c.id + '\'').join(', ');
-      saveGradesBtn = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">' +
-        '<button onclick="openCktGradingModal(\'' + s.id + '\')" class="btn-brand-primary py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5">' +
-          '<span>⭐ Оценить по 4 стандартам ЦКТ</span>' +
-        '</button>' +
-        '<button onclick="saveShootGrades(\'' + s.id + '\', [' + allMemberIds + '])" class="btn-brand-beige py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md">' +
-          'Быстро завершить смену' +
+      saveGradesBtn = '<div class="mt-3">' +
+        '<button onclick="saveShootGrades(\'' + s.id + '\')" class="btn-brand-primary w-full py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5">' +
+          '<span>✓ Завершить смену и перенести в архив</span>' +
         '</button>' +
       '</div>';
     }

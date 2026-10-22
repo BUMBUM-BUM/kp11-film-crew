@@ -12,6 +12,8 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
 const LOCATIONS_FILE = path.join(DATA_DIR, 'locations.json');
+const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json');
+const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 
 function readJsonFile(filePath, defaultVal = []) {
   try {
@@ -33,6 +35,26 @@ function writeJsonFile(filePath, data) {
     console.error(`Error writing ${filePath}:`, err.message);
     return false;
   }
+}
+
+function enrichUsersWithFeedback(users) {
+  const comments = readJsonFile(COMMENTS_FILE, []);
+  const now = Date.now();
+  return (users || []).map(u => {
+    const valid = comments.filter(c => {
+      if (c.studentId !== u.id) return false;
+      const t = new Date(c.createdAt || 0).getTime();
+      return (now - t) <= SIX_MONTHS_MS;
+    });
+    const likes = valid.filter(c => c.type === 'POSITIVE').length;
+    const dislikes = valid.filter(c => c.type === 'NEGATIVE').length;
+    return {
+      ...u,
+      likes,
+      dislikes,
+      isBlacklisted: !!(u.isBlacklisted || u.isSuspended)
+    };
+  });
 }
 
 // Пересчёт рейтинга всех студентов на основе завершённых смен
@@ -253,7 +275,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({
         success: true,
         shoots,
-        students: users,
+        students: enrichUsersWithFeedback(users),
         stats: { totalShoots: shoots.length, completedShoots: completed },
         userStats: {
           rating: targetUser ? (targetUser.rating || 5.0) : 5.0,
@@ -329,40 +351,21 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, message: 'Смена удалена' }));
     }
 
-    // 4. POST /api/shoots/complete (Завершение смены и утверждение всех оценок)
+    // 4. POST /api/shoots/complete (Завершение смены)
     if (pathname === '/api/shoots/complete' && req.method === 'POST') {
       const shoots = readJsonFile(SHOOTS_FILE, []);
       const targetShootId = jsonBody.shootId;
-      const grades = jsonBody.grades || {};
 
       let completedShoot = null;
       shoots.forEach(sh => {
         if (sh.id === targetShootId) {
           sh.isCompleted = true;
           completedShoot = sh;
-            sh.crew.forEach(cm => {
-              if (grades[cm.id] !== undefined) {
-                cm.grade = Number(grades[cm.id]);
-              } else if (grades[cm.userId] !== undefined) {
-                cm.grade = Number(grades[cm.userId]);
-              } else if (!cm.grade) {
-                cm.grade = 5.0;
-              }
-
-              if (jsonBody.shoot && Array.isArray(jsonBody.shoot.crew)) {
-                const incomingCm = jsonBody.shoot.crew.find(c => c.id === cm.id || c.userId === cm.userId);
-                if (incomingCm && incomingCm.cktCriteria) {
-                  cm.cktCriteria = incomingCm.cktCriteria;
-                }
-              }
-            });
         }
       });
 
       writeJsonFile(SHOOTS_FILE, shoots);
-      const updatedUsers = recalculateRatings();
-
-      return res.end(JSON.stringify({ success: true, shoot: completedShoot, users: updatedUsers }));
+      return res.end(JSON.stringify({ success: true, shoot: completedShoot }));
     }
 
     // 5. POST /api/shoots/:id/grade (Мгновенное сохранение одиночной оценки участника по клику)
@@ -670,7 +673,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/admin/data' && req.method === 'GET') {
       const users = readJsonFile(USERS_FILE, []);
       const settings = readJsonFile(SETTINGS_FILE, {});
-      return res.end(JSON.stringify({ success: true, users, settings, roles: [] }));
+      return res.end(JSON.stringify({ success: true, users: enrichUsersWithFeedback(users), settings, roles: [] }));
     }
 
     if (pathname === '/api/admin/settings' && req.method === 'POST') {
@@ -678,9 +681,37 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, settings: jsonBody }));
     }
 
+    // Черный список
+    const blacklistMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)\/(?:blacklist|suspend)$/);
+    if (blacklistMatch && req.method === 'POST') {
+      const targetUserId = blacklistMatch[1];
+      const users = readJsonFile(USERS_FILE, []);
+      let updatedUser = null;
+      users.forEach(u => {
+        if (u.id === targetUserId) {
+          const flag = jsonBody.isBlacklisted !== undefined ? !!jsonBody.isBlacklisted : (jsonBody.isSuspended !== undefined ? !!jsonBody.isSuspended : !u.isBlacklisted);
+          u.isBlacklisted = flag;
+          u.isSuspended = flag;
+          updatedUser = u;
+        }
+      });
+      writeJsonFile(USERS_FILE, users);
+      return res.end(JSON.stringify({ success: true, user: updatedUser, isBlacklisted: updatedUser ? updatedUser.isBlacklisted : false }));
+    }
+
+    // Удаление пользователя
+    const userDelMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+    if (userDelMatch && req.method === 'DELETE') {
+      const targetUserId = userDelMatch[1];
+      const users = readJsonFile(USERS_FILE, []);
+      const filtered = users.filter(u => u.id !== targetUserId);
+      writeJsonFile(USERS_FILE, filtered);
+      return res.end(JSON.stringify({ success: true, message: 'Пользователь удален' }));
+    }
+
     // Полное редактирование пользователя администратором (ФИО, группа, роль, рейтинг, компетенции, telegram, chatId, блокировка)
     const userFullEditMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)(?:\/full)?$/);
-    if (userFullEditMatch && (req.method === 'PUT' || (req.method === 'POST' && pathname.endsWith('/full')))) {
+    if (userFullEditMatch && (req.method === 'PUT' || req.method === 'PATCH' || (req.method === 'POST' && pathname.endsWith('/full')))) {
       const targetUserId = userFullEditMatch[1];
       const users = readJsonFile(USERS_FILE, []);
       let updatedUser = null;
@@ -694,7 +725,16 @@ const server = http.createServer(async (req, res) => {
           if (jsonBody.telegramChatId !== undefined) u.telegramChatId = jsonBody.telegramChatId ? String(jsonBody.telegramChatId).trim() : null;
           if (jsonBody.craftRank !== undefined) u.craftRank = jsonBody.craftRank;
           if (jsonBody.completedShoots !== undefined) u.completedShoots = Number(jsonBody.completedShoots);
-          if (jsonBody.isSuspended !== undefined) u.isSuspended = Boolean(jsonBody.isSuspended);
+          if (jsonBody.isBlacklisted !== undefined) {
+            u.isBlacklisted = Boolean(jsonBody.isBlacklisted);
+            u.isSuspended = Boolean(jsonBody.isBlacklisted);
+          } else if (jsonBody.isSuspended !== undefined) {
+            u.isSuspended = Boolean(jsonBody.isSuspended);
+            u.isBlacklisted = Boolean(jsonBody.isSuspended);
+          }
+          if (jsonBody.newPassword) {
+            u.password = jsonBody.newPassword;
+          }
           if (jsonBody.role || jsonBody.roleName) {
             const rName = jsonBody.roleName || (jsonBody.role && jsonBody.role.name) || jsonBody.role || 'Студент';
             u.role = { name: rName };
@@ -735,6 +775,63 @@ const server = http.createServer(async (req, res) => {
       });
       writeJsonFile(USERS_FILE, users);
       return res.end(JSON.stringify({ success: true, message: 'Пользователь обновлён' }));
+    }
+
+    // ----------------- СИСТЕМА КОММЕНТАРИЕВ И РЕЦЕНЗИЙ (ЛАЙКИ / ДИЗЛАЙКИ, 6 МЕСЯЦЕВ) -----------------
+    if (pathname === '/api/comments' && req.method === 'GET') {
+      const studentId = parsedUrl.searchParams.get('studentId');
+      const comments = readJsonFile(COMMENTS_FILE, []);
+      const now = Date.now();
+      const valid = comments.filter(c => {
+        if (studentId && c.studentId !== studentId) return false;
+        const t = new Date(c.createdAt || 0).getTime();
+        return (now - t) <= SIX_MONTHS_MS;
+      });
+      return res.end(JSON.stringify({ success: true, comments: valid }));
+    }
+
+    if (pathname === '/api/comments' && req.method === 'POST') {
+      const { studentId, studentName, type, text, shootId, shootTitle } = jsonBody;
+      if (!studentId || !text || !text.trim()) {
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ success: false, error: 'Укажите студента и текст отзыва' }));
+      }
+      const comments = readJsonFile(COMMENTS_FILE, []);
+      const newComment = {
+        id: `com-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        studentId,
+        studentName: studentName || '',
+        authorId: 'master-1',
+        authorName: 'Мастер Медиацентра',
+        type: type === 'NEGATIVE' ? 'NEGATIVE' : 'POSITIVE',
+        text: text.trim(),
+        shootId: shootId || null,
+        shootTitle: shootTitle || null,
+        createdAt: new Date().toISOString()
+      };
+      comments.unshift(newComment);
+      writeJsonFile(COMMENTS_FILE, comments);
+      return res.end(JSON.stringify({ success: true, comment: newComment }));
+    }
+
+    const commentDelMatch = pathname.match(/^\/api\/comments\/([^/]+)$/);
+    if (commentDelMatch && req.method === 'DELETE') {
+      const cId = commentDelMatch[1];
+      const comments = readJsonFile(COMMENTS_FILE, []);
+      const filtered = comments.filter(c => c.id !== cId);
+      writeJsonFile(COMMENTS_FILE, filtered);
+      return res.end(JSON.stringify({ success: true, message: 'Отзыв удален' }));
+    }
+
+    if (pathname === '/api/auth/change-password' && req.method === 'POST') {
+      const { newPassword, userId } = jsonBody;
+      const users = readJsonFile(USERS_FILE, []);
+      const u = users.find(x => x.id === userId);
+      if (u) {
+        u.password = newPassword;
+        writeJsonFile(USERS_FILE, users);
+      }
+      return res.end(JSON.stringify({ success: true, message: 'Пароль успешно обновлён' }));
     }
 
     // QR ЧЕК-ИН НА СЪЁМОЧНУЮ СМЕНУ

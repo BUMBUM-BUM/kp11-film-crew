@@ -435,7 +435,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     if (!user) return res.status(400).json({ error: 'Неверные данные' });
-    if (user.isSuspended) return res.status(403).json({ error: 'Аккаунт отстранен администрацией' });
+    // Черный список не блокирует вход в личный кабинет
 
     if (user.passwordHash) {
       const isValid = await bcrypt.compare(password, user.passwordHash).catch(() => false);
@@ -502,6 +502,108 @@ app.get('/api/cinemaboard', optionalAuthToken, async (req, res) => {
   }
 });
 
+
+// ----------------- СИСТЕМА КОММЕНТАРИЕВ И РЕЦЕНЗИЙ (ЛАЙКИ / ДИЗЛАЙКИ, 6 МЕСЯЦЕВ) -----------------
+app.get('/api/comments', optionalAuthToken, async (req, res) => {
+  try {
+    const studentId = req.query.studentId || null;
+    const comments = store.getComments(studentId);
+    res.json({ success: true, comments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/comments', optionalAuthToken, async (req, res) => {
+  try {
+    const { studentId, studentName, type, text, shootId, shootTitle } = req.body;
+    if (!studentId || !text || !text.trim()) {
+      return res.status(400).json({ error: 'Укажите студента и текст отзыва' });
+    }
+
+    let authorName = req.user?.fullName || 'Мастер Медиацентра';
+    let authorId = req.user?.id || 'master-1';
+
+    const newComment = store.addComment({
+      studentId,
+      studentName: studentName || '',
+      authorId,
+      authorName,
+      type: type === 'NEGATIVE' ? 'NEGATIVE' : 'POSITIVE',
+      text: text.trim(),
+      shootId: shootId || null,
+      shootTitle: shootTitle || null
+    });
+
+    res.json({ success: true, comment: newComment });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/comments/:id', optionalAuthToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    store.deleteComment(id);
+    res.json({ success: true, message: 'Отзыв удален' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------- СМЕНА ПАРОЛЯ В ЛИЧНОМ КАБИНЕТЕ -----------------
+app.post('/api/auth/change-password', optionalAuthToken, async (req, res) => {
+  try {
+    const { newPassword, userId } = req.body;
+    const targetUserId = (req.user && req.user.id) ? req.user.id : userId;
+    if (!targetUserId) {
+      return res.status(401).json({ error: 'Требуется авторизация' });
+    }
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'Пароль должен содержать минимум 4 символа' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await store.updateUser(targetUserId, { passwordHash });
+
+    if (prisma) {
+      try {
+        await prisma.user.update({
+          where: { id: targetUserId },
+          data: { passwordHash }
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    res.json({ success: true, message: 'Пароль успешно обновлён' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------- ЧЕРНЫЙ СПИСОК (ВМЕСТО ОТСТРАНЕНИЯ) -----------------
+app.post(['/api/admin/users/:id/blacklist', '/api/admin/users/:id/suspend'], optionalAuthToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isBlacklisted, isSuspended } = req.body;
+    const flag = isBlacklisted !== undefined ? !!isBlacklisted : (isSuspended !== undefined ? !!isSuspended : true);
+
+    const updated = await store.updateUser(id, { isBlacklisted: flag });
+    if (prisma) {
+      try {
+        await prisma.user.update({
+          where: { id },
+          data: { isSuspended: flag }
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    res.json({ success: true, user: updated, message: flag ? 'Пользователь помещен в черный список' : 'Пользователь убран из черного списка' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req, res) => {
   try {
     await prisma.user.updateMany({ data: { rating: null } });
@@ -511,29 +613,60 @@ app.post('/api/admin/reset-ratings', authenticateToken, requireAdmin, async (req
   }
 });
 
-app.patch('/api/admin/users/:id', optionalAuthToken, async (req, res) => {
+app.all(['/api/admin/users/:id/full', '/api/admin/users/:id'], optionalAuthToken, async (req, res) => {
+  if (req.method !== 'PUT' && req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
   try {
     const { id } = req.params;
-    const { fullName, groupName, rating, telegram, telegramChatId } = req.body;
-    
-    let updatedUser = null;
-    try {
-      updatedUser = await prisma.user.update({
-        where: { id },
-        data: { 
-          fullName, 
-          groupName,
-          rating: rating !== undefined && rating !== null && rating !== '' ? parseFloat(rating) : undefined,
-          telegram: telegram !== undefined ? (telegram ? (telegram.startsWith('@') ? telegram : '@' + telegram) : '') : undefined,
-          telegramChatId: telegramChatId !== undefined ? String(telegramChatId) : undefined
-        },
-        include: { role: true }
-      });
-    } catch (dbErr) {}
+    const { fullName, email, groupName, role, roleName, craftRank, telegram, telegramChatId, newPassword, isBlacklisted } = req.body;
+
+    let passwordHash = undefined;
+    if (newPassword && newPassword.trim().length >= 4) {
+      passwordHash = await bcrypt.hash(newPassword.trim(), 10);
+    }
+
+    const updates = {
+      fullName,
+      email,
+      groupName,
+      craftRank,
+      telegram,
+      telegramChatId,
+      isBlacklisted: isBlacklisted !== undefined ? !!isBlacklisted : undefined,
+      passwordHash
+    };
+
+    const targetRoleName = roleName || (role && role.name) || (typeof role === 'string' ? role : undefined);
+    if (targetRoleName) {
+      updates.role = { name: targetRoleName };
+    }
+
+    if (prisma) {
+      try {
+        let roleId = undefined;
+        if (targetRoleName) {
+          const r = await prisma.role.findUnique({ where: { name: targetRoleName } }).catch(() => null);
+          if (r) roleId = r.id;
+        }
+        await prisma.user.update({
+          where: { id },
+          data: {
+            fullName: fullName || undefined,
+            email: email || undefined,
+            groupName: groupName || undefined,
+            roleId: roleId || undefined,
+            craftRank: craftRank || undefined,
+            telegram: telegram !== undefined ? (telegram ? (telegram.startsWith('@') ? telegram : '@' + telegram) : '') : undefined,
+            telegramChatId: telegramChatId !== undefined ? String(telegramChatId) : undefined,
+            passwordHash: passwordHash || undefined,
+            isSuspended: isBlacklisted !== undefined ? !!isBlacklisted : undefined
+          }
+        }).catch(() => {});
+      } catch (dbErr) {}
+    }
 
     // Синхронизация с store.js
-    const storeUser = await store.updateUser(id, { fullName, groupName, rating, telegram, telegramChatId });
-    res.json({ success: true, user: updatedUser || storeUser });
+    const storeUser = await store.updateUser(id, updates);
+    res.json({ success: true, user: storeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -602,11 +735,17 @@ app.patch('/api/admin/users/:id/role', authenticateToken, requireAdmin, async (r
   }
 });
 
-app.delete('/api/admin/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/admin/users/:id', optionalAuthToken, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.user.delete({ where: { id } });
-    res.json({ success: true });
+    if (prisma) {
+      try {
+        await prisma.crewMember.deleteMany({ where: { userId: id } }).catch(() => {});
+        await prisma.user.delete({ where: { id } }).catch(() => {});
+      } catch (e) {}
+    }
+    await store.deleteUser(id);
+    res.json({ success: true, message: 'Пользователь удален' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

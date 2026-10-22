@@ -17,6 +17,8 @@ const DATA_DIR = path.join(__dirname);
 const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json');
+const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 const userManager = require('./user_manager');
 
 // Подключение к Prisma Client (если есть БД)
@@ -931,7 +933,7 @@ async function deleteShoot(id) {
   return true;
 }
 
-async function completeShoot(shootId, grades = {}) {
+async function completeShoot(shootId) {
   const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
   const shoot = shoots.find(s => s.id === shootId);
   if (shoot) {
@@ -941,22 +943,9 @@ async function completeShoot(shootId, grades = {}) {
   if (shoot && shoot.crew) {
     const users = readJsonFile(USERS_FILE, INITIAL_USERS);
     for (const member of shoot.crew) {
-      const g = grades && (grades[member.id] !== undefined 
-        ? parseFloat(grades[member.id]) 
-        : (grades[member.userId] !== undefined ? parseFloat(grades[member.userId]) : undefined));
-      
-      if (g !== undefined && !isNaN(g)) {
-        member.grade = g;
-        const u = users.find(user => user.id === member.userId);
-        if (u) {
-          if (u.rating === null || u.rating === undefined) {
-            u.rating = g;
-          } else {
-            u.rating = parseFloat(((u.rating + g) / 2).toFixed(1));
-          }
-        }
-      } else if (!member.grade) {
-        member.grade = 5;
+      const u = users.find(user => user.id === member.userId);
+      if (u) {
+        u.completedShoots = (u.completedShoots || 0) + 1;
       }
     }
     writeJsonFile(USERS_FILE, users);
@@ -1021,16 +1010,84 @@ async function updateCrewMemberStatus(shootId, userId, newStatus) {
 }
 
 // ------------------------------------------------------------------------------
+
+// ------------------------------------------------------------------------------
+// СИСТЕМА КОММЕНТАРИЕВ И ОТЗЫВОВ МАСТЕРОВ (СРОК 6 МЕСЯЦЕВ, ЛАЙКИ / ДИЗЛАЙКИ)
+// ------------------------------------------------------------------------------
+function isCommentActive(comment) {
+  if (!comment || !comment.createdAt) return false;
+  const created = new Date(comment.createdAt).getTime();
+  return (Date.now() - created) <= SIX_MONTHS_MS;
+}
+
+function getComments(studentId = null) {
+  const allComments = readJsonFile(COMMENTS_FILE, []);
+  const activeComments = allComments.filter(isCommentActive);
+  if (studentId) {
+    return activeComments.filter(c => c.studentId === studentId);
+  }
+  return activeComments;
+}
+
+function addComment(commentData) {
+  const allComments = readJsonFile(COMMENTS_FILE, []);
+  const newComment = {
+    id: 'comm-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4),
+    studentId: commentData.studentId,
+    studentName: commentData.studentName || '',
+    authorId: commentData.authorId || 'master-1',
+    authorName: commentData.authorName || 'Мастер Медиацентра',
+    type: commentData.type === 'NEGATIVE' ? 'NEGATIVE' : 'POSITIVE',
+    text: (commentData.text || '').trim(),
+    shootId: commentData.shootId || null,
+    shootTitle: commentData.shootTitle || null,
+    createdAt: new Date().toISOString()
+  };
+  allComments.unshift(newComment);
+  writeJsonFile(COMMENTS_FILE, allComments);
+  return newComment;
+}
+
+function deleteComment(commentId) {
+  const allComments = readJsonFile(COMMENTS_FILE, []);
+  const filtered = allComments.filter(c => c.id !== commentId);
+  writeJsonFile(COMMENTS_FILE, filtered);
+  return true;
+}
+
+function getUserFeedbackStats(studentId) {
+  const comments = getComments(studentId);
+  const likes = comments.filter(c => c.type === 'POSITIVE').length;
+  const dislikes = comments.filter(c => c.type === 'NEGATIVE').length;
+  return { likes, dislikes, activeComments: comments };
+}
+
 // РАБОТА С ПОЛЬЗОВАТЕЛЯМИ
 // ------------------------------------------------------------------------------
 async function getUsers() {
+  let list = [];
   if (prisma) {
     try {
       const dbUsers = await prisma.user.findMany({ include: { role: true } });
-      if (dbUsers && dbUsers.length > 0) return dbUsers;
+      if (dbUsers && dbUsers.length > 0) list = dbUsers;
     } catch (e) {}
   }
-  return readJsonFile(USERS_FILE, INITIAL_USERS);
+  if (!list || list.length === 0) {
+    list = readJsonFile(USERS_FILE, INITIAL_USERS);
+  }
+
+  const allActiveComments = getComments();
+  return list.map(u => {
+    const userComments = allActiveComments.filter(c => c.studentId === u.id);
+    const likes = userComments.filter(c => c.type === 'POSITIVE').length;
+    const dislikes = userComments.filter(c => c.type === 'NEGATIVE').length;
+    return {
+      ...u,
+      likes,
+      dislikes,
+      isBlacklisted: !!(u.isBlacklisted || u.isSuspended)
+    };
+  });
 }
 
 async function getUserById(id) {
@@ -1055,12 +1112,12 @@ async function updateUser(id, updates) {
         where: { id },
         data: {
           fullName: updates.fullName || undefined,
+          email: updates.email || undefined,
           groupName: updates.groupName || undefined,
-          rating: updates.rating !== undefined && updates.rating !== null ? parseFloat(updates.rating) : undefined,
           telegram: updates.telegram || undefined,
           telegramChatId: updates.telegramChatId || undefined,
           craftRank: updates.craftRank || undefined,
-          isSuspended: updates.isSuspended !== undefined ? updates.isSuspended : undefined
+          isSuspended: updates.isBlacklisted !== undefined ? updates.isBlacklisted : (updates.isSuspended !== undefined ? updates.isSuspended : undefined)
         }
       });
     } catch (e) {}
@@ -1070,19 +1127,38 @@ async function updateUser(id, updates) {
   const user = users.find(u => u.id === id);
   if (user) {
     if (updates.fullName !== undefined) user.fullName = updates.fullName;
+    if (updates.email !== undefined) user.email = updates.email;
     if (updates.groupName !== undefined) user.groupName = updates.groupName;
-    if (updates.rating !== undefined && updates.rating !== null) user.rating = parseFloat(updates.rating);
     if (updates.telegram !== undefined) {
       user.telegram = updates.telegram.trim() ? (updates.telegram.startsWith('@') ? updates.telegram.trim() : '@' + updates.telegram.trim()) : '';
     }
     if (updates.telegramChatId !== undefined) user.telegramChatId = String(updates.telegramChatId);
     if (updates.craftRank !== undefined) user.craftRank = updates.craftRank;
-    if (updates.isSuspended !== undefined) user.isSuspended = updates.isSuspended;
+    if (updates.role !== undefined) {
+      user.role = typeof updates.role === 'string' ? { name: updates.role } : updates.role;
+    }
+    if (updates.isBlacklisted !== undefined) {
+      user.isBlacklisted = !!updates.isBlacklisted;
+      user.isSuspended = !!updates.isBlacklisted;
+    }
+    if (updates.passwordHash !== undefined) user.passwordHash = updates.passwordHash;
 
     writeJsonFile(USERS_FILE, users);
     return user;
   }
   return null;
+}
+
+async function deleteUser(id) {
+  if (prisma) {
+    try {
+      await prisma.user.delete({ where: { id } }).catch(() => {});
+    } catch (e) {}
+  }
+  const users = readJsonFile(USERS_FILE, INITIAL_USERS);
+  const filtered = users.filter(u => u.id !== id);
+  writeJsonFile(USERS_FILE, filtered);
+  return true;
 }
 
 // ------------------------------------------------------------------------------
@@ -1138,6 +1214,11 @@ async function linkOrRegisterUser(registrationData) {
 }
 
 module.exports = {
+  getComments,
+  addComment,
+  deleteComment,
+  getUserFeedbackStats,
+  deleteUser,
   deduplicateAllUsers,
   linkOrRegisterUser,
   userManager,
