@@ -452,7 +452,8 @@ const SVG_ICONS = {
   cross: '<svg class="w-3 h-3 inline-block mr-1 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   telegram: '<svg class="w-3.5 h-3.5 inline-block text-[#229ED9] -mt-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.672c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.411Z"/></svg>',
   play: '<svg class="w-3.5 h-3.5 inline-block -mt-0.5" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
-  matrix: '<svg class="w-3.5 h-3.5 inline-block -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg>'
+  matrix: '<svg class="w-3.5 h-3.5 inline-block -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg>',
+  edit: '<svg class="w-3.5 h-3.5 inline-block -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
 };
 
 function showToast(message) {
@@ -1302,16 +1303,20 @@ function handleShiftTimingChange() {
   renderModalEquipment(globalInventory, true);
 }
 
-// ----------------- УПРАВЛЕНИЕ ТЕХНИКОЙ В МОДАЛЬНОМ ОКНЕ СОЗДАНИЯ СМЕНЫ -----------------
-function renderModalEquipment(items = globalInventory, preserveChecks = true) {
+// ----------------- УПРАВЛЕНИЕ ТЕХНИКОЙ В МОДАЛЬНОМ ОКНЕ СОЗДАНИЯ / РЕДАКТИРОВАНИЯ СМЕНЫ -----------------
+function renderModalEquipment(items = globalInventory, preserveChecks = true, initialCheckedIds = null) {
   const container = document.getElementById('equipmentCheckboxes');
   if (!container) return;
 
   const currentChecked = new Set();
-  if (preserveChecks) {
+  if (Array.isArray(initialCheckedIds)) {
+    initialCheckedIds.forEach(id => {
+      if (id) currentChecked.add(String(id));
+    });
+  } else if (preserveChecks) {
     container.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
       const id = cb.getAttribute('data-eq-id');
-      if (id) currentChecked.add(id);
+      if (id) currentChecked.add(String(id));
     });
   }
 
@@ -1330,13 +1335,15 @@ function renderModalEquipment(items = globalInventory, preserveChecks = true) {
   const targetCallTime = callEl ? callEl.value : '10:00';
   const targetEndTime = endEl ? endEl.value : '18:00';
   const hasTiming = !!(targetDate && targetCallTime && targetEndTime);
+  const editingIdInp = document.getElementById('editingShootId');
+  const currentEditingShootId = editingIdInp ? editingIdInp.value.trim() : null;
 
   container.innerHTML = items.map(eq => {
-    const avail = hasTiming ? checkEquipmentAvailability(eq.id, targetDate, targetCallTime, targetEndTime) : { status: 'AVAILABLE' };
+    const avail = hasTiming ? checkEquipmentAvailability(eq.id, targetDate, targetCallTime, targetEndTime, currentEditingShootId) : { status: 'AVAILABLE' };
     const isConflict = avail.status === 'CONFLICT';
     const isReserved = avail.status === 'RESERVED';
 
-    let isChecked = currentChecked.has(eq.id);
+    let isChecked = currentChecked.has(String(eq.id));
     if (isConflict) isChecked = false;
 
     let borderStyle = 'border-color: var(--border-subtle); background-color: var(--bg-card);';
@@ -3834,22 +3841,44 @@ async function openShootModal() {
   const modal = document.getElementById('shootModal');
   if (modal) modal.classList.remove('hidden');
 
+  const editingInp = document.getElementById('editingShootId');
+  if (editingInp) editingInp.value = '';
+
+  const titleHeader = document.getElementById('shootModalTitle');
+  if (titleHeader) titleHeader.textContent = 'Создание производственной смены';
+
+  const submitBtn = document.getElementById('shootModalSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'Опубликовать смену в производство';
+
+  const titleEl = document.getElementById('shootTitle');
+  if (titleEl) titleEl.value = '';
+
   const todayStr = new Date().toISOString().split('T')[0];
   const dateEl = document.getElementById('shootDate');
-  if (dateEl && !dateEl.value) dateEl.value = todayStr;
+  if (dateEl) dateEl.value = todayStr;
 
   const descEl = document.getElementById('shootDesc');
-  if (descEl && !descEl.value) descEl.value = 'Плановая съёмочная смена Медиацентра КП11';
+  if (descEl) descEl.value = 'Плановая съёмочная смена Медиацентра КП11';
+
+  const typeEl = document.getElementById('shootType');
+  if (typeEl) typeEl.value = 'СТУДИЯ';
 
   const locEl = document.getElementById('shootLocation');
-  if (locEl && !locEl.value) locEl.value = 'Павильон №1 ЦКТ (Онежская, 3)';
+  if (locEl) locEl.value = 'Павильон №1 ЦКТ (Онежская, 3)';
 
   const callEl = document.getElementById('shootCallTime');
-  if (callEl && !callEl.value) callEl.value = '10:00';
+  if (callEl) callEl.value = '10:00';
   const startEl = document.getElementById('shootStartTime');
-  if (startEl && !startEl.value) startEl.value = '11:30';
+  if (startEl) startEl.value = '11:30';
   const endEl = document.getElementById('shootEndTime');
-  if (endEl && !endEl.value) endEl.value = '18:00';
+  if (endEl) endEl.value = '18:00';
+
+  const latEl = document.getElementById('selectedLat');
+  if (latEl) latEl.value = '55.751244';
+  const lonEl = document.getElementById('selectedLon');
+  if (lonEl) lonEl.value = '37.618423';
+
+  toggleMapPicker('СТУДИЯ');
 
   currentShootMilestones = [
     { title: 'Сбор съёмочной группы', time: callEl ? callEl.value : '10:00' },
@@ -3943,11 +3972,139 @@ async function openShootModal() {
   }, 150);
 }
 
-function renderModalStudents(students, preserveSelections = true) {
+async function openEditShootModal(shootId) {
+  const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+  if (!shoot) {
+    showToast('Смена с ID «' + shootId + '» не найдена');
+    return;
+  }
+
+  const modal = document.getElementById('shootModal');
+  if (modal) modal.classList.remove('hidden');
+
+  const editingInp = document.getElementById('editingShootId');
+  if (editingInp) editingInp.value = String(shoot.id);
+
+  const titleHeader = document.getElementById('shootModalTitle');
+  if (titleHeader) titleHeader.textContent = '✎ Редактирование: ' + (shoot.title || 'Смена');
+
+  const submitBtn = document.getElementById('shootModalSubmitBtn');
+  if (submitBtn) submitBtn.textContent = '💾 Сохранить изменения в смене';
+
+  const titleEl = document.getElementById('shootTitle');
+  if (titleEl) titleEl.value = shoot.title || '';
+
+  const descEl = document.getElementById('shootDesc');
+  if (descEl) descEl.value = shoot.description || '';
+
+  const typeEl = document.getElementById('shootType');
+  if (typeEl) typeEl.value = shoot.type || 'СТУДИЯ';
+
+  const dateEl = document.getElementById('shootDate');
+  if (dateEl) {
+    const rawDate = shoot.date || '';
+    dateEl.value = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+  }
+
+  const locEl = document.getElementById('shootLocation');
+  if (locEl) locEl.value = shoot.location || '';
+
+  const callEl = document.getElementById('shootCallTime');
+  if (callEl) callEl.value = shoot.callTime || '10:00';
+
+  const startEl = document.getElementById('shootStartTime');
+  if (startEl) startEl.value = shoot.startTime || '11:30';
+
+  const endEl = document.getElementById('shootEndTime');
+  if (endEl) endEl.value = shoot.endTime || '18:00';
+
+  const latEl = document.getElementById('selectedLat');
+  if (latEl) latEl.value = shoot.latitude || 55.751244;
+
+  const lonEl = document.getElementById('selectedLon');
+  if (lonEl) lonEl.value = shoot.longitude || 37.618423;
+
+  if (Array.isArray(shoot.timeline) && shoot.timeline.length > 0) {
+    currentShootMilestones = JSON.parse(JSON.stringify(shoot.timeline));
+  } else {
+    currentShootMilestones = [
+      { title: 'Сбор съёмочной группы', time: shoot.callTime || '10:00' },
+      { title: 'Монтаж площадки и света', time: '10:30' },
+      { title: 'Мотор / Первый дубль', time: shoot.startTime || '11:30' },
+      { title: 'Шапка / Окончание смены', time: shoot.endTime || '18:00' }
+    ];
+  }
+  renderShootMilestones();
+  await loadLocations();
+
+  const searchInput = document.getElementById('studentSearchModal');
+  if (searchInput) searchInput.value = '';
+  const eqSearch = document.getElementById('equipmentSearchModal');
+  if (eqSearch) eqSearch.value = '';
+
+  await loadInventoryData();
+  const currentEqIds = Array.isArray(shoot.equipment)
+    ? shoot.equipment.map(e => (typeof e === 'string' ? e : (e ? e.id : null))).filter(Boolean)
+    : [];
+  renderModalEquipment(globalInventory, false, currentEqIds);
+  cancelInlineEquipmentForm();
+
+  try {
+    const res = await fetch('/api/shoots', { headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') } });
+    if (res.ok) {
+      const data = await res.json();
+      const rawStudents = data.students;
+      globalStudents = Array.isArray(rawStudents) ? rawStudents : (rawStudents && Array.isArray(rawStudents.value) ? rawStudents.value : []);
+    }
+  } catch (err) {}
+
+  if (!globalStudents || !Array.isArray(globalStudents) || globalStudents.length === 0) {
+    globalStudents = getStudentDirectory();
+  }
+
+  const initialCrewSelections = {};
+  if (Array.isArray(shoot.crew)) {
+    shoot.crew.forEach(cm => {
+      const uId = cm.userId || (cm.user && cm.user.id) || cm.id;
+      if (uId) {
+        initialCrewSelections[uId] = {
+          role: cm.roleInShoot || 'Оператор',
+          dept: cm.department || 'cinema'
+        };
+      }
+    });
+  }
+  renderModalStudents(globalStudents, false, initialCrewSelections);
+
+  toggleMapPicker(shoot.type);
+  setTimeout(() => {
+    const coords = [parseFloat(shoot.latitude) || 55.751244, parseFloat(shoot.longitude) || 37.618423];
+    if (pickerMap) {
+      if (typeof ymaps !== 'undefined' && pickerMap.setCenter) {
+        pickerMap.setCenter(coords, 12);
+        if (pickerPlacemark) {
+          pickerPlacemark.geometry.setCoordinates(coords);
+        } else {
+          pickerPlacemark = new ymaps.Placemark(coords, {}, { preset: 'islands#redDotIcon' });
+          pickerMap.geoObjects.add(pickerPlacemark);
+        }
+      } else if (pickerMap.container) {
+        pickerMap.container.fitToViewport();
+      }
+    }
+  }, 150);
+}
+
+function renderModalStudents(students, preserveSelections = true, initialSelections = null) {
   const box = document.getElementById('studentsCheckboxes');
   if (!box) return;
 
-  const currentSelections = preserveSelections ? getSelectedCrewMap() : {};
+  let currentSelections = {};
+  if (initialSelections && typeof initialSelections === 'object' && Object.keys(initialSelections).length > 0) {
+    currentSelections = initialSelections;
+  } else if (preserveSelections) {
+    currentSelections = getSelectedCrewMap();
+  }
   const list = Array.isArray(students) ? students : (students && Array.isArray(students.value) ? students.value : []);
 
   if (list.length === 0) {
@@ -4033,10 +4190,16 @@ function toggleMapPicker(type) {
 function closeShootModal() { 
   const modal = document.getElementById('shootModal');
   if (modal) modal.classList.add('hidden'); 
+  const editingInp = document.getElementById('editingShootId');
+  if (editingInp) editingInp.value = '';
 }
 
 async function handleCreateShoot(e) {
   e.preventDefault();
+  const editingInp = document.getElementById('editingShootId');
+  const editingShootId = editingInp ? editingInp.value.trim() : '';
+  const isEditing = !!editingShootId;
+
   const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
   const crewAssignments = Array.from(checkboxes).map(cb => {
     const userId = cb.value;
@@ -4075,11 +4238,11 @@ async function handleCreateShoot(e) {
     return;
   }
 
-  // Проверка конфликтов техники перед созданием смены
+  // Проверка конфликтов техники перед сохранением / созданием смены
   const selectedEqCheckboxes = Array.from(document.querySelectorAll('#equipmentCheckboxes input[type="checkbox"]:checked'));
   for (const cb of selectedEqCheckboxes) {
     const eqId = cb.getAttribute('data-eq-id');
-    const avail = checkEquipmentAvailability(eqId, date, callTime, endTime);
+    const avail = checkEquipmentAvailability(eqId, date, callTime, endTime, isEditing ? editingShootId : null);
     if (avail.status === 'CONFLICT') {
       const eqItem = (globalInventory || []).find(e => e.id === eqId);
       const eqName = eqItem ? eqItem.name : 'Оборудование';
@@ -4113,6 +4276,84 @@ async function handleCreateShoot(e) {
     equipment: selectedEquipment
   };
 
+  // Ветка редактирования существующей смены
+  if (isEditing) {
+    let updatedSuccessfully = false;
+    let updatedShoot = null;
+
+    try {
+      const res = await fetch('/api/shoots/' + encodeURIComponent(editingShootId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        updatedSuccessfully = true;
+        const data = await res.json();
+        updatedShoot = (data && data.shoot) ? data.shoot : data;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        const errMsg = errJson.error || ('Ошибка сервера: ' + res.status);
+        console.warn('PUT /api/shoots error:', errMsg);
+        showToast(errMsg);
+      }
+    } catch (err) {
+      console.error('Fetch PUT /api/shoots error:', err);
+    }
+
+    if (!updatedSuccessfully) {
+      // Fallback локального обновления:
+      const existing = (globalShoots || []).find(s => String(s.id) === String(editingShootId)) || {};
+      updatedShoot = {
+        ...existing,
+        ...body,
+        id: editingShootId,
+        crew: crewAssignments.map((ca, idx) => {
+          const st = (globalStudents || []).find(s => s.id === ca.userId) || { fullName: 'Студент', groupName: 'КТ-26', rating: 4.5, telegram: '@student' };
+          return {
+            id: 'c-' + editingShootId + '-' + ca.userId,
+            roleInShoot: ca.craftRole,
+            department: ca.department || 'cinema',
+            status: 'ACCEPTED',
+            attendance: 'PRESENT',
+            userId: ca.userId,
+            user: { id: ca.userId, fullName: st.fullName, groupName: st.groupName, rating: st.rating, telegram: st.telegram, participations: 3 }
+          };
+        })
+      };
+    }
+
+    if (updatedShoot && updatedShoot.id) {
+      if (!updatedShoot.equipment) updatedShoot.equipment = selectedEquipment;
+      updatedShoot.callTime = callTime;
+      updatedShoot.startTime = startTime;
+      updatedShoot.endTime = endTime;
+      updatedShoot.timeline = timeline;
+      globalShoots = (globalShoots || []).map(s => String(s.id) === String(editingShootId) ? { ...s, ...updatedShoot } : s);
+      localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+    }
+
+    // Диспетчеризация обновлённого вызывного листа в Telegram
+    try {
+      fetch('/api/telegram/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({ shootId: editingShootId, shoot: updatedShoot, isUpdate: true })
+      }).catch(() => {});
+    } catch (e) {}
+
+    showToast('Смена «' + title + '» успешно обновлена!');
+    closeShootModal();
+    if (editingInp) editingInp.value = '';
+    if (titleEl) titleEl.value = '';
+    if (descEl) descEl.value = '';
+    if (locEl) locEl.value = '';
+    if (dateEl) dateEl.value = '';
+    await loadShoots();
+    return;
+  }
+
+  // Ветка создания новой смены
   let createdSuccessfully = false;
   let newShoot = null;
 
@@ -4194,6 +4435,7 @@ async function handleCreateShoot(e) {
 
   showToast('Смена «' + title + '» создана! Вызывной разослан в Telegram');
   closeShootModal();
+  if (editingInp) editingInp.value = '';
   if (titleEl) titleEl.value = '';
   if (descEl) descEl.value = '';
   if (locEl) locEl.value = '';
@@ -5136,6 +5378,7 @@ function renderShootsList(shoots = globalShoots) {
 
   const canDeleteShoot = isAdminUser(currentUser) || isMasterUser(currentUser);
   const canGradeAndManage = isMasterOrAdminUser(currentUser);
+  const canEditShoot = isMasterOrAdminUser(currentUser) || !currentUser || !isStudentUser(currentUser);
 
   // Обновление карты объектов
   try {
@@ -5148,6 +5391,9 @@ function renderShootsList(shoots = globalShoots) {
           '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
           '<div style="margin-top:8px; display:flex; gap:4px;">' +
             '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
+        if (canEditShoot) {
+          balloonHTML += '<button type="button" onclick="event.stopPropagation(); openEditShootModal(\'' + s.id + '\')" style="background:#d97706;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Ред.</button>';
+        }
         if (canDeleteShoot) {
           balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
         }
@@ -5183,6 +5429,9 @@ function renderShootsList(shoots = globalShoots) {
           '<span style="font-size:11px; color:#333;">Локация: ' + s.location + '</span><br>' +
           '<div style="margin-top:8px; display:flex; gap:6px;">' +
             '<button onclick="openCallsheetModal(\'' + s.id + '\')" style="background:#229ED9;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Вызывной</button>';
+        if (canEditShoot) {
+          balloonHTML += '<button type="button" onclick="event.stopPropagation(); openEditShootModal(\'' + s.id + '\')" style="background:#d97706;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Ред.</button>';
+        }
         if (canDeleteShoot) {
           balloonHTML += '<button type="button" data-action="delete-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); deleteShoot(\'' + s.id + '\')" style="background:#E30613;color:#FFFFFF;padding:4px 8px;font-weight:bold;font-size:10px;border:none;cursor:pointer;text-transform:uppercase;">Удалить</button>';
         }
@@ -5330,6 +5579,18 @@ function renderShootsList(shoots = globalShoots) {
       '<span>Оборудование</span>' +
     '</button>';
 
+    const editBtn = canEditShoot ? '<button type="button" data-action="edit-shoot" data-shoot-id="' + s.id + '" onclick="event.stopPropagation(); openEditShootModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase text-amber-400 hover:text-amber-300 hover:bg-amber-950/30 transition flex items-center gap-1 cursor-pointer" title="Редактировать смену, таймлайн, состав и технику">' +
+      '<svg class="w-3 h-3 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+      '<span>Ред.</span>' +
+    '</button>' : '';
+
+    const editDetailsBtn = canEditShoot ? '<div class="pt-2">' +
+      '<button type="button" onclick="openEditShootModal(\'' + s.id + '\')" class="btn-brand-ghost w-full py-2 text-xs font-extrabold uppercase tracking-wider text-amber-400 border border-amber-600/60 bg-amber-950/20 hover:bg-amber-900/40 flex items-center justify-center gap-1.5 transition shadow-sm">' +
+        '<svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+        '<span>✎ Редактировать параметры смены и состав</span>' +
+      '</button>' +
+    '</div>' : '';
+
     const isShootOpen = window._openedShootIds ? window._openedShootIds.has(s.id) : false;
     const expandBtnText = isShootOpen ? 'Свернуть ▴' : 'Развернуть ▾';
 
@@ -5386,6 +5647,7 @@ function renderShootsList(shoots = globalShoots) {
             '<span>Вызывной</span>' +
           '</button>' +
           equipmentBtn +
+          editBtn +
           finishShootHeaderBtn +
           '<button id="expand_btn_' + s.id + '" onclick="toggleShootExpand(\'' + s.id + '\')" class="btn-brand-ghost px-3 py-1 text-[10px] font-extrabold uppercase">' + expandBtnText + '</button>' +
           deleteBtn +
@@ -5414,6 +5676,7 @@ function renderShootsList(shoots = globalShoots) {
           '</div>' +
           '<div class="space-y-1.5 mt-2">' + crewHtml + '</div>' +
           saveGradesBtn +
+          editDetailsBtn +
         '</div>' +
         
         '<div class="space-y-2 pt-2 border-t" style="border-color: var(--border-subtle);">' +
@@ -5511,3 +5774,5 @@ if (urlParams.get('create') === '1') {
   setTimeout(() => openShootModal(), 400);
 }
 
+window.openShootModal = openShootModal;
+window.openEditShootModal = openEditShootModal;

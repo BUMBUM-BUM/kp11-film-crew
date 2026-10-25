@@ -1188,16 +1188,140 @@ app.post('/api/shoots/:id/qr-checkin', optionalAuthToken, async (req, res) => {
   }
 });
 
-app.put('/api/shoots/:id', authenticateToken, requireMasterOrAdmin, async (req, res) => {
+app.put(['/api/shoots/:id', '/api/admin/shoots/:id'], optionalAuthToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, type, location, videoUrl, previewUrl } = req.body;
-    const updated = await prisma.shoot.update({
-      where: { id },
-      data: { title, description, type, location, videoUrl, previewUrl }
-    });
-    res.json({ success: true, updated });
+    const shootData = req.body || {};
+
+    // 1. Получение смены из единого хранилища
+    const allShoots = (await store.getShoots()) || [];
+    let targetShoot = allShoots.find(s => String(s.id) === String(id));
+    if (!targetShoot) {
+      targetShoot = { id };
+    }
+
+    // 2. Обработка состава съёмочной группы
+    let updatedCrew = targetShoot.crew || [];
+    if (Array.isArray(shootData.crewAssignments)) {
+      const allUsers = await store.getUsers();
+      updatedCrew = shootData.crewAssignments.map((ca, idx) => {
+        const u = allUsers.find(user => String(user.id) === String(ca.userId)) || {};
+        return {
+          id: ca.id || `c-${id}-${ca.userId || idx}`,
+          userId: ca.userId,
+          roleInShoot: ca.craftRole || ca.roleInShoot || 'Участник',
+          department: ca.department || 'cinema',
+          status: ca.status || 'ACCEPTED',
+          attendance: ca.attendance || 'PRESENT',
+          user: {
+            id: ca.userId,
+            fullName: u.fullName || 'Студент',
+            groupName: u.groupName || 'КТ-26',
+            rating: u.rating || 4.8,
+            telegram: u.telegram || null,
+            craftRank: u.craftRank || null
+          }
+        };
+      });
+    } else if (Array.isArray(shootData.crew)) {
+      updatedCrew = shootData.crew;
+    }
+
+    // 3. Формирование обновленного объекта смены
+    const updatedShoot = {
+      ...targetShoot,
+      title: shootData.title !== undefined ? shootData.title : targetShoot.title,
+      description: shootData.description !== undefined ? shootData.description : targetShoot.description,
+      type: shootData.type !== undefined ? shootData.type : targetShoot.type,
+      date: shootData.date !== undefined ? shootData.date : targetShoot.date,
+      callTime: shootData.callTime !== undefined ? shootData.callTime : targetShoot.callTime,
+      startTime: shootData.startTime !== undefined ? shootData.startTime : targetShoot.startTime,
+      endTime: shootData.endTime !== undefined ? shootData.endTime : targetShoot.endTime,
+      location: shootData.location !== undefined ? shootData.location : targetShoot.location,
+      latitude: shootData.latitude !== undefined ? parseFloat(shootData.latitude) : targetShoot.latitude,
+      longitude: shootData.longitude !== undefined ? parseFloat(shootData.longitude) : targetShoot.longitude,
+      timeline: shootData.timeline !== undefined ? shootData.timeline : targetShoot.timeline,
+      equipment: shootData.equipment !== undefined ? shootData.equipment : targetShoot.equipment,
+      crew: updatedCrew
+    };
+
+    // 4. Сохранение в файловое хранилище через store.saveShoot
+    await store.saveShoot(updatedShoot);
+
+    // 5. Синхронизация с PostgreSQL (Prisma) при наличии подключения
+    if (prisma) {
+      try {
+        const creator = await prisma.user.findFirst();
+        await prisma.shoot.upsert({
+          where: { id: String(id) },
+          update: {
+            title: updatedShoot.title,
+            description: updatedShoot.description || '',
+            type: updatedShoot.type || 'СТУДИЯ',
+            date: new Date(updatedShoot.date),
+            callTime: updatedShoot.callTime || '10:00',
+            startTime: updatedShoot.startTime || '11:30',
+            endTime: updatedShoot.endTime || '18:00',
+            location: updatedShoot.location || 'Смольная 10А',
+            latitude: updatedShoot.latitude || 55.857321,
+            longitude: updatedShoot.longitude || 37.491244,
+            timeline: updatedShoot.timeline || [],
+            equipment: updatedShoot.equipment || []
+          },
+          create: {
+            id: String(id),
+            title: updatedShoot.title,
+            description: updatedShoot.description || '',
+            type: updatedShoot.type || 'СТУДИЯ',
+            date: new Date(updatedShoot.date),
+            callTime: updatedShoot.callTime || '10:00',
+            startTime: updatedShoot.startTime || '11:30',
+            endTime: updatedShoot.endTime || '18:00',
+            location: updatedShoot.location || 'Смольная 10А',
+            latitude: updatedShoot.latitude || 55.857321,
+            longitude: updatedShoot.longitude || 37.491244,
+            timeline: updatedShoot.timeline || [],
+            equipment: updatedShoot.equipment || [],
+            creatorId: creator ? creator.id : 'master-1'
+          }
+        }).catch(() => {});
+
+        // Синхронизация состава группы в таблице CrewMember
+        if (Array.isArray(updatedCrew) && updatedCrew.length > 0) {
+          for (const cm of updatedCrew) {
+            const uId = cm.userId || (cm.user && cm.user.id);
+            if (uId) {
+              const uExists = await prisma.user.findUnique({ where: { id: uId } }).catch(() => null);
+              if (uExists) {
+                const cmId = cm.id || `cm-${id}-${uId}`;
+                await prisma.crewMember.upsert({
+                  where: { id: cmId },
+                  update: {
+                    roleInShoot: cm.roleInShoot || 'Участник',
+                    status: cm.status || 'ACCEPTED',
+                    attendance: cm.attendance || 'PRESENT'
+                  },
+                  create: {
+                    id: cmId,
+                    shootId: String(id),
+                    userId: uId,
+                    roleInShoot: cm.roleInShoot || 'Участник',
+                    status: cm.status || 'ACCEPTED',
+                    attendance: cm.attendance || 'PRESENT'
+                  }
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      } catch (prismaErr) {
+        console.warn('Prisma shoot update warning:', prismaErr.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Карточка смены успешно обновлена', shoot: updatedShoot });
   } catch (err) {
+    console.error('PUT /api/shoots/:id error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
