@@ -526,16 +526,25 @@ function updateNav() {
   const tabEquipmentBtn = document.getElementById('tabEquipmentBtn');
   const actionContainer = document.getElementById('actionButtonContainer');
 
+  const shootsSectionCreateBtn = document.getElementById('shootsSectionCreateBtn');
+  const canAccessMasterTabs = isMasterOrAdminUser(currentUser);
+
   updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
 
   if (tabPortfolioBtn) {
     tabPortfolioBtn.classList.toggle('hidden', !currentUser);
   }
   if (tabReviewsBtn) {
-    tabReviewsBtn.classList.toggle('hidden', !isMasterOrAdminUser(currentUser));
+    tabReviewsBtn.classList.toggle('hidden', !canAccessMasterTabs);
+    tabReviewsBtn.style.display = canAccessMasterTabs ? '' : 'none';
   }
   if (tabEquipmentBtn) {
-    tabEquipmentBtn.classList.toggle('hidden', !isMasterOrAdminUser(currentUser));
+    tabEquipmentBtn.classList.toggle('hidden', !canAccessMasterTabs);
+    tabEquipmentBtn.style.display = canAccessMasterTabs ? '' : 'none';
+  }
+  if (shootsSectionCreateBtn) {
+    shootsSectionCreateBtn.classList.toggle('hidden', !canAccessMasterTabs);
+    shootsSectionCreateBtn.style.display = canAccessMasterTabs ? '' : 'none';
   }
 
   if (currentUser) {
@@ -697,26 +706,47 @@ function switchTab(tab) {
 
   const baseTabClass = 'studio-tab text-xs font-extrabold uppercase';
   const activeTabClass = 'studio-tab active text-xs font-extrabold uppercase';
+  const canAccessMasterTabs = isMasterOrAdminUser(currentUser);
+  const canAccessAdmin = isAdminUser(currentUser);
 
   document.getElementById('tabShootsBtn').className = isShoots ? activeTabClass : baseTabClass;
   document.getElementById('tabMapBtn').className = isMap ? activeTabClass : baseTabClass;
   
   const tabPortBtn = document.getElementById('tabPortfolioBtn');
-  if (tabPortBtn) tabPortBtn.className = isPortfolio ? activeTabClass : baseTabClass;
+  if (tabPortBtn) {
+    tabPortBtn.className = isPortfolio ? activeTabClass : baseTabClass;
+    tabPortBtn.classList.toggle('hidden', !currentUser);
+  }
 
   const tabRevBtn = document.getElementById('tabReviewsBtn');
-  if (tabRevBtn) tabRevBtn.className = isReviews ? activeTabClass : baseTabClass;
+  if (tabRevBtn) {
+    tabRevBtn.className = isReviews ? activeTabClass : baseTabClass;
+    tabRevBtn.classList.toggle('hidden', !canAccessMasterTabs);
+    tabRevBtn.style.display = canAccessMasterTabs ? '' : 'none';
+  }
 
   const tabEqBtn = document.getElementById('tabEquipmentBtn');
-  if (tabEqBtn) tabEqBtn.className = isEquipment ? activeTabClass : baseTabClass;
+  if (tabEqBtn) {
+    tabEqBtn.className = isEquipment ? activeTabClass : baseTabClass;
+    tabEqBtn.classList.toggle('hidden', !canAccessMasterTabs);
+    tabEqBtn.style.display = canAccessMasterTabs ? '' : 'none';
+  }
 
   if (document.getElementById('tabStatsBtn')) {
     document.getElementById('tabStatsBtn').className = isStats ? activeTabClass : baseTabClass;
   }
 
   const tabAdminBtn = document.getElementById('tabAdminBtn');
-  if (tabAdminBtn && !tabAdminBtn.classList.contains('hidden')) {
+  if (tabAdminBtn) {
     tabAdminBtn.className = isAdmin ? activeTabClass : baseTabClass;
+    tabAdminBtn.classList.toggle('hidden', !canAccessAdmin);
+    tabAdminBtn.style.display = canAccessAdmin ? '' : 'none';
+  }
+
+  const shootsSectionCreateBtn = document.getElementById('shootsSectionCreateBtn');
+  if (shootsSectionCreateBtn) {
+    shootsSectionCreateBtn.classList.toggle('hidden', !canAccessMasterTabs);
+    shootsSectionCreateBtn.style.display = canAccessMasterTabs ? '' : 'none';
   }
 
   if (isMap) {
@@ -2098,100 +2128,100 @@ function getStudentDirectory() {
       id: 'master-1',
       fullName: 'Бадиков Семён Станиславович',
       groupName: 'КТ-26',
-      rating: 4.8,
-      completedShoots: 6,
+      rating: null,
+      completedShoots: 0,
       telegram: '@badikov_dop',
-      competencies: { camera: 96, sound: 98, light: 92, edit: 94 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Log-C', 'Shure SM7B', 'Aputure 300D', 'Sound Design', 'DaVinci Resolve'],
-      projects: ['ТЕСТ 2: ВЫЕЗД В ПАРК ЗЕЛЁНАЯ РЕКА', 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03', 'СПОРТИВНЫЙ РЕПОРТАЖ']
+      projects: []
     },
     {
       id: 'u1',
       fullName: 'Ковалев Михаил Алексеевич',
       groupName: 'ФВТ-22',
-      rating: 4.7,
-      completedShoots: 5,
+      rating: null,
+      completedShoots: 0,
       telegram: '@mikhail_cam',
-      competencies: { camera: 95, sound: 82, light: 88, edit: 96 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['ARRI Master Prime', 'Цветокоррекция', 'Стедикам', 'LUT Pipeline'],
-      projects: ['ПОДКАСТ МЕДИАЦЕНТРА КП11 #03', 'СПОРТИВНЫЙ РЕПОРТАЖ', 'КИНОПРОБЫ']
+      projects: []
     },
     {
       id: 'u2',
       fullName: 'Демидов Тимофей Дмитриевич',
       groupName: 'ФВТ-22',
-      rating: 4.5,
-      completedShoots: 4,
+      rating: null,
+      completedShoots: 0,
       telegram: '@timofey_light',
-      competencies: { camera: 88, sound: 78, light: 94, edit: 80 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Dedolight', 'Светотеневой рисунок', 'Вольфрам 3200K', 'Электробезопасность'],
-      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: []
     },
     {
       id: 'u3',
       fullName: 'Гусев Андрей Алексеевич',
       groupName: 'КТ-25',
-      rating: 3.5,
-      completedShoots: 2,
+      rating: null,
+      completedShoots: 0,
       telegram: '@andrey_gaffer',
-      competencies: { camera: 75, sound: 70, light: 85, edit: 68 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Гаффер-сетап', 'Рассеиватели', 'Штативы C-Stand'],
-      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: []
     },
     {
       id: 'u4',
       fullName: 'Соколова Анна Алексеевна',
       groupName: 'КТ-15',
-      rating: 4.0,
-      completedShoots: 3,
+      rating: null,
+      completedShoots: 0,
       telegram: '@anna_sound',
-      competencies: { camera: 84, sound: 92, light: 75, edit: 86 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Радиопетлички Sennheiser', 'Микрофонный бум', 'Синхронизация'],
-      projects: ['ПОДКАСТ МЕДИАЦЕНТРА КП11 #03']
+      projects: []
     },
     {
       id: 'u5',
       fullName: 'Жемчужников Ярослав Станиславович',
       groupName: 'КТ-25',
-      rating: 4.5,
-      completedShoots: 7,
+      rating: null,
+      completedShoots: 0,
       telegram: '@yaroslav_dop',
-      competencies: { camera: 97, sound: 85, light: 90, edit: 92 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Оператор-постановщик', 'Фокус-пуллинг', 'ARRI RAW', 'Стедикам'],
-      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'СПОРТИВНЫЙ РЕПОРТАЖ', 'ПОДКАСТ МЕДИАЦЕНТРА КП11 #03']
+      projects: []
     },
     {
       id: 'u6',
       fullName: 'Шальнева Любовь Игоревна',
       groupName: 'ФТ-21-25',
-      rating: 4.7,
-      completedShoots: 4,
+      rating: null,
+      completedShoots: 0,
       telegram: '@lyubov_photo',
-      competencies: { camera: 92, sound: 76, light: 89, edit: 90 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Canon R5', 'Студийный свет', 'Репортаж', 'Lightroom'],
-      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: []
     },
     {
       id: 'u7',
       fullName: 'Хамуд Юлий Мохамедович',
       groupName: 'КТ-26',
-      rating: 4.6,
-      completedShoots: 3,
+      rating: null,
+      completedShoots: 0,
       telegram: '@yuliy_cam',
-      competencies: { camera: 91, sound: 80, light: 84, edit: 88 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Canon C200', 'Стедикам', 'Оптика Prime', 'Полевая съёмка'],
-      projects: ['ПОДКАСТ МЕДИАЦЕНТРА КП11 #03', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: []
     },
     {
       id: 'u8',
       fullName: 'Журавлев Никита Дмитриевич',
       groupName: 'КТ-21',
-      rating: 4.5,
-      completedShoots: 3,
+      rating: null,
+      completedShoots: 0,
       telegram: '@nikita_sound',
-      competencies: { camera: 80, sound: 95, light: 75, edit: 85 },
+      competencies: { camera: 0, sound: 0, light: 0, edit: 0 },
       skills: ['Рекордер Zoom', 'Радиопетлички', 'Шумоподавление', 'Чистовой звук'],
-      projects: ['ДИПЛОМНЫЙ ПРОЕКТ: КОРОТКИЙ МЕТР «ЭХО»', 'КИНОПРОБЫ: ДИАЛОГ В ТЕМНОТЕ']
+      projects: []
     }
   ];
 }
@@ -3125,9 +3155,11 @@ async function saveStudentCompetenciesFromReviews(studentId) {
     console.warn('Error saving student competencies:', err);
   }
 
+  const calcRating = parseFloat((((camera + sound + light + edit) / 4) / 20).toFixed(1));
   const updateStudentObj = (st) => {
     if (st && st.id === studentId) {
       st.competencies = competencies;
+      st.rating = calcRating;
     }
   };
   (globalReviewsStudents || []).forEach(updateStudentObj);
@@ -3135,10 +3167,17 @@ async function saveStudentCompetenciesFromReviews(studentId) {
   (globalAdminUsers || []).forEach(updateStudentObj);
   if (currentUser && currentUser.id === studentId) {
     currentUser.competencies = competencies;
+    currentUser.rating = calcRating;
     localStorage.setItem('user', JSON.stringify(currentUser));
   }
 
-  showToast('Оценка компетенций сохранена: Камера ' + camera + '%, Звук ' + sound + '%, Свет ' + light + '%, Монтаж ' + edit + '%');
+  renderReviewsStudentsList(globalReviewsStudents);
+  const curRatingBadge = document.getElementById('revSelectedStudentRatingBadge');
+  if (curRatingBadge) {
+    curRatingBadge.innerHTML = '<svg class="w-3.5 h-3.5 text-amber-400 fill-amber-400" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ' + calcRating;
+  }
+
+  showToast('Оценка компетенций сохранена: Камера ' + camera + '%, Звук ' + sound + '%, Свет ' + light + '%, Монтаж ' + edit + '% (Рейтинг: ' + calcRating + ')');
 }
 window.saveStudentCompetenciesFromReviews = saveStudentCompetenciesFromReviews;
 
@@ -3941,7 +3980,7 @@ async function loadStatisticsData() {
 
   if (!data || data.totalShoots === 0 || !data.leaders || data.leaders.length === 0 || localShoots.length > (data.totalShoots || 0)) {
     const studentLeaders = [...studentsList]
-      .filter(s => s.rating !== null && s.rating !== undefined && !s.isSuspended)
+      .filter(s => s.rating !== null && s.rating !== undefined && Number(s.rating) > 0 && !s.isSuspended)
       .sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0))
       .slice(0, 10);
 
@@ -3949,18 +3988,22 @@ async function loadStatisticsData() {
     studentsList.forEach(st => {
       const g = st.groupName || 'КТ-26';
       if (!groupMap[g]) groupMap[g] = { sum: 0, count: 0, participations: 0 };
-      if (st.rating) {
+      if (st.rating !== null && st.rating !== undefined && Number(st.rating) > 0) {
         groupMap[g].sum += parseFloat(st.rating);
         groupMap[g].count++;
       }
-      groupMap[g].participations += (st.completedShoots || 1);
+      if (st.completedShoots) {
+        groupMap[g].participations += st.completedShoots;
+      }
     });
 
-    const groupsRating = Object.keys(groupMap).map(g => ({
-      groupName: g,
-      avgRating: groupMap[g].count > 0 ? parseFloat((groupMap[g].sum / groupMap[g].count).toFixed(1)) : 4.5,
-      participations: groupMap[g].participations
-    })).sort((a, b) => b.avgRating - a.avgRating);
+    const groupsRating = Object.keys(groupMap)
+      .filter(g => groupMap[g].count > 0)
+      .map(g => ({
+        groupName: g,
+        avgRating: parseFloat((groupMap[g].sum / groupMap[g].count).toFixed(1)),
+        participations: groupMap[g].participations
+      })).sort((a, b) => b.avgRating - a.avgRating);
 
     const titleCounts = {};
     localShoots.forEach(sh => {
@@ -3973,11 +4016,11 @@ async function loadStatisticsData() {
     })).sort((a, b) => b.count - a.count).slice(0, 5);
 
     data = {
-      totalShoots: Math.max(localShoots.length, (data && data.totalShoots) || 0),
-      totalCompleted: Math.max(localCompleted.length, (data && data.totalCompleted) || 0),
-      leaders: (data && data.leaders && data.leaders.length >= studentLeaders.length) ? data.leaders : studentLeaders,
-      groupsRating: (data && data.groupsRating && data.groupsRating.length >= groupsRating.length) ? data.groupsRating : groupsRating,
-      frequentShoots: (data && data.frequentShoots && data.frequentShoots.length > 0) ? data.frequentShoots : frequentShoots
+      totalShoots: localShoots.length,
+      totalCompleted: localCompleted.length,
+      leaders: studentLeaders,
+      groupsRating: groupsRating,
+      frequentShoots: frequentShoots
     };
 
     if (localShoots.length > 0) {
@@ -3992,52 +4035,64 @@ async function loadStatisticsData() {
   try {
     const leadersContainer = document.getElementById('statsLeadersList');
     if (leadersContainer) {
-      leadersContainer.innerHTML = data.leaders.map((u, index) => {
-        let rankBadge = '';
-        let cardRankClass = 'rank-card-default';
-        if (index === 0) {
-          rankBadge = '<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 bg-[var(--brand-red)] text-white font-extrabold mr-2 rounded-sm shadow-sm">' + SVG_ICONS.diamond + '01</span>';
-          cardRankClass = 'rank-card-top1';
-        } else if (index === 1) {
-          rankBadge = '<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 bg-amber-400 text-black font-extrabold mr-2 rounded-sm shadow-sm">' + SVG_ICONS.crown + '02</span>';
-          cardRankClass = 'rank-card-top2';
-        } else if (index === 2) {
-          rankBadge = '<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 bg-orange-600 text-white font-extrabold mr-2 rounded-sm shadow-sm">' + SVG_ICONS.medal + '03</span>';
-          cardRankClass = 'rank-card-top3';
-        } else {
-          const num = (index + 1 < 10 ? '0' : '') + (index + 1);
-          rankBadge = '<span class="text-[10px] font-mono mr-2.5 font-bold" style="color: var(--text-muted);">' + num + '</span>';
-        }
-
-        const colorClass = getRatingBadgeColor(u.rating);
-
-        return '<div class="flex items-center justify-between p-3 text-xs transition ' + cardRankClass + '">' +
-          '<div class="flex items-center">' +
-            rankBadge +
-            '<span class="font-bold" style="color: var(--text-primary);">' + u.fullName + ' <span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (u.groupName || '—') + ']</span></span>' +
-          '</div>' +
-          '<span class="' + colorClass + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + (u.rating !== null ? u.rating : 'Нет') + '</span>' +
+      if (!data.leaders || data.leaders.length === 0) {
+        leadersContainer.innerHTML = '<div class="p-6 text-center text-xs font-mono border border-dashed" style="color: var(--text-muted); border-color: var(--border-subtle);">' +
+          'Оценки студентов ещё не выставлены. Оценивание производится преподавателями во вкладке «Отзывы» по 4 параметрам цехов.' +
         '</div>';
-      }).join('') || '<p class="text-xs" style="color: var(--text-muted);">Нет данных о лидерах.</p>';
+      } else {
+        leadersContainer.innerHTML = data.leaders.map((u, index) => {
+          let rankBadge = '';
+          let cardRankClass = 'rank-card-default';
+          if (index === 0) {
+            rankBadge = '<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 bg-[var(--brand-red)] text-white font-extrabold mr-2 rounded-sm shadow-sm">' + SVG_ICONS.diamond + '01</span>';
+            cardRankClass = 'rank-card-top1';
+          } else if (index === 1) {
+            rankBadge = '<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 bg-amber-400 text-black font-extrabold mr-2 rounded-sm shadow-sm">' + SVG_ICONS.crown + '02</span>';
+            cardRankClass = 'rank-card-top2';
+          } else if (index === 2) {
+            rankBadge = '<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 bg-orange-600 text-white font-extrabold mr-2 rounded-sm shadow-sm">' + SVG_ICONS.medal + '03</span>';
+            cardRankClass = 'rank-card-top3';
+          } else {
+            const num = (index + 1 < 10 ? '0' : '') + (index + 1);
+            rankBadge = '<span class="text-[10px] font-mono mr-2.5 font-bold" style="color: var(--text-muted);">' + num + '</span>';
+          }
+
+          const colorClass = getRatingBadgeColor(u.rating);
+
+          return '<div class="flex items-center justify-between p-3 text-xs transition ' + cardRankClass + '">' +
+            '<div class="flex items-center">' +
+              rankBadge +
+              '<span class="font-bold" style="color: var(--text-primary);">' + u.fullName + ' <span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (u.groupName || '—') + ']</span></span>' +
+            '</div>' +
+            '<span class="' + colorClass + ' font-mono text-xs font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + (u.rating !== null ? u.rating : 'Нет') + '</span>' +
+          '</div>';
+        }).join('');
+      }
     }
 
     if (document.getElementById('statCompletedCount')) {
-      document.getElementById('statCompletedCount').innerText = data.totalCompleted + ' из ' + data.totalShoots;
+      document.getElementById('statCompletedCount').innerText = localCompleted.length + ' из ' + localShoots.length;
     }
 
     const groupsContainer = document.getElementById('statsGroupsList');
     if (groupsContainer) {
-      groupsContainer.innerHTML = data.groupsRating.map((g, index) => {
-        let gHighlight = index === 0 ? 'rank-card-top1' : 'rank-card-default';
-        let gLabel = index === 0 ? '<span class="text-[9px] font-mono uppercase px-2 py-0.5 bg-[var(--brand-red)] text-white font-extrabold mr-2 rounded-sm inline-flex items-center gap-1">' + SVG_ICONS.diamond + 'ТОП-1</span>' : '';
-        return '<div class="flex items-center justify-between p-3 text-xs ' + gHighlight + '">' +
-          '<div class="flex items-center">' +
-            gLabel +
-            '<span class="font-bold" style="color: var(--text-primary);">Группа: ' + g.groupName + '</span>' +
-          '</div>' +
-          '<span class="text-amber-400 font-mono font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + g.avgRating + ' <span class="font-normal" style="color: var(--text-muted);">(' + pluralizeRu(g.participations || 0, 'смена', 'смены', 'смен') + ')</span></span>' +
+      if (!data.groupsRating || data.groupsRating.length === 0) {
+        groupsContainer.innerHTML = '<div class="p-6 text-center text-xs font-mono border border-dashed" style="color: var(--text-muted); border-color: var(--border-subtle);">' +
+          'Рейтинг учебных групп формируется по мере выставления оценок преподавателями.' +
         '</div>';
-      }).join('') || '<p class="text-xs" style="color: var(--text-muted);">Нет данных по группам.</p>';
+      } else {
+        groupsContainer.innerHTML = data.groupsRating.map((g, index) => {
+          let gHighlight = index === 0 ? 'rank-card-top1' : 'rank-card-default';
+          let gLabel = index === 0 ? '<span class="text-[9px] font-mono uppercase px-2 py-0.5 bg-[var(--brand-red)] text-white font-extrabold mr-2 rounded-sm inline-flex items-center gap-1">' + SVG_ICONS.diamond + 'ТОП-1</span>' : '';
+          return '<div class="flex items-center justify-between p-3 text-xs ' + gHighlight + '">' +
+            '<div class="flex items-center">' +
+              gLabel +
+              '<span class="font-bold" style="color: var(--text-primary);">Группа: ' + g.groupName + '</span>' +
+            '</div>' +
+            '<span class="text-amber-400 font-mono font-bold inline-flex items-center gap-1">' + SVG_ICONS.star + g.avgRating + ' <span class="font-normal" style="color: var(--text-muted);">(' + pluralizeRu(g.participations || 0, 'смена', 'смены', 'смен') + ')</span></span>' +
+          '</div>';
+        }).join('');
+      }
     }
 
     const freqContainer = document.getElementById('statsFrequentShoots');
@@ -5062,6 +5117,11 @@ function getSelectedCrewMap() {
 window.getSelectedCrewMap = getSelectedCrewMap;
 
 async function openShootModal() {
+  if (!isMasterOrAdminUser(currentUser)) {
+    showToast('Создание смен доступно только преподавателям и администраторам.');
+    return;
+  }
+
   const modal = document.getElementById('shootModal');
   if (modal) modal.classList.remove('hidden');
 
@@ -5441,7 +5501,11 @@ function closeShootModal() {
 }
 
 async function handleCreateShoot(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
+  if (!isMasterOrAdminUser(currentUser)) {
+    showToast('У вас нет прав для создания смен.');
+    return;
+  }
   const editingInp = document.getElementById('editingShootId');
   const editingShootId = editingInp ? editingInp.value.trim() : '';
   const isEditing = !!editingShootId;
@@ -6284,19 +6348,19 @@ function exportStatisticsToCsv() {
       }
     });
 
-    const framesAvg = critCount > 0 ? (totalFrames / critCount).toFixed(1) : (st.rating || '5.0');
-    const gearAvg = critCount > 0 ? (totalGear / critCount).toFixed(1) : (st.rating || '5.0');
-    const timeAvg = critCount > 0 ? (totalTime / critCount).toFixed(1) : (st.rating || '5.0');
-    const ethicsAvg = critCount > 0 ? (totalEthics / critCount).toFixed(1) : (st.rating || '5.0');
+    const framesAvg = critCount > 0 ? (totalFrames / critCount).toFixed(1) : (st.rating || '—');
+    const gearAvg = critCount > 0 ? (totalGear / critCount).toFixed(1) : (st.rating || '—');
+    const timeAvg = critCount > 0 ? (totalTime / critCount).toFixed(1) : (st.rating || '—');
+    const ethicsAvg = critCount > 0 ? (totalEthics / critCount).toFixed(1) : (st.rating || '—');
 
-    const rankObj = getCraftRankBadge(st.completedShoots || 0, parseFloat(st.rating) || 5.0);
+    const rankObj = getCraftRankBadge(st.completedShoots || 0, parseFloat(st.rating) || 0);
     const statusText = st.isSuspended ? 'Приостановлен' : 'Активен';
 
     return [
       `"${(st.fullName || '').replace(/"/g, '""')}"`,
       `"${st.groupName || 'КТ-26'}"`,
       `"${rankObj.title}"`,
-      (st.rating !== null && st.rating !== undefined) ? st.rating : '5.0',
+      (st.rating !== null && st.rating !== undefined && Number(st.rating) > 0) ? st.rating : '—',
       st.completedShoots || 0,
       framesAvg,
       gearAvg,

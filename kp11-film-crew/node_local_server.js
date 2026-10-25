@@ -354,6 +354,21 @@ const server = http.createServer(async (req, res) => {
       const shoots = readJsonFile(SHOOTS_FILE, []);
       const users = readJsonFile(USERS_FILE, []);
 
+      // Проверка прав: студентам запрещено создавать смены
+      let authUserId = '';
+      const auth = req.headers.authorization || '';
+      const matchAuth = auth.match(/Bearer\s+(?:token-)?([^\s]+)/i);
+      if (matchAuth) authUserId = matchAuth[1];
+      let callerUser = users.find(u => u.id === authUserId || u.email === authUserId);
+      if (!callerUser && authUserId === 'student-token') callerUser = users.find(u => u.id === 'u1');
+      if (callerUser) {
+        const roleName = (callerUser.role && callerUser.role.name) || (typeof callerUser.role === 'string' ? callerUser.role : '');
+        if (roleName === 'Студент') {
+          res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ error: 'Студенты не имеют прав создавать съёмочные смены' }));
+        }
+      }
+
       const shootId = jsonBody.id || `shoot-${Date.now()}`;
       let crewList = [];
       if (Array.isArray(jsonBody.crew)) {
@@ -492,11 +507,11 @@ const server = http.createServer(async (req, res) => {
       const totalShoots = shoots.length;
       const totalCompleted = shoots.filter(s => s.isCompleted).length;
 
-      // Лидеры среди студентов
+      // Лидеры среди студентов (только студенты с реальными выставленными оценками)
       const studentLeaders = users
         .filter(u => {
           const role = (u.role && u.role.name) || (typeof u.role === 'string' ? u.role : 'Студент');
-          return role.includes('Студент') && !u.isSuspended;
+          return role.includes('Студент') && !u.isSuspended && typeof u.rating === 'number' && u.rating > 0;
         })
         .map(u => {
           let partCount = 0;
@@ -509,13 +524,13 @@ const server = http.createServer(async (req, res) => {
             id: u.id,
             fullName: u.fullName,
             groupName: u.groupName || 'КТ-26',
-            rating: typeof u.rating === 'number' ? u.rating : 4.8,
+            rating: u.rating,
             participations: partCount
           };
         })
         .sort((a, b) => b.rating - a.rating || b.participations - a.participations);
 
-      // Групповой рейтинг
+      // Групповой рейтинг (только группы, где студенты получили оценки)
       const groupMap = {};
       studentLeaders.forEach(st => {
         const g = st.groupName || 'КТ-26';
@@ -525,11 +540,13 @@ const server = http.createServer(async (req, res) => {
         groupMap[g].participations += st.participations;
       });
 
-      const groupsRating = Object.keys(groupMap).map(g => ({
-        groupName: g,
-        avgRating: groupMap[g].count > 0 ? Math.round((groupMap[g].sum / groupMap[g].count) * 10) / 10 : 4.5,
-        participations: groupMap[g].participations
-      })).sort((a, b) => b.avgRating - a.avgRating);
+      const groupsRating = Object.keys(groupMap)
+        .filter(g => groupMap[g].count > 0)
+        .map(g => ({
+          groupName: g,
+          avgRating: Math.round((groupMap[g].sum / groupMap[g].count) * 10) / 10,
+          participations: groupMap[g].participations
+        })).sort((a, b) => b.avgRating - a.avgRating);
 
       // Популярные смены
       const titleCounts = {};
@@ -932,17 +949,19 @@ const server = http.createServer(async (req, res) => {
       users.forEach(u => {
         if (u.id === targetUserId) {
           u.competencies = {
-            camera: Math.min(100, Math.max(0, Number(comps.camera ?? (u.competencies && u.competencies.camera) ?? 85))),
-            sound: Math.min(100, Math.max(0, Number(comps.sound ?? (u.competencies && u.competencies.sound) ?? 80))),
-            light: Math.min(100, Math.max(0, Number(comps.light ?? (u.competencies && u.competencies.light) ?? 80))),
-            edit: Math.min(100, Math.max(0, Number(comps.edit ?? (u.competencies && u.competencies.edit) ?? 85)))
+            camera: Math.min(100, Math.max(0, Number(comps.camera ?? 0))),
+            sound: Math.min(100, Math.max(0, Number(comps.sound ?? 0))),
+            light: Math.min(100, Math.max(0, Number(comps.light ?? 0))),
+            edit: Math.min(100, Math.max(0, Number(comps.edit ?? 0)))
           };
+          const avgScore = (u.competencies.camera + u.competencies.sound + u.competencies.light + u.competencies.edit) / 4;
+          u.rating = parseFloat((avgScore / 20).toFixed(1));
           updatedUser = u;
         }
       });
       if (updatedUser) {
         writeJsonFile(USERS_FILE, users);
-        return res.end(JSON.stringify({ success: true, competencies: updatedUser.competencies, user: updatedUser }));
+        return res.end(JSON.stringify({ success: true, competencies: updatedUser.competencies, rating: updatedUser.rating, user: updatedUser }));
       }
       res.statusCode = 404;
       return res.end(JSON.stringify({ success: false, error: 'Пользователь не найден' }));

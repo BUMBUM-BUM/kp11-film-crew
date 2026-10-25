@@ -1328,14 +1328,16 @@ app.all(['/api/users/:id/competencies', '/api/users/:id/skills'], optionalAuthTo
     if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден' });
 
     targetUser.competencies = {
-      camera: Math.min(100, Math.max(0, Number(comps.camera ?? (targetUser.competencies && targetUser.competencies.camera) ?? 85))),
-      sound: Math.min(100, Math.max(0, Number(comps.sound ?? (targetUser.competencies && targetUser.competencies.sound) ?? 80))),
-      light: Math.min(100, Math.max(0, Number(comps.light ?? (targetUser.competencies && targetUser.competencies.light) ?? 80))),
-      edit: Math.min(100, Math.max(0, Number(comps.edit ?? (targetUser.competencies && targetUser.competencies.edit) ?? 85)))
+      camera: Math.min(100, Math.max(0, Number(comps.camera ?? 0))),
+      sound: Math.min(100, Math.max(0, Number(comps.sound ?? 0))),
+      light: Math.min(100, Math.max(0, Number(comps.light ?? 0))),
+      edit: Math.min(100, Math.max(0, Number(comps.edit ?? 0)))
     };
+    const avgScore = (targetUser.competencies.camera + targetUser.competencies.sound + targetUser.competencies.light + targetUser.competencies.edit) / 4;
+    targetUser.rating = parseFloat((avgScore / 20).toFixed(1));
 
     writeJsonSafe(USERS_FILE, users);
-    res.json({ success: true, competencies: targetUser.competencies, user: targetUser });
+    res.json({ success: true, competencies: targetUser.competencies, rating: targetUser.rating, user: targetUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1690,6 +1692,12 @@ app.post('/api/shoots', optionalAuthToken, async (req, res) => {
     } = req.body;
     
     let creatorUser = req.user;
+    if (creatorUser) {
+      const roleName = (creatorUser.role && creatorUser.role.name) || (typeof creatorUser.role === 'string' ? creatorUser.role : '');
+      if (roleName === 'Студент') {
+        return res.status(403).json({ error: 'Студенты не имеют прав создавать съёмочные смены' });
+      }
+    }
     if (!creatorUser) {
       const users = await store.getUsers();
       creatorUser = users.find(u => u.id === 'master-1') || users[0] || { id: 'master-1', fullName: 'Бадиков Семён Станиславович' };

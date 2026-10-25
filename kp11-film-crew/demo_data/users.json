@@ -58,7 +58,7 @@
     "fullName": "Ковалев Михаил Алексеевич",
     "email": "mikhail.kovalev@kp11.ru",
     "groupName": "ФВТ-22",
-    "rating": 4.8,
+    "rating": null,
     "telegram": "@mikhail_cam",
     "telegramChatId": null,
     "craftRank": "Камерный оператор // Camera Operator",
@@ -67,10 +67,10 @@
       "name": "Студент"
     },
     "competencies": {
-      "camera": 95,
-      "sound": 82,
-      "light": 88,
-      "edit": 96
+      "camera": 0,
+      "sound": 0,
+      "light": 0,
+      "edit": 0
     },
     "skills": [
       "ARRI Master Prime",
@@ -78,14 +78,16 @@
       "Стедикам",
       "LUT Pipeline"
     ],
-    "completedShoots": 3
+    "completedShoots": 0,
+    "likes": 0,
+    "dislikes": 0
   },
   {
     "id": "u2",
     "fullName": "Демидов Тимофей Дмитриевич",
     "email": "timofey.demidov@kp11.ru",
     "groupName": "ФВТ-22",
-    "rating": 4.6,
+    "rating": null,
     "telegram": "@timofey_light",
     "telegramChatId": null,
     "craftRank": "Осветитель / Гаффер // Gaffer",
@@ -94,10 +96,10 @@
       "name": "Студент"
     },
     "competencies": {
-      "camera": 88,
-      "sound": 78,
-      "light": 94,
-      "edit": 80
+      "camera": 0,
+      "sound": 0,
+      "light": 0,
+      "edit": 0
     },
     "skills": [
       "Dedolight",
@@ -105,14 +107,16 @@
       "Вольфрам 3200K",
       "Электробезопасность"
     ],
-    "completedShoots": 2
+    "completedShoots": 0,
+    "likes": 0,
+    "dislikes": 0
   },
   {
     "id": "u3",
     "fullName": "Гусев Андрей Алексеевич",
     "email": "andrey.gusev@kp11.ru",
     "groupName": "КТ-25",
-    "rating": 4.0,
+    "rating": null,
     "telegram": "@andrey_gaffer",
     "telegramChatId": null,
     "craftRank": "Ассистент цеха // Best Boy",
@@ -121,24 +125,26 @@
       "name": "Студент"
     },
     "competencies": {
-      "camera": 75,
-      "sound": 70,
-      "light": 85,
-      "edit": 68
+      "camera": 0,
+      "sound": 0,
+      "light": 0,
+      "edit": 0
     },
     "skills": [
       "Гаффер-сетап",
       "Рассеиватели",
       "Штативы C-Stand"
     ],
-    "completedShoots": 1
+    "completedShoots": 0,
+    "likes": 0,
+    "dislikes": 0
   },
   {
     "id": "u4",
     "fullName": "Соколова Анна Алексеевна",
     "email": "anna.sokolova@kp11.ru",
     "groupName": "КТ-15",
-    "rating": 4.7,
+    "rating": null,
     "telegram": "@anna_sound",
     "telegramChatId": null,
     "craftRank": "Звукорежиссёр площадки // Sound Mixer",
@@ -147,10 +153,10 @@
       "name": "Студент"
     },
     "competencies": {
-      "camera": 70,
-      "sound": 95,
-      "light": 72,
-      "edit": 88
+      "camera": 0,
+      "sound": 0,
+      "light": 0,
+      "edit": 0
     },
     "skills": [
       "Shure SM7B",
@@ -158,14 +164,16 @@
       "Микрофонный бум",
       "Синхронизация"
     ],
-    "completedShoots": 3
+    "completedShoots": 0,
+    "likes": 0,
+    "dislikes": 0
   },
   {
     "id": "u5",
     "fullName": "Жемчужников Ярослав Станиславович",
     "email": "yaroslav.zhemch@kp11.ru",
     "groupName": "КТ-25",
-    "rating": 4.5,
+    "rating": null,
     "telegram": "@yaroslav_dop",
     "telegramChatId": null,
     "craftRank": "Оператор стедикама // Steadicam Operator",
@@ -174,16 +182,18 @@
       "name": "Студент"
     },
     "competencies": {
-      "camera": 92,
-      "sound": 75,
-      "light": 80,
-      "edit": 84
+      "camera": 0,
+      "sound": 0,
+      "light": 0,
+      "edit": 0
     },
     "skills": [
       "DJI RS3 Pro",
       "Камерные рельсы",
       "Динамический кадр"
     ],
-    "completedShoots": 2
+    "completedShoots": 0,
+    "likes": 0,
+    "dislikes": 0
   }
 ]
