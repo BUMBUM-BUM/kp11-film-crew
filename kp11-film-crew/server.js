@@ -544,7 +544,7 @@ app.get('/api/comments', optionalAuthToken, async (req, res) => {
   try {
     const studentId = req.query.studentId || null;
     const comments = store.getComments(studentId);
-    res.json({ success: true, comments });
+    res.json(comments);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -552,17 +552,26 @@ app.get('/api/comments', optionalAuthToken, async (req, res) => {
 
 app.post('/api/comments', optionalAuthToken, async (req, res) => {
   try {
-    const { studentId, studentName, type, text, shootId, shootTitle } = req.body;
+    const { studentId, studentName, type, text, shootId, shootTitle, authorName: clientAuthorName } = req.body;
     if (!studentId || !text || !text.trim()) {
       return res.status(400).json({ error: 'Укажите студента и текст отзыва' });
     }
 
-    let authorName = req.user?.fullName || 'Мастер Медиацентра';
+    let authorName = req.user?.fullName || clientAuthorName || 'Мастер Медиацентра';
     let authorId = req.user?.id || 'master-1';
+
+    let resolvedStudentName = studentName || '';
+    if (!resolvedStudentName) {
+      try {
+        const allUsers = await store.getUsers();
+        const st = (allUsers || []).find(u => u.id === studentId);
+        if (st) resolvedStudentName = st.fullName;
+      } catch (e) {}
+    }
 
     const newComment = store.addComment({
       studentId,
-      studentName: studentName || '',
+      studentName: resolvedStudentName,
       authorId,
       authorName,
       type: type === 'NEGATIVE' ? 'NEGATIVE' : 'POSITIVE',
@@ -946,43 +955,72 @@ app.get('/api/inventory', async (req, res) => {
 
 app.post('/api/inventory', optionalAuthToken, async (req, res) => {
   try {
-    const { name, serialNumber, category, notes, status, location, signedBy } = req.body;
-    if (!name) return res.status(400).json({ error: 'Укажите название оборудования' });
+    const { name, serialNumber, serialNumbers, quantity, category, notes, status, location, signedBy } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Укажите название оборудования' });
 
-    let newItem = null;
-    if (prisma && prisma.inventoryItem) {
-      try {
-        newItem = await prisma.inventoryItem.create({
-          data: {
-            name: name.trim(),
-            serialNumber: serialNumber ? serialNumber.trim() : 'Б/Н',
-            category: category || 'Камеры',
-            notes: notes || 'В рабочем состоянии',
-            status: status || 'AVAILABLE',
-            location: location || 'Склад техники ЦКТ КП11',
-            signedBy: signedBy || 'Бадиков Семён Станиславович'
-          }
-        });
-      } catch (dbErr) {
-        console.warn('[Prisma] inventoryItem.create error:', dbErr.message);
-      }
+    const trimmedName = name.trim();
+    const qty = Math.max(1, parseInt(quantity, 10) || 1);
+
+    // Парсим переданные серийные номера
+    let serialsList = [];
+    if (Array.isArray(serialNumbers)) {
+      serialsList = serialNumbers.map(s => String(s).trim()).filter(Boolean);
+    } else if (typeof serialNumbers === 'string' && serialNumbers.trim()) {
+      serialsList = serialNumbers.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    } else if (serialNumber && String(serialNumber).includes(',')) {
+      serialsList = String(serialNumber).split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    } else if (serialNumber && String(serialNumber).trim()) {
+      serialsList = [String(serialNumber).trim()];
     }
 
-    if (!newItem) {
-      newItem = {
-        id: `eq-${Date.now().toString(36)}`,
-        name: name.trim(),
-        serialNumber: serialNumber ? serialNumber.trim() : 'Б/Н',
-        category: category || 'Камеры',
-        notes: notes || 'В рабочем состоянии',
-        status: status || 'AVAILABLE',
-        location: location || 'Склад техники ЦКТ КП11',
-        signedBy: signedBy || 'Бадиков Семён Станиславович'
-      };
-    }
+    const totalCount = Math.max(qty, serialsList.length);
+    const prefix = (trimmedName.replace(/[^a-zA-Z0-9а-яА-Я]/g, '').slice(0, 4) || 'EQ').toUpperCase();
+    const createdItems = [];
 
     const inventory = readJsonSafe(INVENTORY_FILE, []);
-    inventory.unshift(newItem);
+
+    for (let i = 0; i < totalCount; i++) {
+      let sn = serialsList[i];
+      if (!sn) {
+        sn = `${prefix}-${String(100 + i + Math.floor(Math.random() * 900))}`;
+      }
+
+      let newItem = null;
+      if (prisma && prisma.inventoryItem) {
+        try {
+          newItem = await prisma.inventoryItem.create({
+            data: {
+              name: trimmedName,
+              serialNumber: sn,
+              category: category || 'Камеры',
+              notes: notes || 'В рабочем состоянии',
+              status: status || 'AVAILABLE',
+              location: location || 'Склад техники ЦКТ КП11',
+              signedBy: signedBy || 'Бадиков Семён Станиславович'
+            }
+          });
+        } catch (dbErr) {
+          console.warn('[Prisma] inventoryItem.create error:', dbErr.message);
+        }
+      }
+
+      if (!newItem) {
+        newItem = {
+          id: `eq-${Date.now().toString(36)}-${i}-${Math.floor(Math.random() * 1000)}`,
+          name: trimmedName,
+          serialNumber: sn,
+          category: category || 'Камеры',
+          notes: notes || 'В рабочем состоянии',
+          status: status || 'AVAILABLE',
+          location: location || 'Склад техники ЦКТ КП11',
+          signedBy: signedBy || 'Бадиков Семён Станиславович'
+        };
+      }
+
+      createdItems.push(newItem);
+      inventory.unshift(newItem);
+    }
+
     writeJsonSafe(INVENTORY_FILE, inventory);
 
     let allInventory = inventory;
@@ -993,7 +1031,13 @@ app.post('/api/inventory', optionalAuthToken, async (req, res) => {
       } catch (e) {}
     }
 
-    res.json({ success: true, item: newItem, inventory: allInventory });
+    res.json({
+      success: true,
+      count: createdItems.length,
+      items: createdItems,
+      item: createdItems[0],
+      inventory: allInventory
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

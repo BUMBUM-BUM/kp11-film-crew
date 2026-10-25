@@ -1189,12 +1189,7 @@ function renderEquipmentModalTabs(shootId) {
 }
 
 // ----------------- УПРАВЛЕНИЕ ВРЕМЕННЫМИ ПОМЕТКАМИ (MILESTONES) И ТАЙМИНГАМИ СМЕНЫ -----------------
-let currentShootMilestones = [
-  { title: 'Сбор съёмочной группы', time: '10:00' },
-  { title: 'Монтаж площадки и света', time: '10:30' },
-  { title: 'Мотор / Первый дубль', time: '11:30' },
-  { title: 'Шапка / Окончание смены', time: '18:00' }
-];
+let currentShootMilestones = [];
 
 function renderShootMilestones() {
   const container = document.getElementById('shootMilestonesList');
@@ -1378,6 +1373,7 @@ function renderModalEquipment(items = globalInventory, preserveChecks = true, in
         '</div>' +
       '</label>' +
       '<div class="flex items-center space-x-1.5 ml-2 flex-shrink-0">' +
+        '<button type="button" onclick="openEquipmentDetailsModal(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-400 hover:text-amber-300 border border-amber-800/40 bg-amber-950/20" title="Статус использования и серийники">ℹ️</button>' +
         '<button type="button" onclick="editInlineEquipmentItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-800/40 bg-cyan-950/20" title="Редактировать единицу техники">✎</button>' +
         '<button type="button" onclick="deleteInventoryItem(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-red-400 hover:text-red-300 border border-red-800/40 bg-red-950/20" title="Удалить из парка">✕</button>' +
       '</div>' +
@@ -1465,12 +1461,14 @@ async function saveInlineEquipmentItem() {
   const snEl = document.getElementById('inlineEqSerial');
   const catEl = document.getElementById('inlineEqCategory');
   const notesEl = document.getElementById('inlineEqNotes');
+  const qtyEl = document.getElementById('inlineEqQuantity');
 
   const editId = editIdEl ? editIdEl.value.trim() : '';
   const name = nameEl ? nameEl.value.trim() : '';
   const serialNumber = snEl ? snEl.value.trim() : '';
   const category = catEl ? catEl.value : 'Камеры';
   const notes = notesEl ? notesEl.value.trim() : '';
+  const quantity = qtyEl ? (parseInt(qtyEl.value, 10) || 1) : 1;
 
   if (!name) {
     showToast('Укажите наименование техники');
@@ -1497,31 +1495,50 @@ async function saveInlineEquipmentItem() {
     } catch (e) {}
     showToast('Единица техники «' + name + '» обновлена!');
   } else {
-    // Создание новой единицы
-    const newId = 'eq-' + Date.now();
-    const newItem = {
-      id: newId,
-      name,
-      category,
-      serialNumber: serialNumber || ('SN-' + Math.floor(100000 + Math.random() * 900000)),
-      location: 'Склад техники ЦКТ КП11',
-      notes,
-      status: 'AVAILABLE',
-      signedBy: signer
-    };
-    globalInventory = [newItem, ...(globalInventory || [])];
+    // Создание новой единицы или партии
     try {
       const res = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-        body: JSON.stringify(newItem)
+        body: JSON.stringify({
+          name,
+          category,
+          quantity,
+          serialNumbers: serialNumber,
+          notes,
+          location: 'Склад техники ЦКТ КП11',
+          signedBy: signer
+        })
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.inventory)) globalInventory = data.inventory;
+        if (Array.isArray(data.inventory)) {
+          globalInventory = data.inventory;
+        } else if (Array.isArray(data.items)) {
+          globalInventory = [...data.items, ...(globalInventory || [])];
+        }
+      } else {
+        const prefix = (name.replace(/[^a-zA-Z0-9а-яА-Я]/g, '').slice(0, 4) || 'EQ').toUpperCase();
+        let splitted = serialNumber ? serialNumber.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean) : [];
+        const total = Math.max(quantity, splitted.length);
+        const newItems = [];
+        for (let i = 0; i < total; i++) {
+          const sn = splitted[i] || `${prefix}-${100 + i + Math.floor(Math.random() * 900)}`;
+          newItems.push({
+            id: `eq-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
+            name,
+            category,
+            serialNumber: sn,
+            notes,
+            location: 'Склад техники ЦКТ КП11',
+            status: 'AVAILABLE',
+            signedBy: signer
+          });
+        }
+        globalInventory = [...newItems, ...(globalInventory || [])];
       }
     } catch (e) {}
-    showToast('Единица техники «' + name + '» добавлена в парк!');
+    showToast('Партия техники «' + name + '» добавлена в парк!');
   }
 
   try {
@@ -1530,6 +1547,7 @@ async function saveInlineEquipmentItem() {
 
   cancelInlineEquipmentForm();
   renderModalEquipment(globalInventory, true);
+  filterTrackerList();
 }
 
 async function deleteInventoryItem(eqId) {
@@ -1549,6 +1567,7 @@ async function deleteInventoryItem(eqId) {
 
   showToast('Оборудование удалено из базы.');
   renderModalEquipment(globalInventory, true);
+  filterTrackerList();
   if (activeEquipmentShootId) {
     renderEquipmentModalTabs(activeEquipmentShootId);
   }
@@ -1556,6 +1575,336 @@ async function deleteInventoryItem(eqId) {
 
 function closeEquipmentModal() {
   const modal = document.getElementById('equipmentCheckoutModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// ----------------- ПАНЕЛЬ ДОБАВЛЕНИЯ ТЕХНИКИ НА СКЛАД (ПАРТИЯМИ / С КОЛИЧЕСТВОМ) -----------------
+function toggleTrackerEquipmentForm(forceState) {
+  const card = document.getElementById('trackerEquipmentCreateCard');
+  if (!card) return;
+  if (forceState !== undefined) {
+    card.classList.toggle('hidden', !forceState);
+  } else {
+    card.classList.toggle('hidden');
+  }
+  if (!card.classList.contains('hidden')) {
+    const nameInp = document.getElementById('trackerNewEqName');
+    if (nameInp) nameInp.focus();
+    updateTrackerSerialsHint();
+  }
+}
+
+function updateTrackerSerialsHint() {
+  const qtyEl = document.getElementById('trackerNewEqQty');
+  const serialsEl = document.getElementById('trackerNewEqSerials');
+  const hintEl = document.getElementById('trackerSerialsHint');
+  if (!qtyEl || !hintEl) return;
+
+  const qty = Math.max(1, parseInt(qtyEl.value, 10) || 1);
+  const serialsRaw = serialsEl ? serialsEl.value.trim() : '';
+  let count = qty;
+  if (serialsRaw) {
+    const parsed = serialsRaw.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    if (parsed.length > 0) {
+      count = Math.max(qty, parsed.length);
+    }
+  }
+  hintEl.innerText = 'Будет зарегистрировано: ' + count + ' ' + pluralizeRu(count, 'карточка', 'карточки', 'карточек') + ' с отдельными серийниками';
+}
+
+async function submitTrackerBatchEquipment() {
+  const nameEl = document.getElementById('trackerNewEqName');
+  const catEl = document.getElementById('trackerNewEqCategory');
+  const qtyEl = document.getElementById('trackerNewEqQty');
+  const serialsEl = document.getElementById('trackerNewEqSerials');
+  const notesEl = document.getElementById('trackerNewEqNotes');
+  const locEl = document.getElementById('trackerNewEqLocation');
+
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (!name) {
+    showToast('Укажите наименование или модель техники');
+    if (nameEl) nameEl.focus();
+    return;
+  }
+
+  const category = catEl ? catEl.value : 'Камеры';
+  const quantity = qtyEl ? (parseInt(qtyEl.value, 10) || 1) : 1;
+  const serialNumbers = serialsEl ? serialsEl.value.trim() : '';
+  const notes = notesEl ? notesEl.value.trim() : '';
+  const location = locEl ? locEl.value.trim() : 'Склад техники ЦКТ КП11';
+  const signer = (currentUser && currentUser.fullName) ? currentUser.fullName : 'Бадиков Семён Станиславович';
+
+  try {
+    const res = await fetch('/api/inventory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || 'demo-token')
+      },
+      body: JSON.stringify({
+        name,
+        category,
+        quantity,
+        serialNumbers,
+        notes,
+        location,
+        signedBy: signer
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.inventory)) {
+        globalInventory = data.inventory;
+      } else if (Array.isArray(data.items)) {
+        globalInventory = [...data.items, ...(globalInventory || [])];
+      }
+    } else {
+      const prefix = (name.replace(/[^a-zA-Z0-9а-яА-Я]/g, '').slice(0, 4) || 'EQ').toUpperCase();
+      let splitted = serialNumbers ? serialNumbers.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean) : [];
+      const total = Math.max(quantity, splitted.length);
+      const newItems = [];
+      for (let i = 0; i < total; i++) {
+        const sn = splitted[i] || `${prefix}-${100 + i + Math.floor(Math.random() * 900)}`;
+        newItems.push({
+          id: `eq-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
+          name,
+          category,
+          serialNumber: sn,
+          notes,
+          location,
+          status: 'AVAILABLE',
+          signedBy: signer
+        });
+      }
+      globalInventory = [...newItems, ...(globalInventory || [])];
+    }
+
+    try {
+      localStorage.setItem('kp11_inventory', JSON.stringify(globalInventory));
+    } catch (e) {}
+
+    showToast('Партия техники «' + name + '» (' + quantity + ' шт.) добавлена на склад!');
+    toggleTrackerEquipmentForm(false);
+    if (nameEl) nameEl.value = '';
+    if (serialsEl) serialsEl.value = '';
+    if (notesEl) notesEl.value = '';
+    if (qtyEl) qtyEl.value = '1';
+
+    filterTrackerList();
+    renderModalEquipment(globalInventory, true);
+  } catch (err) {
+    console.error('Error saving batch equipment:', err);
+    showToast('Ошибка при добавлении оборудования: ' + err.message);
+  }
+}
+
+// ----------------- ПЛАШКА: СТАТУС, ГРАФИК ИСПОЛЬЗОВАНИЯ И СЕРИЙНИКИ ТЕХНИКИ -----------------
+function openEquipmentDetailsModal(eqIdOrModelName) {
+  const modal = document.getElementById('equipmentDetailsModal');
+  if (!modal) return;
+
+  const targetId = String(eqIdOrModelName || '').trim();
+  const eqItem = (globalInventory || []).find(e => e.id === targetId || (e.name && e.name.toLowerCase() === targetId.toLowerCase()));
+  if (!eqItem) {
+    showToast('Информация об оборудовании не найдена');
+    return;
+  }
+
+  const baseName = eqItem.name;
+  // Все единицы данной модели на складе
+  const modelUnits = (globalInventory || []).filter(e => e.name && e.name.toLowerCase() === baseName.toLowerCase());
+  const unitsCount = modelUnits.length > 0 ? modelUnits.length : 1;
+  const unitsToProcess = modelUnits.length > 0 ? modelUnits : [eqItem];
+
+  // Заполняем шапку
+  const titleEl = document.getElementById('eqDetailsTitle');
+  const catBadge = document.getElementById('eqDetailsCategoryBadge');
+  const locEl = document.getElementById('eqDetailsLocation');
+  const notesEl = document.getElementById('eqDetailsNotes');
+  if (titleEl) titleEl.innerText = baseName;
+  if (catBadge) catBadge.innerText = eqItem.category || 'Оборудование';
+  if (locEl) locEl.innerText = eqItem.location || 'Склад техники ЦКТ КП11';
+  if (notesEl) notesEl.innerText = eqItem.notes || 'Комплект стандартный, готов к эксплуатации';
+
+  // Ищем все смены, где используется данная модель техники
+  const matchingShoots = (globalShoots || []).filter(sh => {
+    if (!Array.isArray(sh.equipment)) return false;
+    return sh.equipment.some(e => {
+      if (typeof e === 'string') {
+        return e === eqItem.id || e.toLowerCase().includes(baseName.toLowerCase());
+      }
+      if (e && typeof e === 'object') {
+        return e.id === eqItem.id || (e.name && e.name.toLowerCase().includes(baseName.toLowerCase()));
+      }
+      return false;
+    });
+  });
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  const activeOrUpcomingShoots = [];
+  matchingShoots.forEach(sh => {
+    const sDate = sh.date || todayStr;
+    const sStart = sh.callTime || sh.startTime || '10:00';
+    const sEnd = sh.endTime || '18:00';
+    const startDt = parseShootDateTime(sDate, sStart);
+    const endDt = parseShootEndDateTime(sDate, sEnd, sStart);
+
+    const isCurrent = startDt && endDt && now >= startDt && now <= endDt;
+    const isUpcoming = (startDt && startDt > now) || (!sh.isCompleted && sDate >= todayStr);
+
+    if (isCurrent || isUpcoming) {
+      activeOrUpcomingShoots.push({
+        shoot: sh,
+        isCurrent,
+        isUpcoming,
+        startDt,
+        endDt
+      });
+    }
+  });
+
+  let occupiedUnitsCount = 0;
+  matchingShoots.forEach(sh => {
+    if (!sh.isCompleted && (sh.date >= todayStr || sh.date === todayStr)) {
+      occupiedUnitsCount++;
+    }
+  });
+  if (occupiedUnitsCount > unitsCount) occupiedUnitsCount = unitsCount;
+
+  const freeSerials = [];
+  const occupiedSerials = [];
+
+  unitsToProcess.forEach((unit, idx) => {
+    const sn = unit.serialNumber || ('SN-' + (idx + 1));
+    if (idx < occupiedUnitsCount && activeOrUpcomingShoots.length > 0) {
+      const relatedShoot = activeOrUpcomingShoots[idx % activeOrUpcomingShoots.length]?.shoot;
+      occupiedSerials.push({
+        sn,
+        shootTitle: relatedShoot ? relatedShoot.title : 'Съёмочная смена',
+        status: activeOrUpcomingShoots[idx % activeOrUpcomingShoots.length]?.isCurrent ? 'В ЭФИРЕ' : 'В РЕЗЕРВЕ'
+      });
+    } else {
+      freeSerials.push(sn);
+    }
+  });
+
+  // Счётчики
+  const totalCountEl = document.getElementById('eqDetailsTotalCount');
+  const freeCountEl = document.getElementById('eqDetailsFreeCount');
+  const occupiedCountEl = document.getElementById('eqDetailsOccupiedCount');
+  const serialsSummaryEl = document.getElementById('eqDetailsSerialsSummary');
+
+  if (totalCountEl) totalCountEl.innerText = unitsCount;
+  if (freeCountEl) freeCountEl.innerText = freeSerials.length;
+  if (occupiedCountEl) occupiedCountEl.innerText = occupiedSerials.length;
+  if (serialsSummaryEl) serialsSummaryEl.innerText = 'Всего единиц в базе: ' + unitsCount + ' шт.';
+
+  // Рендерим свободные серийники
+  const freeContainer = document.getElementById('eqDetailsFreeSerials');
+  if (freeContainer) {
+    if (freeSerials.length > 0) {
+      freeContainer.innerHTML = freeSerials.map(sn => 
+        '<span class="px-2.5 py-1 text-xs font-mono font-bold border border-emerald-600/70 bg-emerald-950/40 text-emerald-300 inline-flex items-center gap-1.5 shadow-sm">' +
+          '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' +
+          '<span>' + sn + '</span>' +
+          '<span class="text-[9px] text-emerald-400/75 uppercase font-sans">[Свободен]</span>' +
+        '</span>'
+      ).join('');
+    } else {
+      freeContainer.innerHTML = '<span class="text-xs font-mono text-[var(--text-muted)] italic">Все серийные номера в данный момент заняты на сменах</span>';
+    }
+  }
+
+  // Рендерим занятые серийники
+  const occupiedWrapper = document.getElementById('eqDetailsOccupiedSerialsWrapper');
+  const occupiedContainer = document.getElementById('eqDetailsOccupiedSerials');
+  if (occupiedWrapper && occupiedContainer) {
+    if (occupiedSerials.length > 0) {
+      occupiedWrapper.classList.remove('hidden');
+      occupiedContainer.innerHTML = occupiedSerials.map(item => 
+        '<span class="px-2.5 py-1 text-xs font-mono font-bold border border-red-700/70 bg-red-950/50 text-red-300 inline-flex items-center gap-1.5 shadow-sm" title="Используется в смене: ' + item.shootTitle + '">' +
+          '<span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>' +
+          '<span>' + item.sn + '</span>' +
+          '<span class="text-[9px] text-red-300/80 uppercase font-sans">[' + item.status + ']</span>' +
+        '</span>'
+      ).join('');
+    } else {
+      occupiedWrapper.classList.add('hidden');
+    }
+  }
+
+  // Рендерим график использования
+  const shootsListContainer = document.getElementById('eqDetailsShootsList');
+  if (shootsListContainer) {
+    if (matchingShoots.length > 0) {
+      const sortedShoots = [...matchingShoots].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      shootsListContainer.innerHTML = sortedShoots.map(sh => {
+        const sDate = sh.date || todayStr;
+        const sStart = sh.callTime || sh.startTime || '10:00';
+        const sEnd = sh.endTime || '18:00';
+        const startDt = parseShootDateTime(sDate, sStart);
+        const endDt = parseShootEndDateTime(sDate, sEnd, sStart);
+
+        const isCurrent = startDt && endDt && now >= startDt && now <= endDt;
+        const isUpcoming = (startDt && startDt > now) || (!sh.isCompleted && sDate >= todayStr);
+
+        let statusBadge = '<span class="font-mono text-[9px] px-2 py-0.5 border text-neutral-400 border-neutral-700 bg-neutral-900/60">АРХИВ</span>';
+        let cardBg = 'border-color: var(--border-subtle); background-color: var(--bg-card);';
+
+        if (isCurrent) {
+          statusBadge = '<span class="font-mono text-[9px] px-2 py-0.5 border text-red-400 border-red-600/80 bg-red-950/70 font-bold animate-pulse">🔴 В ЭФИРЕ (СЕЙЧАС)</span>';
+          cardBg = 'border-color: rgba(227, 6, 19, 0.7); background-color: rgba(69, 10, 10, 0.3);';
+        } else if (isUpcoming) {
+          statusBadge = '<span class="font-mono text-[9px] px-2 py-0.5 border text-amber-300 border-amber-600/80 bg-amber-950/70 font-bold">🟡 ЗАПЛАНИРОВАНО</span>';
+          cardBg = 'border-color: rgba(245, 158, 11, 0.6); background-color: rgba(69, 39, 10, 0.25);';
+        }
+
+        const op = sh.crew ? sh.crew.find(c => (c.roleInShoot || '').toLowerCase().includes('оператор') || (c.roleInShoot || '').toLowerCase().includes('ответственн')) : null;
+        let opHtml = '—';
+        if (op) {
+          const opUser = op.user || {};
+          const opName = opUser.fullName || op.fullName || 'Оператор';
+          const opId = opUser.id || op.userId || op.id;
+          if (isMasterOrAdminUser(currentUser) && opId) {
+            opHtml = '<button type="button" onclick="openShowreelModal(\'' + opId + '\');" class="text-amber-300 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer" title="Открыть цифровой паспорт студента">' +
+              '<span>' + opName + '</span><span class="text-[9px]">👤</span>' +
+            '</button>';
+          } else {
+            opHtml = '<span class="text-white font-bold">' + opName + '</span>';
+          }
+        }
+
+        return '<div class="p-3 border space-y-1.5 transition text-xs" style="' + cardBg + '">' +
+          '<div class="flex items-center justify-between flex-wrap gap-2">' +
+            '<div class="flex items-center gap-2">' +
+              '<span class="font-mono text-[11px] font-bold text-amber-400">' + (sh.date || 'Дата не указана') + '</span>' +
+              '<span class="font-mono text-[11px] text-[var(--text-muted)]">' + sStart + ' — ' + sEnd + '</span>' +
+            '</div>' +
+            statusBadge +
+          '</div>' +
+          '<div class="font-bold uppercase text-[var(--text-primary)] leading-tight">' + sh.title + '</div>' +
+          '<div class="flex items-center justify-between flex-wrap gap-2 text-[11px] font-mono text-[var(--text-muted)] pt-1 border-t" style="border-color: var(--border-subtle);">' +
+            '<div>📍 ' + (sh.location || 'Смольная 10А') + '</div>' +
+            '<div>Ответственный: ' + opHtml + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    } else {
+      shootsListContainer.innerHTML = '<div class="p-4 text-center text-xs font-mono border border-dashed text-emerald-400" style="border-color: rgba(16,185,129,0.3); background-color: rgba(16,185,129,0.05);">' +
+        '✓ Данная модель в настоящее время не задействована в сменах.<br>' +
+        '<span class="text-[11px] text-[var(--text-muted)]">Все ' + unitsCount + ' ' + pluralizeRu(unitsCount, 'серийный номер', 'серийных номера', 'серийных номеров') + ' свободно находятся на складе ЦКТ КП11.</span>' +
+      '</div>';
+    }
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeEquipmentDetailsModal() {
+  const modal = document.getElementById('equipmentDetailsModal');
   if (modal) modal.classList.add('hidden');
 }
 
@@ -1927,10 +2276,32 @@ function openShowreelModal(userId) {
   const container = document.getElementById('showreelContent');
   if (!modal || !container) return;
 
-  const userFromAdmin = (globalAdminUsers || []).find(u => u.id === userId);
-  const userFromStudents = (globalStudents || []).find(u => u.id === userId);
-  const userFromDir = getStudentDirectory().find(u => u.id === userId);
-  const student = userFromAdmin || userFromStudents || userFromDir || (globalStudents && globalStudents[0]) || getStudentDirectory()[0];
+  const target = String(userId || '').trim().toLowerCase();
+  let student = (globalAdminUsers || []).find(u => u.id === userId) ||
+                (globalStudents || []).find(u => u.id === userId) ||
+                getStudentDirectory().find(u => u.id === userId);
+
+  if (!student && target) {
+    student = (globalAdminUsers || []).find(u => u.fullName && u.fullName.toLowerCase() === target) ||
+              (globalStudents || []).find(u => u.fullName && u.fullName.toLowerCase() === target) ||
+              getStudentDirectory().find(u => u.fullName && u.fullName.toLowerCase() === target);
+  }
+
+  if (!student && target) {
+    for (const sh of (globalShoots || [])) {
+      if (Array.isArray(sh.crew)) {
+        const cm = sh.crew.find(c => c.id === userId || c.userId === userId || (c.user && (c.user.id === userId || (c.user.fullName && c.user.fullName.toLowerCase() === target))));
+        if (cm) {
+          student = cm.user ? { ...cm.user } : { id: cm.userId || cm.id, fullName: cm.fullName || 'Студент', groupName: cm.groupName || 'КТ' };
+          break;
+        }
+      }
+    }
+  }
+
+  if (!student) {
+    student = (globalStudents && globalStudents[0]) || getStudentDirectory()[0];
+  }
 
   student.competencies = student.competencies || { camera: 90, sound: 85, light: 85, edit: 90 };
   const rank = getCraftRankBadge(student.completedShoots || student.participations || 4, student.rating || 4.8);
@@ -2079,10 +2450,12 @@ async function loadMyPortfolio() {
       headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
     });
     if (res.ok) {
-      comments = await res.json();
+      const data = await res.json();
+      comments = Array.isArray(data) ? data : (data && Array.isArray(data.comments) ? data.comments : []);
     }
   } catch (err) {
     console.warn('Error loading cabinet comments:', err);
+    comments = [];
   }
 
   const likes = comments.filter(c => c.type === 'POSITIVE').length;
@@ -2329,11 +2702,19 @@ function renderReviewsStudentsList(students) {
       borderClass += ' border-red-800/80 bg-red-950/20';
     }
 
+    let studentNameHtml = '<span class="font-bold text-xs uppercase text-[var(--text-primary)]">' + (s.fullName || 'Без имени') + '</span>';
+    if (isMasterOrAdminUser(currentUser)) {
+      studentNameHtml = '<button type="button" onclick="event.stopPropagation(); openShowreelModal(\'' + s.id + '\')" class="font-bold text-xs uppercase hover:underline text-left inline-flex items-center gap-1 group text-[var(--text-primary)] hover:text-amber-400 transition" title="Открыть цифровой паспорт студента">' +
+        '<span>' + (s.fullName || 'Без имени') + '</span>' +
+        '<span class="text-[9px] text-amber-400/80">👤</span>' +
+      '</button>';
+    }
+
     return '<div onclick="selectStudentForReviews(\'' + s.id + '\')" class="p-3 border cursor-pointer transition hover:border-[var(--brand-red)] ' + borderClass + '">' +
       '<div class="flex items-center justify-between gap-2">' +
         '<div class="min-w-0 flex-grow">' +
           '<div class="flex items-center flex-wrap gap-1.5">' +
-            '<span class="font-bold text-xs uppercase text-[var(--text-primary)]">' + (s.fullName || 'Без имени') + '</span>' +
+            studentNameHtml +
             '<span class="font-mono text-[10px] text-[var(--text-muted)]">[' + (s.groupName || 'КТ') + ']</span>' +
             (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[9px] px-1 border border-red-600 bg-red-950/60">⛔ ЧС</span>' : '') +
           '</div>' +
@@ -2365,10 +2746,12 @@ async function selectStudentForReviews(studentId) {
       headers: { 'Authorization': 'Bearer ' + (token || 'demo-token') }
     });
     if (res.ok) {
-      comments = await res.json();
+      const data = await res.json();
+      comments = Array.isArray(data) ? data : (data && Array.isArray(data.comments) ? data.comments : []);
     }
   } catch (err) {
     console.warn('Error loading student comments:', err);
+    comments = [];
   }
 
   const likes = comments.filter(c => c.type === 'POSITIVE').length;
@@ -2412,7 +2795,9 @@ async function selectStudentForReviews(studentId) {
     '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b" style="border-color: var(--border-color);">' +
       '<div>' +
         '<div class="flex items-center flex-wrap gap-2">' +
-          '<h4 class="text-sm font-extrabold uppercase text-[var(--text-primary)]">' + student.fullName + '</h4>' +
+          (isMasterOrAdminUser(currentUser) 
+            ? '<button type="button" onclick="openShowreelModal(\'' + student.id + '\')" class="text-sm font-extrabold uppercase hover:underline text-left inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition" title="Открыть цифровой паспорт студента"><span>' + student.fullName + '</span><span class="text-[10px] font-mono px-1.5 py-0.5 border border-amber-600/60 bg-amber-950/40 text-amber-300 rounded-xs">👤 Паспорт</span></button>'
+            : '<h4 class="text-sm font-extrabold uppercase text-[var(--text-primary)]">' + student.fullName + '</h4>') +
           '<span class="font-mono text-xs font-bold text-[var(--brand-beige-text)]">[' + (student.groupName || 'КТ') + ']</span>' +
           (student.telegram ? '<span class="font-mono text-xs text-[#229ED9]">' + student.telegram + '</span>' : '') +
           (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600 bg-red-950/60">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '') +
@@ -2486,12 +2871,18 @@ async function submitStudentReview(studentId) {
     return;
   }
 
+  const student = (globalReviewsStudents || []).find(s => s.id === studentId) || {};
+  const studentName = student.fullName || '';
+  const authorName = (currentUser && currentUser.fullName) ? currentUser.fullName : 'Мастер Медиацентра';
+
   try {
     const res = await fetch('/api/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
       body: JSON.stringify({
         studentId,
+        studentName,
+        authorName,
         type: currentReviewType,
         text
       })
@@ -2625,6 +3016,20 @@ function filterTrackerList() {
     if (currentShoot) {
       borderStyle = 'border-color: rgba(227, 6, 19, 0.8); background-color: rgba(69, 10, 10, 0.25);';
       const camOperator = currentShoot.crew ? currentShoot.crew.find(c => (c.roleInShoot || '').toUpperCase().includes('ОПЕРАТОР')) : null;
+      let opHtml = '—';
+      if (camOperator) {
+        const opUser = camOperator.user || {};
+        const opName = opUser.fullName || camOperator.fullName || 'Оператор';
+        const opId = opUser.id || camOperator.userId || camOperator.id;
+        if (isMasterOrAdminUser(currentUser) && opId) {
+          opHtml = '<button type="button" onclick="event.stopPropagation(); openShowreelModal(\'' + opId + '\')" class="text-amber-300 hover:underline inline-flex items-center gap-1 font-bold cursor-pointer" title="Открыть профиль оператора">' +
+            '<span>' + opName + '</span><span class="text-[9px]">👤</span>' +
+          '</button>';
+        } else {
+          opHtml = '<span class="text-amber-300 font-bold">' + opName + '</span>';
+        }
+      }
+
       statusCardHtml = '<div class="mt-2 p-2 border border-red-800/60 bg-red-950/60 text-[10px] font-mono space-y-1">' +
         '<div class="flex items-center justify-between">' +
           '<span class="text-red-400 font-extrabold animate-pulse">🔴 В ЭФИРЕ (ON AIR)</span>' +
@@ -2632,7 +3037,7 @@ function filterTrackerList() {
         '</div>' +
         '<div class="truncate text-white font-bold">' + currentShoot.title + '</div>' +
         '<div class="text-[var(--text-muted)] truncate">📍 ' + currentShoot.location + '</div>' +
-        (camOperator ? '<div class="text-amber-300 truncate">Ответственный: ' + (camOperator.user ? camOperator.user.fullName : 'Оператор') + '</div>' : '') +
+        (camOperator ? '<div class="truncate">Ответственный: ' + opHtml + '</div>' : '') +
       '</div>';
     } else if (upcomingShoot || eq.status === 'RESERVED') {
       borderStyle = 'border-color: rgba(245, 158, 11, 0.8); background-color: rgba(69, 39, 10, 0.25);';
@@ -2652,18 +3057,25 @@ function filterTrackerList() {
       '</div>';
     }
 
-    return '<div class="p-3.5 border transition hover:border-[var(--brand-red)]" style="' + borderStyle + '">' +
+    return '<div onclick="openEquipmentDetailsModal(\'' + eq.id + '\')" class="p-3.5 border transition cursor-pointer hover:border-[var(--brand-red)] hover:shadow-lg group relative" style="' + borderStyle + '" title="Нажмите, чтобы открыть статус использования и свободные серийники">' +
       '<div class="flex items-start justify-between gap-2">' +
         '<div class="min-w-0 flex-1">' +
-          '<span class="text-xs font-bold uppercase truncate block" style="color: var(--text-primary);">' + eq.name + '</span>' +
+          '<span class="text-xs font-bold uppercase truncate block group-hover:text-amber-400 transition" style="color: var(--text-primary);">' + eq.name + '</span>' +
           '<div class="flex items-center gap-1.5 mt-0.5">' +
             '<span class="text-[9px] font-mono px-1 py-0.2 bg-neutral-900 border text-amber-400 font-bold border-neutral-700">S/N: ' + (eq.serialNumber || '—') + '</span>' +
             '<span class="text-[10px] font-mono" style="color: var(--text-muted);">' + (eq.category || 'Техника') + '</span>' +
           '</div>' +
         '</div>' +
-        '<button type="button" onclick="editInlineEquipmentItem(\'' + eq.id + '\'); switchTab(\'shoots\'); openShootModal();" class="px-2 py-1 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-800/40 bg-cyan-950/20 hover:bg-cyan-900/40 shrink-0">✎ Ред.</button>' +
+        '<div class="flex items-center gap-1 shrink-0">' +
+          '<button type="button" onclick="event.stopPropagation(); openEquipmentDetailsModal(\'' + eq.id + '\')" class="px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-400 border border-amber-800/40 bg-amber-950/20 hover:bg-amber-900/40" title="Статус и серийники">ℹ️</button>' +
+          '<button type="button" onclick="event.stopPropagation(); editInlineEquipmentItem(\'' + eq.id + '\'); switchTab(\'shoots\'); openShootModal();" class="px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-800/40 bg-cyan-950/20 hover:bg-cyan-900/40">✎</button>' +
+        '</div>' +
       '</div>' +
       statusCardHtml +
+      '<div class="mt-2 pt-2 border-t flex items-center justify-between text-[9px] font-mono text-[var(--text-muted)] group-hover:text-amber-400 transition" style="border-color: var(--border-subtle);">' +
+        '<span>График и серийники ➔</span>' +
+        '<span class="text-amber-400 opacity-80">Инфо плашка</span>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -3438,7 +3850,10 @@ function renderAdminUsers(users) {
     return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3.5 gap-3 border ' + borderClass + ' transition" ' + rowBg + '>' +
       '<div id="user_info_' + u.id + '" class="flex-grow">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
-          '<span onclick="openAdminUserFullEditModal(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline hover:text-[var(--brand-red)] transition" title="Редактировать профиль">' + u.fullName + '</span> ' +
+          '<button type="button" onclick="openShowreelModal(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline text-[var(--text-primary)] hover:text-amber-400 transition inline-flex items-center gap-1 text-left" title="Открыть цифровой паспорт студента">' +
+            '<span>' + u.fullName + '</span>' +
+            '<span class="text-[9px] text-amber-400/80">👤</span>' +
+          '</button> ' +
           roleBadgeTag + ' ' +
           '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
           tgBadge + ' ' +
@@ -3880,12 +4295,7 @@ async function openShootModal() {
 
   toggleMapPicker('СТУДИЯ');
 
-  currentShootMilestones = [
-    { title: 'Сбор съёмочной группы', time: callEl ? callEl.value : '10:00' },
-    { title: 'Монтаж площадки и света', time: '10:30' },
-    { title: 'Мотор / Первый дубль', time: startEl ? startEl.value : '11:30' },
-    { title: 'Шапка / Окончание смены', time: endEl ? endEl.value : '18:00' }
-  ];
+  currentShootMilestones = [];
   renderShootMilestones();
   await loadLocations();
 
@@ -4133,7 +4543,9 @@ function renderModalStudents(students, preserveSelections = true, initialSelecti
       '<label class="flex items-center space-x-2.5 cursor-pointer select-none">' +
         '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
-          '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + (s.fullName || 'Без имени') + '</span>' +
+          (isMasterOrAdminUser(currentUser) 
+            ? '<button type="button" onclick="event.stopPropagation(); openShowreelModal(\'' + s.id + '\')" class="font-bold text-xs uppercase hover:underline cursor-pointer text-left inline-flex items-center gap-1 text-[var(--text-primary)] hover:text-amber-400 transition" title="Открыть цифровой паспорт студента"><span>' + (s.fullName || 'Без имени') + '</span><span class="text-[9px] text-amber-400/80">👤</span></button>'
+            : '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + (s.fullName || 'Без имени') + '</span>') +
           '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (s.groupName || 'Группа') + ']</span>' +
           '<span class="inline-flex items-center gap-1.5 font-mono text-[11px]">' +
             '<span class="text-emerald-400 font-bold" title="Положительные отзывы">👍 ' + likesCount + '</span>' +
@@ -5548,10 +5960,21 @@ function renderShootsList(shoots = globalShoots) {
         // Окантовка карточки участника по цеху и бейдж
         const deptCfg = getCraftDepartmentConfig(c.department, c.roleInShoot);
 
+        let nameHtml = '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + cUserName + '</span>';
+        if (isMasterOrAdminUser(currentUser) && actualUser) {
+          const userTargetId = actualUser.id || c.userId || c.id;
+          if (userTargetId) {
+            nameHtml = '<button type="button" onclick="openShowreelModal(\'' + userTargetId + '\')" class="font-bold text-xs uppercase hover:underline cursor-pointer text-left inline-flex items-center gap-1 group text-[var(--text-primary)] hover:text-amber-400 transition" title="Открыть цифровой паспорт студента">' +
+              '<span>' + cUserName + '</span>' +
+              '<span class="text-[9px] text-amber-400/80 group-hover:text-amber-300">👤</span>' +
+            '</button>';
+          }
+        }
+
         return '<div class="crew-member-row ' + deptCfg.borderClass + ' p-3 flex flex-wrap items-center justify-between gap-2' + rowClassExtra + '">' +
           '<div class="flex items-center flex-wrap gap-2">' +
             '<span class="crew-dept-tag ' + deptCfg.badgeClass + '"><span class="inline-flex items-center">' + deptCfg.icon + ' ' + (c.roleInShoot || 'Участник') + '</span></span>' +
-            '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + cUserName + '</span>' +
+            nameHtml +
             '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + cGroupName + ']</span>' +
             myBadge +
             '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
@@ -5606,26 +6029,47 @@ function renderShootsList(shoots = globalShoots) {
       '</div>';
     }
 
-    const timelineBar = '<div class="p-2.5 border text-xs font-mono" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
-      '<div class="flex items-center justify-between flex-wrap gap-2 text-[11px]">' +
-        '<div class="flex items-center gap-1.5">' +
-          '<span class="w-2 h-2 rounded-full bg-amber-400"></span>' +
-          '<span style="color: var(--text-muted);">Сбор:</span>' +
-          '<b style="color: var(--text-primary);">' + (s.callTime || '10:00') + '</b>' +
+    const isMontageShoot = (s.type === 'МОНТАЖ') ||
+                           (s.title && (s.title.toLowerCase().includes('монтаж') || s.title.toLowerCase().includes('правки')));
+
+    let timelineBar = '';
+    if (isMontageShoot) {
+      // Для смен монтажа не показываем надуманный "Мотор"
+      timelineBar = '<div class="p-2.5 border text-xs font-mono" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+        '<div class="flex items-center justify-between flex-wrap gap-2 text-[11px]">' +
+          '<div class="flex items-center gap-1.5">' +
+            '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>' +
+            '<span style="color: var(--text-muted);">Время работы:</span>' +
+            '<b style="color: var(--text-primary);">' + (s.callTime || s.startTime || '10:00') + ' — ' + (s.endTime || '18:00') + '</b>' +
+          '</div>' +
         '</div>' +
-        '<div class="flex items-center gap-1.5">' +
-          '<span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>' +
-          '<span style="color: var(--brand-red);">Мотор:</span>' +
-          '<b style="color: var(--brand-red);">' + (s.startTime || '11:30') + '</b>' +
+        timelineMilestonesHtml +
+      '</div>';
+    } else {
+      const hasDistinctMotor = s.startTime && s.callTime && s.startTime !== s.callTime;
+      timelineBar = '<div class="p-2.5 border text-xs font-mono" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+        '<div class="flex items-center justify-between flex-wrap gap-2 text-[11px]">' +
+          '<div class="flex items-center gap-1.5">' +
+            '<span class="w-2 h-2 rounded-full bg-amber-400"></span>' +
+            '<span style="color: var(--text-muted);">Сбор:</span>' +
+            '<b style="color: var(--text-primary);">' + (s.callTime || '10:00') + '</b>' +
+          '</div>' +
+          (hasDistinctMotor ? (
+            '<div class="flex items-center gap-1.5">' +
+              '<span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>' +
+              '<span style="color: var(--brand-red);">Мотор:</span>' +
+              '<b style="color: var(--brand-red);">' + s.startTime + '</b>' +
+            '</div>'
+          ) : '') +
+          '<div class="flex items-center gap-1.5">' +
+            '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>' +
+            '<span style="color: var(--text-muted);">Конец:</span>' +
+            '<b style="color: var(--text-primary);">' + (s.endTime || '18:00') + '</b>' +
+          '</div>' +
         '</div>' +
-        '<div class="flex items-center gap-1.5">' +
-          '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>' +
-          '<span style="color: var(--text-muted);">Конец:</span>' +
-          '<b style="color: var(--text-primary);">' + (s.endTime || '18:00') + '</b>' +
-        '</div>' +
-      '</div>' +
-      timelineMilestonesHtml +
-    '</div>';
+        timelineMilestonesHtml +
+      '</div>';
+    }
 
     let finishShootHeaderBtn = '';
     if (canGradeAndManage && !s.isCompleted) {

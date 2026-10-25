@@ -594,9 +594,69 @@
               </div>
               <p class="text-[11px] font-medium mt-0.5" style="color: var(--text-muted);">Оперативный мониторинг статуса: где, когда, кем используется оборудование и предотвращение конфликтов бронирования.</p>
             </div>
-            <button type="button" onclick="toggleInlineEquipmentForm()" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">
+            <button type="button" onclick="toggleTrackerEquipmentForm()" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">
               <span>+ Новая единица техники</span>
             </button>
+          </div>
+
+          <!-- Отдельная панель создания карточек техники на складе -->
+          <div id="trackerEquipmentCreateCard" class="hidden p-4 sm:p-5 border space-y-4" style="background-color: var(--bg-elevated); border-color: var(--border-color);">
+            <div class="flex items-center justify-between border-b pb-2.5" style="border-color: var(--border-subtle);">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <h4 class="text-xs font-mono font-extrabold uppercase text-emerald-400">Создание карточек оборудования // Поступление на склад</h4>
+              </div>
+              <button type="button" onclick="toggleTrackerEquipmentForm()" class="text-xs font-mono text-[var(--text-muted)] hover:text-white">✕ Закрыть</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="sm:col-span-2">
+                <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Наименование / Модель техники *</label>
+                <input type="text" id="trackerNewEqName" placeholder="Например: Sony FX3 Cinema Line или Aputure 300d II" class="w-full studio-input px-3 py-2 text-xs font-bold">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Категория цеха</label>
+                <select id="trackerNewEqCategory" class="w-full studio-input px-3 py-2 text-xs font-medium">
+                  <option value="Камеры">🎬 Камеры</option>
+                  <option value="Оптика">🔍 Оптика</option>
+                  <option value="Свет">💡 Свет</option>
+                  <option value="Звук">🎙️ Звук</option>
+                  <option value="Стабилизация">📐 Стабилизация</option>
+                  <option value="Коммутация / Грип">🔌 Коммутация / Грип</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Количество на складе (шт.) *</label>
+                <input type="number" id="trackerNewEqQty" min="1" max="100" value="1" oninput="updateTrackerSerialsHint()" class="w-full studio-input px-3 py-2 text-xs font-bold font-mono">
+                <span class="text-[9px] font-mono text-[var(--text-muted)]">Для каждой единицы создаётся отдельная карточка</span>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Серийные номера (S/N) каждого прибора</label>
+                <input type="text" id="trackerNewEqSerials" oninput="updateTrackerSerialsHint()" placeholder="Введите серийники через запятую: FX3-01, FX3-02 (или оставьте пустым для автогенерации)" class="w-full studio-input px-3 py-2 text-xs font-mono">
+                <span id="trackerSerialsHint" class="text-[9px] font-mono text-amber-400/80">Будет зарегистрировано: 1 шт.</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Комплектация и примечания</label>
+                <input type="text" id="trackerNewEqNotes" placeholder="Например: Кейс, 2x аккумулятора, зарядное устройство, клетка SmallRig" class="w-full studio-input px-3 py-2 text-xs">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Место хранения / Склад</label>
+                <input type="text" id="trackerNewEqLocation" value="Склад техники ЦКТ КП11" class="w-full studio-input px-3 py-2 text-xs">
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t" style="border-color: var(--border-subtle);">
+              <button type="button" onclick="toggleTrackerEquipmentForm()" class="px-4 py-2 text-xs font-mono uppercase border border-neutral-700 hover:bg-neutral-800 text-neutral-300">Отмена</button>
+              <button type="button" onclick="submitTrackerBatchEquipment()" class="btn-brand-primary px-5 py-2 text-xs font-extrabold uppercase shadow flex items-center gap-1.5">
+                <span>✓ Добавить партию техники на склад</span>
+              </button>
+            </div>
           </div>
 
           <!-- KPI счётчики техники -->
@@ -771,11 +831,12 @@
               <button type="button" onclick="cancelInlineEquipmentForm()" class="text-[10px] text-[var(--text-muted)] hover:text-white">✕ Отмена</button>
             </div>
             <input type="hidden" id="inlineEqEditId" value="">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input type="text" id="inlineEqName" placeholder="Название (напр. Canon C200 EF)" class="w-full studio-input px-2.5 py-1.5 text-xs font-bold">
-              <input type="text" id="inlineEqSerial" placeholder="Серийный номер (S/N)" class="w-full studio-input px-2.5 py-1.5 text-xs font-mono">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input type="text" id="inlineEqName" placeholder="Название (напр. Canon C200 EF)" class="sm:col-span-2 w-full studio-input px-2.5 py-1.5 text-xs font-bold">
+              <input type="number" id="inlineEqQuantity" min="1" max="100" value="1" placeholder="Кол-во (шт.)" class="w-full studio-input px-2.5 py-1.5 text-xs font-mono font-bold" title="Количество единиц на складе">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="inlineEqSerial" placeholder="Серийные номера через запятую (напр. C200-01, C200-02)" class="w-full studio-input px-2.5 py-1.5 text-xs font-mono">
               <select id="inlineEqCategory" class="w-full studio-input px-2.5 py-1.5 text-xs font-medium">
                 <option value="Камеры">Камеры</option>
                 <option value="Оптика">Оптика</option>
@@ -784,9 +845,11 @@
                 <option value="Стабилизация">Стабилизация</option>
                 <option value="Коммутация / Грип">Коммутация / Грип</option>
               </select>
+            </div>
+            <div>
               <input type="text" id="inlineEqNotes" placeholder="Комплектация / примечания (напр. 2x CFast, кейс)" class="w-full studio-input px-2.5 py-1.5 text-xs">
             </div>
-            <button type="button" onclick="saveInlineEquipmentItem()" class="w-full py-1.5 text-xs font-extrabold uppercase bg-emerald-600 hover:bg-emerald-500 text-white transition">Сохранить единицу техники в базу</button>
+            <button type="button" onclick="saveInlineEquipmentItem()" class="w-full py-1.5 text-xs font-extrabold uppercase bg-emerald-600 hover:bg-emerald-500 text-white transition">Сохранить партию техники в базу</button>
           </div>
 
           <!-- Поиск и список чекбоксов доступной техники -->
@@ -1147,6 +1210,84 @@
         <button type="button" onclick="closeQrPassModal()" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary">
           Закрыть
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО / ПЛАШКА: СТАТУС И ГРАФИК ИСПОЛЬЗОВАНИЯ ТЕХНИКИ ================= -->
+  <div id="equipmentDetailsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm">
+    <div class="viewfinder-card viewfinder-corners max-w-2xl w-full max-h-[92vh] flex flex-col p-5 sm:p-6 space-y-4 overflow-hidden shadow-2xl border" style="background-color: var(--bg-card); border-color: var(--border-color);">
+      <!-- Header -->
+      <div class="flex items-start justify-between border-b pb-3" style="border-color: var(--border-color);">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="gaffer-tape-sticker">ЦКТ КП11 // УЧЁТ И СТАТУС ОБОРУДОВАНИЯ</span>
+            <span id="eqDetailsCategoryBadge" class="text-[10px] font-mono px-2 py-0.5 border border-amber-600/50 bg-amber-950/30 text-amber-300 font-bold">Камеры</span>
+          </div>
+          <h3 id="eqDetailsTitle" class="text-base sm:text-lg font-extrabold uppercase text-[var(--text-primary)]">Оборудование</h3>
+        </div>
+        <button type="button" onclick="closeEquipmentDetailsModal()" class="text-neutral-400 hover:text-white p-1 text-lg">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto pr-1 space-y-4">
+        <!-- Сводка по количеству и статусу -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+          <div class="p-3 border" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">
+            <span class="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Всего на складе</span>
+            <span id="eqDetailsTotalCount" class="text-lg font-mono font-black text-white">0</span>
+          </div>
+          <div class="p-3 border border-emerald-900/60 bg-emerald-950/25">
+            <span class="text-[10px] font-mono uppercase text-emerald-400 block">🟢 Свободно</span>
+            <span id="eqDetailsFreeCount" class="text-lg font-mono font-black text-emerald-400">0</span>
+          </div>
+          <div class="p-3 border border-red-900/60 bg-red-950/25">
+            <span class="text-[10px] font-mono uppercase text-red-400 block">🔴 В работе</span>
+            <span id="eqDetailsOccupiedCount" class="text-lg font-mono font-black text-red-400">0</span>
+          </div>
+        </div>
+
+        <!-- Серийные номера: свободные и занятые -->
+        <div class="p-3.5 border space-y-3" style="background-color: var(--bg-elevated); border-color: var(--border-color);">
+          <div class="text-[11px] font-mono font-extrabold uppercase text-[var(--brand-red)] flex items-center justify-between">
+            <span>Реестр серийных номеров (S/N):</span>
+            <span id="eqDetailsSerialsSummary" class="text-[10px] text-[var(--text-muted)]"></span>
+          </div>
+          
+          <!-- Свободные серийники -->
+          <div>
+            <span class="text-[10px] font-mono uppercase text-emerald-400 font-bold block mb-1">Свободные серийники (на складе, готовы к выдаче):</span>
+            <div id="eqDetailsFreeSerials" class="flex flex-wrap gap-1.5">
+              <!-- Dynamic chips -->
+            </div>
+          </div>
+
+          <!-- Занятые серийники -->
+          <div id="eqDetailsOccupiedSerialsWrapper" class="pt-2 border-t border-[var(--border-subtle)]">
+            <span class="text-[10px] font-mono uppercase text-red-400 font-bold block mb-1">Занятые серийники (в производстве / резерве):</span>
+            <div id="eqDetailsOccupiedSerials" class="flex flex-wrap gap-1.5">
+              <!-- Dynamic chips -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Где и когда используется (график смен) -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-mono font-extrabold uppercase text-[var(--brand-red)] block">Когда и где используется (график смен):</span>
+          <div id="eqDetailsShootsList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamic shoots using this equipment -->
+          </div>
+        </div>
+
+        <!-- Комплектация и место хранения -->
+        <div class="p-3 border text-xs font-mono space-y-1" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">
+          <div class="text-[var(--text-muted)]">Место хранения: <span id="eqDetailsLocation" class="text-white font-bold">Склад техники ЦКТ КП11</span></div>
+          <div class="text-[var(--text-muted)]">Комплектация: <span id="eqDetailsNotes" class="text-[var(--text-secondary)]"></span></div>
+        </div>
+      </div>
+
+      <!-- Footer actions -->
+      <div class="border-t pt-3 flex items-center justify-between gap-3" style="border-color: var(--border-color);">
+        <button type="button" onclick="closeEquipmentDetailsModal()" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary">Закрыть плашку</button>
       </div>
     </div>
   </div>

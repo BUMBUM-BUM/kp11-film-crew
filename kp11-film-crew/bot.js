@@ -902,47 +902,69 @@ async function checkAndSendMilestoneReminders() {
       if (shoot.isCompleted) continue;
       if (!shoot.crew || !Array.isArray(shoot.crew) || shoot.crew.length === 0) continue;
 
-      const milestones = [
-        { type: 'CALL', label: 'СБОР ГРУППЫ', time: shoot.callTime || '10:00' },
-        { type: 'START', label: 'МОТОР / НАЧАЛО СЪЁМОК', time: shoot.startTime || '10:30' }
-      ];
+      const callTime = shoot.callTime || shoot.startTime || '10:00';
+      const targetMs = parseShootDateTimeMsk(shoot.date, callTime);
+      if (!targetMs) continue;
 
-      for (const ms of milestones) {
-        const targetMs = parseShootDateTimeMsk(shoot.date, ms.time);
-        if (!targetMs) continue;
+      const diffMinutes = (targetMs - now) / (60 * 1000);
 
-        const diffMinutes = (targetMs - now) / (60 * 1000);
+      // Проверяем окно: от 0 до 60.5 минут до наступления времени сбора (за 1 час)
+      if (diffMinutes >= 0 && diffMinutes <= 60.5) {
+        // 1. Отправка напоминания в общий групповой чат
+        const groupReminderKey = `1h_group_${shoot.id}`;
+        if (!sentMilestoneReminders.has(groupReminderKey)) {
+          const targetChats = parseChatIds(settings.defaultChatId);
+          if (targetChats && targetChats.length > 0) {
+            const crewListFormatted = (shoot.crew || [])
+              .map(c => `• <b>${escapeHtml(c.user?.fullName || c.fullName || 'Участник')}</b> — ${escapeHtml(c.roleInShoot || 'Участник')}`)
+              .join('\n');
 
-        // Проверяем окно: от 0 до 15.5 минут до наступления этапа
-        if (diffMinutes >= 0 && diffMinutes <= 15.5) {
-          for (const member of shoot.crew) {
-            const uId = member.userId || member.user?.id || member.id;
-            const reminderKey = `ms_${shoot.id}_${ms.type}_${uId}`;
-            if (sentMilestoneReminders.has(reminderKey)) continue;
+            const groupMsgText = `⏰ <b>НАПОМИНАНИЕ: ДО СБОРА ГРУППЫ 1 ЧАС! // МЕДИАЦЕНТР КП11</b>\n\n` +
+              `📹 Проект: <b>«${escapeHtml(shoot.title)}»</b>\n` +
+              `⏰ Время сбора: <b>${callTime}</b>\n` +
+              `📍 Локация: <b>${escapeHtml(shoot.location || 'Площадка ЦКТ КП11')}</b>\n\n` +
+              `👥 <b>Состав съёмочной группы:</b>\n${crewListFormatted}\n\n` +
+              `<i>Просьба ко всей группе выдвигаться на площадку без опозданий!</i>`;
 
-            const matchedUser = allUsers.find(u => u.id === uId) || member.user;
-            const tgChatId = matchedUser?.telegramChatId || (member.telegramChatId ? String(member.telegramChatId) : null);
-
-            // Отправляем ТОЛЬКО в личные сообщения участникам, у кого привязан Telegram
-            if (tgChatId) {
-              let text = '';
-              if (ms.type === 'CALL') {
-                text = `🎬 <b>НАПОМИНАНИЕ О СМЕНЕ // МЕДИАЦЕНТР КП11</b>\n\n` +
-                  `⏰ <b>Через 15 минут: СБОР ГРУППЫ (${ms.time})!</b>\n\n` +
-                  `📹 Проект: <b>«${escapeHtml(shoot.title)}»</b>\n` +
-                  `🎭 Ваша роль: <b>${escapeHtml(member.roleInShoot || 'Участник')}</b>\n` +
-                  `📍 Локация: <b>${escapeHtml(shoot.location || 'Площадка ЦКТ КП11')}</b>\n\n` +
-                  `<i>Пожалуйста, подтвердите готовность и не опаздывайте на площадку!</i>`;
-              } else {
-                text = `🔴 <b>ВНИМАНИЕ: ДО МОТОРА 15 МИНУТ! // МЕДИАЦЕНТР КП11</b>\n\n` +
-                  `🎬 <b>Старт съёмок (МОТОР) в ${ms.time}!</b>\n\n` +
-                  `📹 Проект: <b>«${escapeHtml(shoot.title)}»</b>\n` +
-                  `🎭 Ваша роль: <b>${escapeHtml(member.roleInShoot || 'Участник')}</b>\n` +
-                  `📍 Локация: <b>${escapeHtml(shoot.location || 'Площадка ЦКТ КП11')}</b>\n\n` +
-                  `<i>Готовность всех цехов номер один. Проверьте аппаратуру и чистовой звук!</i>`;
+            for (const cId of targetChats) {
+              try {
+                await sendMessage(cId, groupMsgText, {
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        { text: '📋 Открыть вызывной лист', url: `https://t.me/${settings.botUsername || 'KP11_FilmCrew_Bot'}?start=call_${shoot.id}` }
+                      ]
+                    ]
+                  }
+                });
+              } catch (e) {
+                console.warn(`[KP11 Bot] Ошибка отправки напоминания в общий чат ${cId}:`, e.message);
               }
+            }
+            sentMilestoneReminders.add(groupReminderKey);
+            console.log(`[KP11 Bot Milestones] Напоминание за 1 час отправлено в общий чат по смене «${shoot.title}»`);
+          }
+        }
 
-              const res = await sendMessage(tgChatId, text, {
+        // 2. Отправка персональных напоминаний в ЛС каждому участнику смены
+        for (const member of shoot.crew) {
+          const uId = member.userId || member.user?.id || member.id;
+          const reminderKey = `1h_pm_${shoot.id}_${uId}`;
+          if (sentMilestoneReminders.has(reminderKey)) continue;
+
+          const matchedUser = allUsers.find(u => u.id === uId) || member.user;
+          const tgChatId = matchedUser?.telegramChatId || (member.telegramChatId ? String(member.telegramChatId) : null);
+
+          if (tgChatId) {
+            const pmText = `🎬 <b>ЛИЧНОЕ НАПОМИНАНИЕ // МЕДИАЦЕНТР КП11</b>\n\n` +
+              `⏰ <b>Через 1 час: СБОР ГРУППЫ (${callTime})!</b>\n\n` +
+              `📹 Проект: <b>«${escapeHtml(shoot.title)}»</b>\n` +
+              `🎭 Ваша роль: <b>${escapeHtml(member.roleInShoot || 'Участник')}</b>\n` +
+              `📍 Локация: <b>${escapeHtml(shoot.location || 'Площадка ЦКТ КП11')}</b>\n\n` +
+              `<i>Пожалуйста, проверьте оборудование и выдвигайтесь на площадку!</i>`;
+
+            try {
+              const res = await sendMessage(tgChatId, pmText, {
                 reply_markup: {
                   inline_keyboard: [
                     [
@@ -953,10 +975,12 @@ async function checkAndSendMilestoneReminders() {
               });
 
               if (res && res.ok) {
-                console.log(`[KP11 Bot Milestones] Личное напоминание (${ms.type}) отправлено: ${matchedUser?.fullName || uId} (Chat ID: ${tgChatId})`);
+                console.log(`[KP11 Bot Milestones] Личное напоминание за 1 час отправлено: ${matchedUser?.fullName || uId} (Chat ID: ${tgChatId})`);
               }
-              sentMilestoneReminders.add(reminderKey);
+            } catch (e) {
+              console.warn(`[KP11 Bot] Ошибка отправки личного напоминания участнику ${uId}:`, e.message);
             }
+            sentMilestoneReminders.add(reminderKey);
           }
         }
       }
@@ -969,7 +993,7 @@ async function checkAndSendMilestoneReminders() {
 function startMilestoneNotifier() {
   if (milestoneInterval) return;
   milestoneInterval = setInterval(checkAndSendMilestoneReminders, 30000);
-  console.log('[KP11 Bot] Запущен таймер личных напоминаний за 15 минут до сбора и мотора.');
+  console.log('[KP11 Bot] Запущен таймер напоминаний за 1 час до сбора в общий чат и личные сообщения.');
 }
 
 function stopMilestoneNotifier() {

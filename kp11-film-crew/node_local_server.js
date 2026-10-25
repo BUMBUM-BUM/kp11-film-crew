@@ -495,25 +495,59 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, inventory }));
     }
 
-    // POST /api/inventory (Добавление / подпись единицы техники мастером или админом)
+    // POST /api/inventory (Добавление единиц техники с поддержкой количества и разных серийников)
     if (pathname === '/api/inventory' && req.method === 'POST') {
       const inventory = readJsonFile(INVENTORY_FILE, []);
-      const newId = jsonBody.id || `eq-${Date.now()}`;
-      const newItem = {
-        id: newId,
-        name: jsonBody.name || 'Съёмочное оборудование',
-        category: jsonBody.category || 'Оборудование',
-        serialNumber: jsonBody.serialNumber || `SN-${Math.floor(100000 + Math.random() * 900000)}`,
-        status: jsonBody.status || 'AVAILABLE',
-        location: jsonBody.location || 'Склад техники ЦКТ КП11',
-        notes: jsonBody.notes || '',
-        signedBy: jsonBody.signedBy || 'Бадиков Семён Станиславович',
-        signedAt: new Date().toISOString()
-      };
+      const { name, serialNumber, serialNumbers, quantity, category, notes, status, location, signedBy } = jsonBody;
 
-      const updated = [newItem, ...inventory];
-      writeJsonFile(INVENTORY_FILE, updated);
-      return res.end(JSON.stringify({ success: true, item: newItem, inventory: updated }));
+      const trimmedName = (name || 'Съёмочное оборудование').trim();
+      const qty = Math.max(1, parseInt(quantity, 10) || 1);
+
+      let serialsList = [];
+      if (Array.isArray(serialNumbers)) {
+        serialsList = serialNumbers.map(s => String(s).trim()).filter(Boolean);
+      } else if (typeof serialNumbers === 'string' && serialNumbers.trim()) {
+        serialsList = serialNumbers.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+      } else if (serialNumber && String(serialNumber).includes(',')) {
+        serialsList = String(serialNumber).split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+      } else if (serialNumber && String(serialNumber).trim()) {
+        serialsList = [String(serialNumber).trim()];
+      }
+
+      const totalCount = Math.max(qty, serialsList.length);
+      const prefix = (trimmedName.replace(/[^a-zA-Z0-9а-яА-Я]/g, '').slice(0, 4) || 'EQ').toUpperCase();
+      const createdItems = [];
+
+      for (let i = 0; i < totalCount; i++) {
+        let sn = serialsList[i];
+        if (!sn) {
+          sn = `${prefix}-${String(100 + i + Math.floor(Math.random() * 900))}`;
+        }
+
+        const newItem = {
+          id: (i === 0 && jsonBody.id) ? jsonBody.id : `eq-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
+          name: trimmedName,
+          category: category || 'Оборудование',
+          serialNumber: sn,
+          status: status || 'AVAILABLE',
+          location: location || 'Склад техники ЦКТ КП11',
+          notes: notes || '',
+          signedBy: signedBy || 'Бадиков Семён Станиславович',
+          signedAt: new Date().toISOString()
+        };
+
+        createdItems.push(newItem);
+        inventory.unshift(newItem);
+      }
+
+      writeJsonFile(INVENTORY_FILE, inventory);
+      return res.end(JSON.stringify({
+        success: true,
+        count: createdItems.length,
+        items: createdItems,
+        item: createdItems[0],
+        inventory
+      }));
     }
 
     // DELETE /api/inventory/:id
@@ -788,7 +822,7 @@ const server = http.createServer(async (req, res) => {
         const t = new Date(c.createdAt || 0).getTime();
         return (now - t) <= SIX_MONTHS_MS;
       });
-      return res.end(JSON.stringify({ success: true, comments: valid }));
+      return res.end(JSON.stringify(valid));
     }
 
     if (pathname === '/api/comments' && req.method === 'POST') {
