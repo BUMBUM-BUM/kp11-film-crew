@@ -298,6 +298,32 @@ async function initDatabase() {
               }
             }).catch(() => {});
           }
+          // Синхронизация состава съёмочной группы
+          if (sh.crew && Array.isArray(sh.crew) && sh.crew.length > 0) {
+            for (const cm of sh.crew) {
+              const uId = cm.userId || (cm.user && cm.user.id);
+              if (uId) {
+                const userExists = await prisma.user.findUnique({ where: { id: uId } }).catch(() => null);
+                if (userExists) {
+                  const cmExists = await prisma.crewMember.findFirst({
+                    where: { shootId: sh.id, userId: uId }
+                  }).catch(() => null);
+                  if (!cmExists) {
+                    await prisma.crewMember.create({
+                      data: {
+                        id: cm.id || `cm-${sh.id}-${uId}`,
+                        shootId: sh.id,
+                        userId: uId,
+                        roleInShoot: cm.roleInShoot || 'Участник',
+                        status: cm.status || 'ACCEPTED',
+                        attendance: cm.attendance || 'PRESENT'
+                      }
+                    }).catch(() => {});
+                  }
+                }
+              }
+            }
+          }
         }
       } catch (shErr) {}
     }
@@ -1265,6 +1291,19 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       if (!shoots || shoots.length === 0) {
         shoots = fileShoots;
       } else {
+        const fileMap = new Map(fileShoots.map(s => [String(s.id), s]));
+        shoots = shoots.map(sh => {
+          const fileSh = fileMap.get(String(sh.id));
+          if (fileSh && (!sh.crew || sh.crew.length === 0) && fileSh.crew && fileSh.crew.length > 0) {
+            return {
+              ...sh,
+              crew: fileSh.crew,
+              timeline: (sh.timeline && Array.isArray(sh.timeline) && sh.timeline.length > 0) ? sh.timeline : fileSh.timeline,
+              equipment: (sh.equipment && Array.isArray(sh.equipment) && sh.equipment.length > 0) ? sh.equipment : fileSh.equipment
+            };
+          }
+          return sh;
+        });
         const dbIds = new Set(shoots.map(s => String(s.id)));
         const extraShoots = fileShoots.filter(s => !dbIds.has(String(s.id)));
         shoots = [...shoots, ...extraShoots];

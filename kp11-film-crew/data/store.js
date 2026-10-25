@@ -1076,9 +1076,22 @@ async function getShoots() {
   const rawFileShoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS) || [];
   const fileShoots = rawFileShoots.filter(s => s && s.id !== 'shoot-prod-1' && s.id !== 'shoot-1792450290828');
   if (Array.isArray(dbShoots) && dbShoots.length > 0) {
+    const fileMap = new Map(fileShoots.map(s => [String(s.id), s]));
+    const mergedDbShoots = dbShoots.map(sh => {
+      const fileSh = fileMap.get(String(sh.id));
+      if (fileSh && (!sh.crew || sh.crew.length === 0) && fileSh.crew && fileSh.crew.length > 0) {
+        return {
+          ...sh,
+          crew: fileSh.crew,
+          timeline: (sh.timeline && Array.isArray(sh.timeline) && sh.timeline.length > 0) ? sh.timeline : fileSh.timeline,
+          equipment: (sh.equipment && Array.isArray(sh.equipment) && sh.equipment.length > 0) ? sh.equipment : fileSh.equipment
+        };
+      }
+      return sh;
+    });
     const dbIds = new Set(dbShoots.map(s => String(s.id)));
     const uniqueFileShoots = fileShoots.filter(s => !dbIds.has(String(s.id)));
-    return [...dbShoots, ...uniqueFileShoots];
+    return [...mergedDbShoots, ...uniqueFileShoots];
   }
 
   return fileShoots;
