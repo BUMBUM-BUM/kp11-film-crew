@@ -542,8 +542,9 @@ function updateNav() {
     if (nav) {
       nav.innerHTML = 
         '<div class="flex items-center space-x-2 flex-shrink-0">' +
-          '<div class="flex items-center space-x-1.5 px-2.5 py-1.5 border max-w-[190px] sm:max-w-[260px]" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
-            '<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_#10B981] flex-shrink-0"></span>' +
+          '<div class="flex items-center space-x-2 px-2.5 py-1.5 border max-w-[200px] sm:max-w-[280px]" style="background-color: var(--bg-card); border-color: var(--border-color);">' +
+            '<img id="userNavAvatarImg" src="' + (currentUser.avatar || 'img/student.jpg') + '" alt="Avatar" class="w-5 h-5 rounded-full object-cover border border-[var(--brand-red)] flex-shrink-0">' +
+            '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10B981] flex-shrink-0"></span>' +
             '<span class="text-xs font-bold truncate" style="color: var(--text-primary);">' + currentUser.fullName + '</span>' +
             (currentUser.groupName ? '<span class="text-[9px] font-mono font-extrabold px-1 border flex-shrink-0" style="background-color: var(--brand-beige-subtle); color: var(--brand-beige-text); border-color: var(--brand-beige-dark);">[' + currentUser.groupName + ']</span>' : '') +
           '</div>' +
@@ -2398,7 +2399,7 @@ function openShowreelModal(userId) {
   container.innerHTML = 
     '<div class="flex items-center space-x-3.5 border-b pb-4" style="border-color: var(--border-color);">' +
       '<div class="w-16 h-16 border-2 border-[var(--brand-red)] overflow-hidden flex-shrink-0 shadow-md relative">' +
-        '<img src="img/student.jpg" alt="Student" class="w-full h-full object-cover">' +
+        '<img src="' + (student.avatar || 'img/student.jpg') + '" alt="Student" class="w-full h-full object-cover">' +
         '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>' +
       '</div>' +
       '<div class="min-w-0 flex-grow">' +
@@ -2476,6 +2477,114 @@ function openAdminUserDossier(userId) {
 }
 window.openAdminUserDossier = openAdminUserDossier;
 
+// ----------------- СЖАТИЕ И ОБРАБОТКА АВАТАРОК (HTML5 CANVAS, <15 КБ) -----------------
+function compressImageFile(file, maxDimension = 140, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      return reject(new Error('Пожалуйста, выберите графический файл (PNG, JPG, JPEG, WebP).'));
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл изображения.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Не удалось декодировать изображение.'));
+      img.onload = () => {
+        try {
+          const side = Math.min(img.width, img.height);
+          const sx = Math.floor((img.width - side) / 2);
+          const sy = Math.floor((img.height - side) / 2);
+          const outDim = Math.min(side, maxDimension);
+
+          const canvas = document.createElement('canvas');
+          canvas.width = outDim;
+          canvas.height = outDim;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, outDim, outDim);
+
+          const base64 = canvas.toDataURL('image/jpeg', quality);
+          resolve(base64);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+window.compressImageFile = compressImageFile;
+
+async function handleUserAvatarUpload(event) {
+  const file = event && event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+
+  try {
+    showToast('Сжатие и оптимизация фото...');
+    const compressedBase64 = await compressImageFile(file, 140, 0.82);
+
+    if (currentUser) {
+      currentUser.avatar = compressedBase64;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+    }
+
+    const img1 = document.getElementById('myCabinetAvatarImg');
+    if (img1) img1.src = compressedBase64;
+    const img2 = document.getElementById('cabinetSettingsAvatarPreview');
+    if (img2) img2.src = compressedBase64;
+    const navAvatar = document.getElementById('userNavAvatarImg');
+    if (navAvatar) navAvatar.src = compressedBase64;
+
+    if (currentUser && currentUser.id) {
+      fetch('/api/users/' + currentUser.id + '/avatar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (token || 'demo-token')
+        },
+        body: JSON.stringify({ userId: currentUser.id, avatar: compressedBase64 })
+      }).catch(err => console.warn('Avatar server sync error:', err));
+    }
+
+    showToast('Аватарка успешно установлена и оптимизирована (<15 КБ)!');
+  } catch (err) {
+    showToast(err.message || 'Ошибка обработки фото');
+  } finally {
+    if (event.target) event.target.value = '';
+  }
+}
+window.handleUserAvatarUpload = handleUserAvatarUpload;
+
+async function handleAdminAvatarUpload(event) {
+  const file = event && event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+
+  try {
+    showToast('Сжатие фото...');
+    const compressedBase64 = await compressImageFile(file, 140, 0.82);
+    const prev = document.getElementById('fullEditAvatarPreview');
+    if (prev) prev.src = compressedBase64;
+    const inp = document.getElementById('fullEditAvatarBase64');
+    if (inp) inp.value = compressedBase64;
+    showToast('Фото оптимизировано (<15 КБ)');
+  } catch (err) {
+    showToast(err.message || 'Ошибка при загрузке фото');
+  } finally {
+    if (event.target) event.target.value = '';
+  }
+}
+window.handleAdminAvatarUpload = handleAdminAvatarUpload;
+
+function handleAdminAvatarRemove() {
+  const prev = document.getElementById('fullEditAvatarPreview');
+  if (prev) prev.src = 'img/student.jpg';
+  const inp = document.getElementById('fullEditAvatarBase64');
+  if (inp) inp.value = '';
+  showToast('Фото сброшено на стандартное');
+}
+window.handleAdminAvatarRemove = handleAdminAvatarRemove;
+
 // ----------------- ЛИЧНЫЙ КАБИНЕТ СТУДЕНТА / СОТРУДНИКА -----------------
 async function loadMyPortfolio() {
   if (!currentUser) return;
@@ -2489,6 +2598,11 @@ async function loadMyPortfolio() {
   const qrPreview = document.getElementById('qrPassPreviewContainer');
   const qrInfo = document.getElementById('qrPassInfo');
   const tgInp = document.getElementById('cabinetTelegramInput');
+  const cabinetSettingPrev = document.getElementById('cabinetSettingsAvatarPreview');
+
+  if (cabinetSettingPrev) {
+    cabinetSettingPrev.src = currentUser.avatar || 'img/student.jpg';
+  }
 
   if (tgInp) {
     tgInp.value = (currentUser.telegram || '').replace(/^@/, '');
@@ -2524,8 +2638,12 @@ async function loadMyPortfolio() {
 
   if (header) {
     header.innerHTML = '<div class="flex items-center space-x-4">' +
-      '<div class="relative w-16 h-16 sm:w-20 sm:h-20 border-2 ' + (isBlacklisted ? 'border-red-600' : 'border-[var(--brand-red)]') + ' overflow-hidden shadow-md flex-shrink-0">' +
-        '<img src="img/student.jpg" alt="User" class="w-full h-full object-cover">' +
+      '<div class="relative group cursor-pointer w-16 h-16 sm:w-20 sm:h-20 border-2 ' + (isBlacklisted ? 'border-red-600' : 'border-[var(--brand-red)]') + ' overflow-hidden shadow-md flex-shrink-0" onclick="document.getElementById(\'cabinetAvatarFileInput\') && document.getElementById(\'cabinetAvatarFileInput\').click()" title="Нажмите, чтобы сменить фото профиля">' +
+        '<img id="myCabinetAvatarImg" src="' + (currentUser.avatar || 'img/student.jpg') + '" alt="User" class="w-full h-full object-cover">' +
+        '<div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-center p-0.5">' +
+          '<svg class="w-4 h-4 text-amber-300 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+          '<span class="text-[8px] font-mono font-bold leading-none">Сменить</span>' +
+        '</div>' +
         '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[8px] font-mono font-bold px-1.5">КП11</span>' +
       '</div>' +
       '<div>' +
@@ -2761,15 +2879,20 @@ function renderReviewsStudentsList(students) {
       '</button>';
     }
 
-    return '<div onclick="selectStudentForReviews(\'' + s.id + '\')" class="p-3 border cursor-pointer transition hover:border-[var(--brand-red)] ' + borderClass + '">' +
-      '<div class="flex items-center justify-between gap-2">' +
-        '<div class="min-w-0 flex-grow">' +
-          '<div class="flex items-center flex-wrap gap-1.5">' +
-            studentNameHtml +
-            '<span class="font-mono text-[10px] text-[var(--text-muted)]">[' + (s.groupName || 'КТ') + ']</span>' +
-            (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[9px] px-1 border border-red-600 bg-red-950/60">⛔ ЧС</span>' : '') +
+    return '<div onclick="selectStudentForReviews(\'' + s.id + '\')" class="p-2.5 sm:p-3 border cursor-pointer transition hover:border-[var(--brand-red)] ' + borderClass + '">' +
+      '<div class="flex items-center justify-between gap-2.5">' +
+        '<div class="flex items-center gap-2.5 min-w-0 flex-grow">' +
+          '<div class="w-8 h-8 rounded-full border border-[var(--border-subtle)] overflow-hidden flex-shrink-0 bg-neutral-900">' +
+            '<img src="' + (s.avatar || 'img/student.jpg') + '" alt="Avatar" class="w-full h-full object-cover">' +
           '</div>' +
-          (s.telegram ? '<div class="text-[10px] font-mono text-[#229ED9] mt-0.5">' + s.telegram + '</div>' : '') +
+          '<div class="min-w-0 flex-grow">' +
+            '<div class="flex items-center flex-wrap gap-1.5">' +
+              studentNameHtml +
+              '<span class="font-mono text-[10px] text-[var(--text-muted)]">[' + (s.groupName || 'КТ') + ']</span>' +
+              (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[9px] px-1 border border-red-600 bg-red-950/60">⛔ ЧС</span>' : '') +
+            '</div>' +
+            (s.telegram ? '<div class="text-[10px] font-mono text-[#229ED9] mt-0.5">' + s.telegram + '</div>' : '') +
+          '</div>' +
         '</div>' +
         '<div class="flex items-center gap-2 font-mono text-xs shrink-0">' +
           '<span class="text-emerald-400 font-extrabold inline-flex items-center gap-0.5" title="Положительные отзывы">👍 ' + likes + '</span>' +
@@ -2811,6 +2934,7 @@ async function selectStudentForReviews(studentId) {
   student.dislikes = dislikes;
 
   const isBlacklisted = !!student.isBlacklisted;
+  const comps = student.competencies || { camera: 85, sound: 80, light: 80, edit: 85 };
 
   let commentsHtml = '';
   if (comments.length === 0) {
@@ -2844,20 +2968,78 @@ async function selectStudentForReviews(studentId) {
   container.innerHTML = 
     '<!-- Заголовок выбранного студента -->' +
     '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b" style="border-color: var(--border-color);">' +
-      '<div>' +
-        '<div class="flex items-center flex-wrap gap-2">' +
-          (isMasterOrAdminUser(currentUser) 
-            ? '<button type="button" onclick="openShowreelModal(\'' + student.id + '\')" class="text-sm font-extrabold uppercase hover:underline text-left inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition" title="Открыть цифровой паспорт студента"><span>' + student.fullName + '</span><span class="text-[10px] font-mono px-1.5 py-0.5 border border-amber-600/60 bg-amber-950/40 text-amber-300 rounded-xs">👤 Паспорт</span></button>'
-            : '<h4 class="text-sm font-extrabold uppercase text-[var(--text-primary)]">' + student.fullName + '</h4>') +
-          '<span class="font-mono text-xs font-bold text-[var(--brand-beige-text)]">[' + (student.groupName || 'КТ') + ']</span>' +
-          (student.telegram ? '<span class="font-mono text-xs text-[#229ED9]">' + student.telegram + '</span>' : '') +
-          (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600 bg-red-950/60">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '') +
+      '<div class="flex items-center gap-3">' +
+        '<div class="relative w-12 h-12 border-2 border-[var(--brand-red)] overflow-hidden flex-shrink-0 shadow-md">' +
+          '<img src="' + (student.avatar || 'img/student.jpg') + '" alt="Avatar" class="w-full h-full object-cover">' +
+          '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[6px] font-bold px-1 font-mono">КП11</span>' +
         '</div>' +
-        '<div class="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">ID: ' + student.id + '</div>' +
+        '<div>' +
+          '<div class="flex items-center flex-wrap gap-2">' +
+            (isMasterOrAdminUser(currentUser) 
+              ? '<button type="button" onclick="openShowreelModal(\'' + student.id + '\')" class="text-sm font-extrabold uppercase hover:underline text-left inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition" title="Открыть цифровой паспорт студента"><span>' + student.fullName + '</span><span class="text-[10px] font-mono px-1.5 py-0.5 border border-amber-600/60 bg-amber-950/40 text-amber-300 rounded-xs">👤 Паспорт</span></button>'
+              : '<h4 class="text-sm font-extrabold uppercase text-[var(--text-primary)]">' + student.fullName + '</h4>') +
+            '<span class="font-mono text-xs font-bold text-[var(--brand-beige-text)]">[' + (student.groupName || 'КТ') + ']</span>' +
+            (student.telegram ? '<span class="font-mono text-xs text-[#229ED9]">' + student.telegram + '</span>' : '') +
+            (isBlacklisted ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600 bg-red-950/60">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '') +
+          '</div>' +
+          '<div class="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">ID: ' + student.id + '</div>' +
+        '</div>' +
       '</div>' +
       '<div class="flex items-center gap-3 font-mono text-sm px-3 py-1.5 border" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
         '<span class="text-emerald-400 font-extrabold">👍 ' + likes + '</span>' +
         '<span class="text-red-400 font-extrabold">👎 ' + dislikes + '</span>' +
+      '</div>' +
+    '</div>' +
+
+    '<!-- Отдельная плашка: Оценка по 4 параметрам компетенций -->' +
+    '<div class="p-4 border space-y-3.5" style="background-color: var(--bg-primary); border-color: var(--border-color);">' +
+      '<div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-color);">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="rec-dot"></span>' +
+          '<span class="text-xs font-mono font-extrabold uppercase text-[var(--brand-red)]">Оценка компетенций студента (4 цеха ЦКТ):</span>' +
+        '</div>' +
+        '<span class="text-[10px] font-mono text-[var(--brand-beige-text)] font-bold">ШКАЛА 0–100%</span>' +
+      '</div>' +
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+        // Камера
+        '<div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+          '<div class="flex items-center justify-between text-xs">' +
+            '<span class="font-bold text-[var(--text-primary)]">🎬 Камера (Операторский цех)</span>' +
+            '<span id="revCompCameraVal" class="font-mono font-black text-amber-400">' + (comps.camera ?? 85) + '%</span>' +
+          '</div>' +
+          '<input type="range" id="revCompCamera" min="0" max="100" step="1" value="' + (comps.camera ?? 85) + '" oninput="document.getElementById(\'revCompCameraVal\').innerText = this.value + \'%\'" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+        '</div>' +
+        // Звук
+        '<div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+          '<div class="flex items-center justify-between text-xs">' +
+            '<span class="font-bold text-[var(--text-primary)]">🎙️ Звук (Звуковой цех)</span>' +
+            '<span id="revCompSoundVal" class="font-mono font-black text-amber-400">' + (comps.sound ?? 80) + '%</span>' +
+          '</div>' +
+          '<input type="range" id="revCompSound" min="0" max="100" step="1" value="' + (comps.sound ?? 80) + '" oninput="document.getElementById(\'revCompSoundVal\').innerText = this.value + \'%\'" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+        '</div>' +
+        // Свет
+        '<div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+          '<div class="flex items-center justify-between text-xs">' +
+            '<span class="font-bold text-[var(--text-primary)]">💡 Свет (Осветительский цех)</span>' +
+            '<span id="revCompLightVal" class="font-mono font-black text-amber-400">' + (comps.light ?? 80) + '%</span>' +
+          '</div>' +
+          '<input type="range" id="revCompLight" min="0" max="100" step="1" value="' + (comps.light ?? 80) + '" oninput="document.getElementById(\'revCompLightVal\').innerText = this.value + \'%\'" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+        '</div>' +
+        // Монтаж
+        '<div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">' +
+          '<div class="flex items-center justify-between text-xs">' +
+            '<span class="font-bold text-[var(--text-primary)]">✂️ Монтаж (Постпродакшн)</span>' +
+            '<span id="revCompEditVal" class="font-mono font-black text-amber-400">' + (comps.edit ?? 85) + '%</span>' +
+          '</div>' +
+          '<input type="range" id="revCompEdit" min="0" max="100" step="1" value="' + (comps.edit ?? 85) + '" oninput="document.getElementById(\'revCompEditVal\').innerText = this.value + \'%\'" class="w-full accent-[var(--brand-red)] cursor-pointer">' +
+        '</div>' +
+      '</div>' +
+      '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">' +
+        '<span class="text-[10px] font-mono text-[var(--text-muted)]">Баллы формируют радар матрицы в цифровом паспорте</span>' +
+        '<button type="button" onclick="saveStudentCompetenciesFromReviews(\'' + studentId + '\')" class="btn-brand-primary px-4 py-1.5 text-xs font-extrabold uppercase shadow flex items-center justify-center gap-1.5">' +
+          '<span>💾</span>' +
+          '<span>Сохранить компетенции</span>' +
+        '</button>' +
       '</div>' +
     '</div>' +
 
@@ -2897,6 +3079,59 @@ async function selectStudentForReviews(studentId) {
       '</div>' +
     '</div>';
 }
+
+async function saveStudentCompetenciesFromReviews(studentId) {
+  const cameraEl = document.getElementById('revCompCamera');
+  const soundEl = document.getElementById('revCompSound');
+  const lightEl = document.getElementById('revCompLight');
+  const editEl = document.getElementById('revCompEdit');
+
+  const camera = parseInt(cameraEl ? cameraEl.value : '85', 10);
+  const sound = parseInt(soundEl ? soundEl.value : '80', 10);
+  const light = parseInt(lightEl ? lightEl.value : '80', 10);
+  const edit = parseInt(editEl ? editEl.value : '85', 10);
+
+  const competencies = { camera, sound, light, edit };
+
+  try {
+    const res = await fetch('/api/users/' + studentId + '/competencies', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || 'demo-token')
+      },
+      body: JSON.stringify({ competencies })
+    });
+    if (!res.ok) {
+      await fetch('/api/admin/users/' + studentId, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (token || 'demo-token')
+        },
+        body: JSON.stringify({ competencies })
+      });
+    }
+  } catch (err) {
+    console.warn('Error saving student competencies:', err);
+  }
+
+  const updateStudentObj = (st) => {
+    if (st && st.id === studentId) {
+      st.competencies = competencies;
+    }
+  };
+  (globalReviewsStudents || []).forEach(updateStudentObj);
+  (globalStudents || []).forEach(updateStudentObj);
+  (globalAdminUsers || []).forEach(updateStudentObj);
+  if (currentUser && currentUser.id === studentId) {
+    currentUser.competencies = competencies;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+  }
+
+  showToast('Оценка компетенций сохранена: Камера ' + camera + '%, Звук ' + sound + '%, Свет ' + light + '%, Монтаж ' + edit + '%');
+}
+window.saveStudentCompetenciesFromReviews = saveStudentCompetenciesFromReviews;
 
 function setReviewType(type) {
   currentReviewType = type;
@@ -3209,6 +3444,39 @@ function openAdminUserFullEditModal(userId) {
   const passEl = document.getElementById('fullEditNewPassword');
   const blackEl = document.getElementById('fullEditBlacklisted');
 
+  // Аватарка
+  const avatarPrev = document.getElementById('fullEditAvatarPreview');
+  const avatarBase64 = document.getElementById('fullEditAvatarBase64');
+  if (avatarPrev) avatarPrev.src = user.avatar || 'img/student.jpg';
+  if (avatarBase64) avatarBase64.value = user.avatar || '';
+
+  // 4 параметра компетенций (Камера, Звук, Свет, Монтаж)
+  const comps = user.competencies || { camera: 85, sound: 80, light: 80, edit: 85 };
+  const cam = comps.camera ?? 85;
+  const snd = comps.sound ?? 80;
+  const lgt = comps.light ?? 80;
+  const edt = comps.edit ?? 85;
+
+  const camEl = document.getElementById('fullEditCompCamera');
+  const camVal = document.getElementById('fullEditCompCameraVal');
+  if (camEl) camEl.value = cam;
+  if (camVal) camVal.innerText = cam + '%';
+
+  const sndEl = document.getElementById('fullEditCompSound');
+  const sndVal = document.getElementById('fullEditCompSoundVal');
+  if (sndEl) sndEl.value = snd;
+  if (sndVal) sndVal.innerText = snd + '%';
+
+  const lgtEl = document.getElementById('fullEditCompLight');
+  const lgtVal = document.getElementById('fullEditCompLightVal');
+  if (lgtEl) lgtEl.value = lgt;
+  if (lgtVal) lgtVal.innerText = lgt + '%';
+
+  const edtEl = document.getElementById('fullEditCompEdit');
+  const edtVal = document.getElementById('fullEditCompEditVal');
+  if (edtEl) edtEl.value = edt;
+  if (edtVal) edtVal.innerText = edt + '%';
+
   if (idEl) idEl.value = user.id;
   if (nameEl) nameEl.value = user.fullName || '';
   if (groupEl) groupEl.value = user.groupName || '';
@@ -3243,6 +3511,19 @@ async function handleSaveAdminUserFull(e) {
   const newPassword = document.getElementById('fullEditNewPassword') ? document.getElementById('fullEditNewPassword').value : '';
   const isBlacklisted = document.getElementById('fullEditBlacklisted') ? document.getElementById('fullEditBlacklisted').checked : false;
 
+  const avatar = document.getElementById('fullEditAvatarBase64') ? document.getElementById('fullEditAvatarBase64').value : undefined;
+
+  const camEl = document.getElementById('fullEditCompCamera');
+  const sndEl = document.getElementById('fullEditCompSound');
+  const lgtEl = document.getElementById('fullEditCompLight');
+  const edtEl = document.getElementById('fullEditCompEdit');
+  const competencies = {
+    camera: camEl ? parseInt(camEl.value, 10) : 85,
+    sound: sndEl ? parseInt(sndEl.value, 10) : 80,
+    light: lgtEl ? parseInt(lgtEl.value, 10) : 80,
+    edit: edtEl ? parseInt(edtEl.value, 10) : 85
+  };
+
   const payload = {
     fullName,
     groupName,
@@ -3253,7 +3534,9 @@ async function handleSaveAdminUserFull(e) {
     telegram: telegram ? (telegram.startsWith('@') ? telegram : ('@' + telegram)) : '',
     telegramChatId,
     newPassword: newPassword || undefined,
-    isBlacklisted
+    isBlacklisted,
+    avatar: avatar || null,
+    competencies
   };
 
   try {
@@ -3280,6 +3563,16 @@ async function handleSaveAdminUserFull(e) {
   const stIdx = (globalStudents || []).findIndex(s => s.id === userId);
   if (stIdx !== -1) {
     globalStudents[stIdx] = { ...globalStudents[stIdx], ...payload, role: { name: roleName } };
+  }
+
+  if (currentUser && currentUser.id === userId) {
+    currentUser.avatar = avatar || null;
+    currentUser.competencies = competencies;
+    currentUser.fullName = fullName;
+    currentUser.groupName = groupName;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+    const navAv = document.getElementById('userNavAvatarImg');
+    if (navAv) navAv.src = avatar || 'img/student.jpg';
   }
 
   showToast('Профиль пользователя «' + fullName + '» успешно обновлён!');
@@ -3907,14 +4200,20 @@ function renderAdminUsers(users) {
     const likesCount = u.likes || 0;
     const dislikesCount = u.dislikes || 0;
 
+    const avatarThumb = '<div class="w-8 h-8 rounded-full border border-[var(--border-subtle)] overflow-hidden flex-shrink-0 bg-neutral-900">' +
+      '<img src="' + (u.avatar || 'img/student.jpg') + '" alt="Avatar" class="w-full h-full object-cover">' +
+    '</div>';
+
     return '<div id="user_row_' + u.id + '" class="flex flex-col md:flex-row md:items-center justify-between p-3.5 gap-3 border ' + borderClass + ' transition" ' + rowBg + '>' +
-      '<div id="user_info_' + u.id + '" class="flex-grow">' +
-        '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
-          '<button type="button" onclick="openShowreelModal(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline text-[var(--text-primary)] hover:text-amber-400 transition inline-flex items-center gap-1 text-left" title="Открыть цифровой паспорт студента">' +
-            '<span>' + u.fullName + '</span>' +
-            '<span class="text-[9px] text-amber-400/80">👤</span>' +
-          '</button> ' +
-          roleBadgeTag + ' ' +
+      '<div id="user_info_' + u.id + '" class="flex items-center gap-3 flex-grow min-w-0">' +
+        avatarThumb +
+        '<div class="min-w-0 flex-grow">' +
+          '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
+            '<button type="button" onclick="openShowreelModal(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline text-[var(--text-primary)] hover:text-amber-400 transition inline-flex items-center gap-1 text-left" title="Открыть цифровой паспорт студента">' +
+              '<span>' + u.fullName + '</span>' +
+              '<span class="text-[9px] text-amber-400/80">👤</span>' +
+            '</button> ' +
+            roleBadgeTag + ' ' +
           '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
           tgBadge + ' ' +
           '<span class="inline-flex items-center gap-1.5 font-mono text-xs px-2 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg-primary)]">' +
@@ -6005,7 +6304,7 @@ async function loadShoots() {
         '<div class="space-y-4">' +
           '<div class="flex items-center space-x-3.5 pb-3 border-b" style="border-color: rgba(0,0,0,0.12);">' +
             '<div class="relative w-16 h-16 overflow-hidden border-2 flex-shrink-0 shadow-md" style="border-color: var(--brand-red);">' +
-              '<img src="img/student.jpg" alt="Student" class="w-full h-full object-cover">' +
+              '<img src="' + (currentUser.avatar || 'img/student.jpg') + '" alt="Student" class="w-full h-full object-cover">' +
               '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>' +
             '</div>' +
             '<div class="min-w-0 flex-grow">' +

@@ -110,7 +110,7 @@ try {
 } catch (e) {
   // compression will activate on Render when dependencies are installed
 }
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
@@ -768,7 +768,7 @@ app.all(['/api/admin/users/:id/full', '/api/admin/users/:id'], optionalAuthToken
   if (req.method !== 'PUT' && req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
   try {
     const { id } = req.params;
-    const { fullName, email, groupName, role, roleName, craftRank, telegram, telegramChatId, newPassword, isBlacklisted } = req.body;
+    const { fullName, email, groupName, role, roleName, craftRank, telegram, telegramChatId, newPassword, isBlacklisted, competencies, avatar } = req.body;
 
     let passwordHash = undefined;
     if (newPassword && newPassword.trim().length >= 4) {
@@ -783,7 +783,9 @@ app.all(['/api/admin/users/:id/full', '/api/admin/users/:id'], optionalAuthToken
       telegram,
       telegramChatId,
       isBlacklisted: isBlacklisted !== undefined ? !!isBlacklisted : undefined,
-      passwordHash
+      passwordHash,
+      competencies,
+      avatar
     };
 
     const targetRoleName = roleName || (role && role.name) || (typeof role === 'string' ? role : undefined);
@@ -1244,7 +1246,8 @@ app.put('/api/admin/users/:id/full', optionalAuthToken, async (req, res) => {
       rating,
       completedShoots,
       isSuspended,
-      competencies
+      competencies,
+      avatar
     } = req.body;
 
     const users = readJsonSafe(USERS_FILE, []);
@@ -1264,6 +1267,7 @@ app.put('/api/admin/users/:id/full', optionalAuthToken, async (req, res) => {
           rating: rating !== undefined ? parseFloat(rating) : u.rating,
           completedShoots: completedShoots !== undefined ? parseInt(completedShoots, 10) : u.completedShoots,
           isSuspended: isSuspended !== undefined ? !!isSuspended : u.isSuspended,
+          avatar: avatar !== undefined ? avatar : u.avatar,
           competencies: competencies ? { ...u.competencies, ...competencies } : u.competencies
         };
         return updatedUser;
@@ -1291,6 +1295,47 @@ app.put('/api/admin/users/:id/full', optionalAuthToken, async (req, res) => {
     }
 
     res.json({ success: true, user: updatedUser, users: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------- ЗАГРУЗКА АВАТАРКИ ПОЛЬЗОВАТЕЛЯ -----------------
+app.post(['/api/users/:id/avatar', '/api/users/profile/avatar'], optionalAuthToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.id || (req.user && req.user.id) || req.body.userId;
+    const { avatar } = req.body;
+    const users = readJsonSafe(USERS_FILE, []);
+    let targetUser = users.find(u => u.id === targetUserId || (req.body.email && u.email === req.body.email));
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    targetUser.avatar = avatar || null;
+    writeJsonSafe(USERS_FILE, users);
+    res.json({ success: true, avatar: targetUser.avatar, user: targetUser });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------- ОЦЕНКА КОМПЕТЕНЦИЙ ПО 4 ПАРАМЕТРАМ (ОТЗЫВЫ / АДМИНКА) -----------------
+app.all(['/api/users/:id/competencies', '/api/users/:id/skills'], optionalAuthToken, async (req, res) => {
+  if (req.method !== 'POST' && req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const { id } = req.params;
+    const comps = req.body.competencies || req.body;
+    const users = readJsonSafe(USERS_FILE, []);
+    let targetUser = users.find(u => u.id === id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    targetUser.competencies = {
+      camera: Math.min(100, Math.max(0, Number(comps.camera ?? (targetUser.competencies && targetUser.competencies.camera) ?? 85))),
+      sound: Math.min(100, Math.max(0, Number(comps.sound ?? (targetUser.competencies && targetUser.competencies.sound) ?? 80))),
+      light: Math.min(100, Math.max(0, Number(comps.light ?? (targetUser.competencies && targetUser.competencies.light) ?? 80))),
+      edit: Math.min(100, Math.max(0, Number(comps.edit ?? (targetUser.competencies && targetUser.competencies.edit) ?? 85)))
+    };
+
+    writeJsonSafe(USERS_FILE, users);
+    res.json({ success: true, competencies: targetUser.competencies, user: targetUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

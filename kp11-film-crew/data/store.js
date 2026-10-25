@@ -1368,6 +1368,15 @@ async function updateUser(id, updates) {
       user.isBlacklisted = !!updates.isBlacklisted;
       user.isSuspended = !!updates.isBlacklisted;
     }
+    if (updates.avatar !== undefined) user.avatar = updates.avatar;
+    if (updates.competencies !== undefined && typeof updates.competencies === 'object') {
+      user.competencies = {
+        camera: Number(updates.competencies.camera ?? (user.competencies && user.competencies.camera) ?? 85),
+        sound: Number(updates.competencies.sound ?? (user.competencies && user.competencies.sound) ?? 80),
+        light: Number(updates.competencies.light ?? (user.competencies && user.competencies.light) ?? 80),
+        edit: Number(updates.competencies.edit ?? (user.competencies && user.competencies.edit) ?? 85)
+      };
+    }
     if (updates.passwordHash !== undefined) user.passwordHash = updates.passwordHash;
 
     writeJsonFile(USERS_FILE, users);

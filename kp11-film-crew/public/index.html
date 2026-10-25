@@ -482,17 +482,47 @@
                   <span class="text-[10px] font-mono" style="color: var(--text-muted);">БЕЗОПАСНОСТЬ И КОНТАКТЫ</span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <!-- Форма смены пароля -->
-                  <form onsubmit="handleCabinetPasswordChange(event)" class="p-3.5 border space-y-3" style="background-color: var(--bg-primary); border-color: var(--border-color);">
-                    <span class="text-[11px] font-mono font-extrabold uppercase text-[var(--text-primary)] block">Сменить пароль</span>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <!-- Фотография профиля (Аватарка) -->
+                  <div class="p-3.5 border space-y-3 flex flex-col justify-between" style="background-color: var(--bg-primary); border-color: var(--border-color);">
                     <div>
-                      <label class="block text-[10px] font-mono text-[var(--text-muted)] mb-1">Новый пароль:</label>
-                      <input type="password" id="cabinetNewPassword" minlength="4" required placeholder="••••••••" class="w-full studio-input text-xs font-mono px-3 py-2">
+                      <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-mono font-extrabold uppercase text-[var(--brand-red)] block">Фото профиля (Аватарка)</span>
+                        <span class="text-[9px] font-mono text-emerald-400 font-bold">СЖАТИЕ 140PX</span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <div class="relative w-14 h-14 border-2 border-[var(--brand-red)] overflow-hidden flex-shrink-0 shadow-md">
+                          <img id="cabinetSettingsAvatarPreview" src="img/student.jpg" alt="Avatar" class="w-full h-full object-cover">
+                          <span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>
+                        </div>
+                        <div class="text-[10px] font-mono text-[var(--text-muted)] space-y-0.5">
+                          <div>ФОРМАТ: <span class="text-[var(--text-secondary)] font-bold">JPG/PNG</span></div>
+                          <div>РАЗМЕР: <span class="text-amber-400 font-bold">&lt;15 КБ</span></div>
+                          <div class="text-[9px] text-[var(--text-muted)]">Не занимает место на сервере</div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label class="block text-[10px] font-mono text-[var(--text-muted)] mb-1">Повторите новый пароль:</label>
-                      <input type="password" id="cabinetConfirmPassword" minlength="4" required placeholder="••••••••" class="w-full studio-input text-xs font-mono px-3 py-2">
+                    <div class="space-y-1.5 pt-1">
+                      <input type="file" id="cabinetAvatarFileInput" accept="image/*" class="hidden" onchange="handleUserAvatarUpload(event)">
+                      <button type="button" onclick="document.getElementById('cabinetAvatarFileInput').click()" class="w-full py-2 px-3 text-xs font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span>Загрузить фото</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Форма смены пароля -->
+                  <form onsubmit="handleCabinetPasswordChange(event)" class="p-3.5 border space-y-3 flex flex-col justify-between" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+                    <div class="space-y-2">
+                      <span class="text-[11px] font-mono font-extrabold uppercase text-[var(--text-primary)] block">Сменить пароль</span>
+                      <div>
+                        <label class="block text-[10px] font-mono text-[var(--text-muted)] mb-1">Новый пароль:</label>
+                        <input type="password" id="cabinetNewPassword" minlength="4" required placeholder="••••••••" class="w-full studio-input text-xs font-mono px-3 py-1.5">
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-mono text-[var(--text-muted)] mb-1">Повторите новый пароль:</label>
+                        <input type="password" id="cabinetConfirmPassword" minlength="4" required placeholder="••••••••" class="w-full studio-input text-xs font-mono px-3 py-1.5">
+                      </div>
                     </div>
                     <button type="submit" class="w-full py-2 text-xs font-extrabold uppercase btn-brand-primary">
                       Сохранить новый пароль
@@ -500,15 +530,17 @@
                   </form>
 
                   <!-- Обновление Telegram никнейма -->
-                  <form onsubmit="handleCabinetTelegramChange(event)" class="p-3.5 border space-y-3" style="background-color: var(--bg-primary); border-color: var(--border-color);">
-                    <span class="text-[11px] font-mono font-extrabold uppercase text-[#229ED9] block">Контакт Telegram для вызывных</span>
-                    <div>
-                      <label class="block text-[10px] font-mono text-[var(--text-muted)] mb-1">Ваш Telegram @username:</label>
-                      <div class="flex items-center">
-                        <span class="px-2.5 py-2 text-xs font-mono font-bold bg-[#141414] border border-r-0 border-[var(--border-color)] text-[#229ED9]">@</span>
-                        <input type="text" id="cabinetTelegramInput" placeholder="username" class="w-full studio-input text-xs font-mono px-3 py-2 text-[#229ED9]">
+                  <form onsubmit="handleCabinetTelegramChange(event)" class="p-3.5 border space-y-3 flex flex-col justify-between" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+                    <div class="space-y-2">
+                      <span class="text-[11px] font-mono font-extrabold uppercase text-[#229ED9] block">Контакт Telegram для вызывных</span>
+                      <div>
+                        <label class="block text-[10px] font-mono text-[var(--text-muted)] mb-1">Ваш Telegram @username:</label>
+                        <div class="flex items-center">
+                          <span class="px-2.5 py-1.5 text-xs font-mono font-bold bg-[#141414] border border-r-0 border-[var(--border-color)] text-[#229ED9]">@</span>
+                          <input type="text" id="cabinetTelegramInput" placeholder="username" class="w-full studio-input text-xs font-mono px-3 py-1.5 text-[#229ED9]">
+                        </div>
+                        <span class="text-[9px] font-medium text-[var(--text-muted)] mt-1 block">На этот контакт бот отправляет вызывные</span>
                       </div>
-                      <span class="text-[9px] font-medium text-[var(--text-muted)] mt-1 block">На этот контакт бот @KP11_FilmCrew_Bot отправляет вызывные</span>
                     </div>
                     <button type="submit" class="w-full py-2 text-xs font-extrabold uppercase bg-[#229ED9] hover:bg-[#1b8ec5] text-white transition">
                       Обновить Telegram
@@ -1147,6 +1179,31 @@
 
       <form onsubmit="handleSaveAdminUserFull(event)" class="space-y-4">
         <input type="hidden" id="fullEditUserId" value="">
+        <input type="hidden" id="fullEditAvatarBase64" value="">
+
+        <!-- Блок: Аватарка пользователя -->
+        <div class="flex items-center gap-4 p-3 border" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+          <div class="relative w-16 h-16 border-2 border-[var(--brand-red)] overflow-hidden flex-shrink-0 shadow-md">
+            <img id="fullEditAvatarPreview" src="img/student.jpg" alt="Avatar" class="w-full h-full object-cover">
+            <span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>
+          </div>
+          <div class="space-y-1.5 flex-grow">
+            <div class="flex items-center justify-between">
+              <label class="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-red)] font-mono">Аватарка пользователя</label>
+              <span class="text-[9px] font-mono text-emerald-400 font-bold">СЖАТИЕ 140PX (&lt;15 КБ)</span>
+            </div>
+            <input type="file" id="fullEditAvatarFile" accept="image/*" class="hidden" onchange="handleAdminAvatarUpload(event)">
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="document.getElementById('fullEditAvatarFile').click()" class="py-1.5 px-3 text-xs font-bold uppercase btn-brand-primary flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>Выбрать фото</span>
+              </button>
+              <button type="button" onclick="handleAdminAvatarRemove()" class="py-1.5 px-2.5 text-xs font-bold uppercase btn-brand-ghost text-neutral-400 hover:text-red-400">
+                Сбросить
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -1193,6 +1250,59 @@
           <div>
             <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Новый пароль (оставьте пустым, если не меняется)</label>
             <input type="password" id="fullEditNewPassword" placeholder="••••••••" class="w-full studio-input text-xs font-mono px-3 py-2">
+          </div>
+        </div>
+
+        <!-- Оценка компетенций по 4 стандартам ЦКТ -->
+        <div class="p-3.5 border space-y-3" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+          <div class="flex items-center justify-between border-b pb-1.5" style="border-color: var(--border-subtle);">
+            <span class="text-xs font-extrabold uppercase font-mono text-[var(--brand-red)] flex items-center gap-1.5">
+              <span class="rec-dot"></span>
+              <span>Оценка компетенций по 4 цехам (0–100%)</span>
+            </span>
+            <span class="text-[10px] font-mono text-[var(--brand-beige-text)] font-bold">ЦКТ КП11</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Камера -->
+            <div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-[var(--text-primary)]">🎬 Камера (Операторский цех)</span>
+                <span id="fullEditCompCameraVal" class="font-mono font-black text-amber-400">85%</span>
+              </div>
+              <input type="range" id="fullEditCompCamera" min="0" max="100" step="1" value="85"
+                oninput="document.getElementById('fullEditCompCameraVal').innerText = this.value + '%'"
+                class="w-full accent-[var(--brand-red)] cursor-pointer">
+            </div>
+            <!-- Звук -->
+            <div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-[var(--text-primary)]">🎙️ Звук (Звуковой цех)</span>
+                <span id="fullEditCompSoundVal" class="font-mono font-black text-amber-400">80%</span>
+              </div>
+              <input type="range" id="fullEditCompSound" min="0" max="100" step="1" value="80"
+                oninput="document.getElementById('fullEditCompSoundVal').innerText = this.value + '%'"
+                class="w-full accent-[var(--brand-red)] cursor-pointer">
+            </div>
+            <!-- Свет -->
+            <div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-[var(--text-primary)]">💡 Свет (Осветительский цех)</span>
+                <span id="fullEditCompLightVal" class="font-mono font-black text-amber-400">80%</span>
+              </div>
+              <input type="range" id="fullEditCompLight" min="0" max="100" step="1" value="80"
+                oninput="document.getElementById('fullEditCompLightVal').innerText = this.value + '%'"
+                class="w-full accent-[var(--brand-red)] cursor-pointer">
+            </div>
+            <!-- Монтаж -->
+            <div class="p-2.5 border rounded-xs space-y-1.5" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-[var(--text-primary)]">✂️ Монтаж (Постпродакшн)</span>
+                <span id="fullEditCompEditVal" class="font-mono font-black text-amber-400">85%</span>
+              </div>
+              <input type="range" id="fullEditCompEdit" min="0" max="100" step="1" value="85"
+                oninput="document.getElementById('fullEditCompEditVal').innerText = this.value + '%'"
+                class="w-full accent-[var(--brand-red)] cursor-pointer">
+            </div>
           </div>
         </div>
 

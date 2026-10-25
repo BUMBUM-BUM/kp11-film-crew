@@ -882,6 +882,7 @@ const server = http.createServer(async (req, res) => {
             const rName = jsonBody.roleName || (jsonBody.role && jsonBody.role.name) || jsonBody.role || 'Студент';
             u.role = { name: rName };
           }
+          if (jsonBody.avatar !== undefined) u.avatar = jsonBody.avatar;
           if (jsonBody.competencies && typeof jsonBody.competencies === 'object') {
             u.competencies = {
               camera: Number(jsonBody.competencies.camera ?? (u.competencies && u.competencies.camera) ?? 85),
@@ -898,6 +899,53 @@ const server = http.createServer(async (req, res) => {
       });
       writeJsonFile(USERS_FILE, users);
       return res.end(JSON.stringify({ success: true, user: updatedUser, message: 'Все данные пользователя успешно сохранены' }));
+    }
+
+    // POST /api/users/:id/avatar или POST /api/users/profile/avatar
+    const userAvatarMatch = pathname.match(/^\/api\/users\/(?:profile\/avatar|([^/]+)\/avatar)$/);
+    if (userAvatarMatch && req.method === 'POST') {
+      const targetUserId = userAvatarMatch[1] || jsonBody.userId;
+      const { avatar } = jsonBody;
+      const users = readJsonFile(USERS_FILE, []);
+      let updatedUser = null;
+      users.forEach(u => {
+        if (u.id === targetUserId || (!targetUserId && jsonBody.email && u.email === jsonBody.email)) {
+          u.avatar = avatar || null;
+          updatedUser = u;
+        }
+      });
+      if (updatedUser) {
+        writeJsonFile(USERS_FILE, users);
+        return res.end(JSON.stringify({ success: true, avatar: updatedUser.avatar, user: updatedUser }));
+      }
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ success: false, error: 'Пользователь не найден' }));
+    }
+
+    // POST/PUT /api/users/:id/competencies (Оценка 4 параметров из вкладки Отзывы или Админки)
+    const userCompMatch = pathname.match(/^\/api\/users\/([^/]+)\/competencies$/);
+    if (userCompMatch && (req.method === 'POST' || req.method === 'PUT')) {
+      const targetUserId = userCompMatch[1];
+      const comps = jsonBody.competencies || jsonBody;
+      const users = readJsonFile(USERS_FILE, []);
+      let updatedUser = null;
+      users.forEach(u => {
+        if (u.id === targetUserId) {
+          u.competencies = {
+            camera: Math.min(100, Math.max(0, Number(comps.camera ?? (u.competencies && u.competencies.camera) ?? 85))),
+            sound: Math.min(100, Math.max(0, Number(comps.sound ?? (u.competencies && u.competencies.sound) ?? 80))),
+            light: Math.min(100, Math.max(0, Number(comps.light ?? (u.competencies && u.competencies.light) ?? 80))),
+            edit: Math.min(100, Math.max(0, Number(comps.edit ?? (u.competencies && u.competencies.edit) ?? 85)))
+          };
+          updatedUser = u;
+        }
+      });
+      if (updatedUser) {
+        writeJsonFile(USERS_FILE, users);
+        return res.end(JSON.stringify({ success: true, competencies: updatedUser.competencies, user: updatedUser }));
+      }
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ success: false, error: 'Пользователь не найден' }));
     }
 
     const userPatchMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)(?:\/role)?$/);
