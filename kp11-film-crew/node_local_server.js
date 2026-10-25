@@ -1082,19 +1082,80 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/crew/response' && req.method === 'POST') {
-      const { crewMemberId, status } = jsonBody;
+      const { crewMemberId, status, declineReason, reason } = jsonBody;
+      const actualReason = declineReason || reason || null;
       const shoots = readJsonFile(SHOOTS_FILE, []);
       shoots.forEach(s => {
         if (Array.isArray(s.crew)) {
           s.crew.forEach(c => {
             if (c.id === crewMemberId || c.userId === crewMemberId) {
               c.status = status;
+              if (status === 'DECLINED') {
+                c.declineReason = actualReason || c.declineReason || 'Не указана';
+                c.declinedAt = new Date().toISOString();
+              } else if (status === 'ACCEPTED') {
+                c.confirmedAt = new Date().toISOString();
+                c.declineReason = null;
+              }
             }
           });
         }
       });
       writeJsonFile(SHOOTS_FILE, shoots);
       return res.end(JSON.stringify({ success: true }));
+    }
+
+    if ((pathname === '/api/crew/replace' || pathname.endsWith('/replace-crew')) && req.method === 'POST') {
+      const { shootId, oldMemberId, oldUserId, newUserId, roleInShoot, department } = jsonBody;
+      const targetShootId = shootId || (pathname.startsWith('/api/shoots/') ? pathname.split('/')[3] : null);
+      const shoots = readJsonFile(SHOOTS_FILE, []);
+      const users = readJsonFile(USERS_FILE, []);
+      const shoot = shoots.find(s => String(s.id) === String(targetShootId));
+      const newUser = users.find(u => String(u.id) === String(newUserId));
+
+      if (!shoot || !Array.isArray(shoot.crew)) {
+        return res.end(JSON.stringify({ success: false, error: 'Смена не найдена' }));
+      }
+      if (!newUser) {
+        return res.end(JSON.stringify({ success: false, error: 'Студент не найден в базе данных' }));
+      }
+
+      const memberIndex = shoot.crew.findIndex(c =>
+        String(c.id) === String(oldMemberId || oldUserId) || String(c.userId) === String(oldMemberId || oldUserId)
+      );
+      if (memberIndex === -1) {
+        return res.end(JSON.stringify({ success: false, error: 'Участник для замены не найден' }));
+      }
+
+      const oldMember = shoot.crew[memberIndex];
+      const targetRole = roleInShoot || oldMember.roleInShoot || 'Оператор';
+      const targetDept = department || oldMember.department || 'cinema';
+
+      const newMember = {
+        id: 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        shootId: shoot.id,
+        userId: newUser.id,
+        roleInShoot: targetRole,
+        department: targetDept,
+        status: 'PENDING',
+        attendance: 'PRESENT',
+        grade: null,
+        declineReason: null,
+        replacedOldMemberId: oldMember.id || oldMember.userId,
+        user: {
+          id: newUser.id,
+          fullName: newUser.fullName,
+          groupName: newUser.groupName,
+          rating: newUser.rating,
+          craftRank: newUser.craftRank,
+          avatar: newUser.avatar || null,
+          completedShoots: newUser.completedShoots || 0
+        }
+      };
+
+      shoot.crew[memberIndex] = newMember;
+      writeJsonFile(SHOOTS_FILE, shoots);
+      return res.end(JSON.stringify({ success: true, updatedShoot: shoot, newMember }));
     }
 
     // 12. TELEGRAM ТЕСТ И РАССЫЛКА

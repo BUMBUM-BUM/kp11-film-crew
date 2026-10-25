@@ -4876,23 +4876,41 @@ async function loadNotifications() {
   }
 }
 
-async function respondCrew(crewMemberId, status) {
+async function respondCrew(crewMemberId, status, customReason = null) {
+  let declineReason = customReason;
+  if (status === 'DECLINED' && !declineReason) {
+    const input = prompt('Укажите причину отказа от смены (например: болезнь, экзамен, наложение смен):');
+    if (input === null) {
+      return; // Пользователь нажал "Отмена" в prompt
+    }
+    declineReason = input.trim() || 'Причина не указана';
+  }
+
   try {
     await fetch('/api/crew/response', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ crewMemberId, status })
+      body: JSON.stringify({ crewMemberId, status, declineReason, reason: declineReason })
     });
   } catch (err) {}
 
   // Fallback update in-memory
   (globalShoots || []).forEach(s => {
     (s.crew || []).forEach(c => {
-      if (c.id === crewMemberId) c.status = status;
+      if (c.id === crewMemberId || c.userId === crewMemberId) {
+        c.status = status;
+        if (status === 'DECLINED') {
+          c.declineReason = declineReason || 'Причина не указана';
+          c.declinedAt = new Date().toISOString();
+        } else if (status === 'ACCEPTED') {
+          c.confirmedAt = new Date().toISOString();
+          c.declineReason = null;
+        }
+      }
     });
   });
   localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
-  showToast(status === 'ACCEPTED' ? 'Вызов на смену принят!' : 'Вызов на смену отклонен');
+  showToast(status === 'ACCEPTED' ? 'Вызов на смену принят!' : 'Вызов на смену отклонён (причина зафиксирована)');
   loadNotifications();
   loadShoots();
 }
@@ -6674,12 +6692,31 @@ function renderShootsList(shoots = globalShoots) {
         const myBadge = isMe ? '<span class="student-my-badge">Вы в смене</span>' : '';
 
         let statusBadgeCrew = '';
+        let declineReasonHtml = '';
+        let replaceBtn = '';
+
         if (c.status === 'ACCEPTED') {
-          statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.check + (isMe ? 'Вы подтвердили' : 'Принят') + '</span>';
+          statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center gap-1">' + SVG_ICONS.check + (isMe ? 'Вы подтвердили' : 'Принят') + '</span>';
         } else if (c.status === 'DECLINED') {
-          statusBadgeCrew = '<span class="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.cross + (isMe ? 'Вы отклонили' : 'Отклонил') + '</span>';
+          statusBadgeCrew = '<span class="text-[10px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-flex items-center gap-1">' + SVG_ICONS.cross + (isMe ? 'Вы отклонили' : 'Отклонил') + '</span>';
+
+          const rawReason = c.declineReason || 'Не указана';
+          declineReasonHtml = '<span class="inline-flex items-center gap-1 text-[11px] font-mono text-red-300 bg-red-950/70 border border-red-700/60 px-2 py-0.5 rounded-xs" title="Причина отклонения вызывного">' +
+            '<span class="text-red-400 font-bold uppercase tracking-wider text-[9px]">Причина:</span> ' +
+            '«' + escapeHtml(rawReason) + '»' +
+          '</span>';
+
+          if (canGradeAndManage && !s.isCompleted) {
+            const memberIdParam = String(c.id);
+            const userTargetIdParam = String((actualUser && actualUser.id) || c.userId || c.id);
+            const roleParam = escapeHtml(c.roleInShoot || 'Участник');
+            const deptParam = escapeHtml(c.department || 'cinema');
+            replaceBtn = '<button type="button" onclick="event.stopPropagation(); openReplaceCrewModal(\'' + s.id + '\', \'' + memberIdParam + '\', \'' + userTargetIdParam + '\', \'' + roleParam + '\', \'' + deptParam + '\')" class="btn-brand-beige px-2.5 py-0.5 text-[10px] font-extrabold uppercase inline-flex items-center gap-1 shadow-sm hover:brightness-110 transition cursor-pointer" title="Заменить участника другим студентом">' +
+              '<span>🔄 Заменить</span>' +
+            '</button>';
+          }
         } else {
-          statusBadgeCrew = '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 inline-flex items-center">' + SVG_ICONS.clock + 'Ожидание</span>';
+          statusBadgeCrew = '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 inline-flex items-center gap-1">' + SVG_ICONS.clock + 'Ожидание</span>';
         }
 
         let manualAcceptBtn = '';
@@ -6730,6 +6767,8 @@ function renderShootsList(shoots = globalShoots) {
             myBadge +
             '<span class="' + cRank.className + '">' + cRank.icon + ' ' + cRank.title + '</span>' +
             statusBadgeCrew +
+            declineReasonHtml +
+            replaceBtn +
             manualAcceptBtn +
           '</div>' +
           '<div class="flex items-center space-x-2 ml-auto">' +
@@ -7028,3 +7067,221 @@ if (urlParams.get('create') === '1') {
 
 window.openShootModal = openShootModal;
 window.openEditShootModal = openEditShootModal;
+
+// ==============================================================================
+// ЗАМЕНА УЧАСТНИКА СМЕНЫ (REPLACE CREW MEMBER)
+// ==============================================================================
+let currentReplaceCrewContext = null;
+
+function openReplaceCrewModal(shootId, memberId, currentUserId, roleInShoot, department) {
+  const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+  if (!shoot) {
+    showToast('Смена не найдена');
+    return;
+  }
+
+  const oldMember = (shoot.crew || []).find(c => String(c.id) === String(memberId) || String(c.userId) === String(currentUserId));
+  const allDir = (globalStudents && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+  const oldMemberUser = oldMember?.user || allDir.find(u => String(u.id) === String(currentUserId)) || {};
+  const oldMemberName = oldMemberUser.fullName || 'Участник';
+  const oldMemberGroup = oldMemberUser.groupName || '';
+  const declineReason = oldMember?.declineReason || 'Не указана';
+  const effectiveRole = roleInShoot || oldMember?.roleInShoot || 'Оператор';
+  const effectiveDept = department || oldMember?.department || 'cinema';
+
+  currentReplaceCrewContext = {
+    shootId,
+    memberId,
+    currentUserId,
+    roleInShoot: effectiveRole,
+    department: effectiveDept
+  };
+
+  const modal = document.getElementById('replaceCrewModal');
+  const infoBox = document.getElementById('replaceCrewInfoBox');
+  const searchInput = document.getElementById('replaceCrewSearchInput');
+
+  if (searchInput) searchInput.value = '';
+
+  const d = new Date(shoot.date);
+  const dateFormatted = !isNaN(d.getTime()) ? d.toLocaleDateString('ru-RU') : (shoot.date || 'Дата уточняется');
+
+  if (infoBox) {
+    infoBox.innerHTML = 
+      '<div class="flex items-start justify-between gap-2 border-b pb-2 mb-2" style="border-color: var(--border-subtle);">' +
+        '<div>' +
+          '<div class="text-[10px] font-mono text-[var(--text-muted)] uppercase">Проект / Смена:</div>' +
+          '<div class="font-extrabold text-sm uppercase text-white">' + escapeHtml(shoot.title || 'Съёмочная смена') + '</div>' +
+          '<div class="text-[11px] font-mono text-amber-400/90">' + dateFormatted + ' • ' + escapeHtml(shoot.location || 'Локация уточняется') + '</div>' +
+        '</div>' +
+        '<span class="text-[10px] font-mono uppercase px-2 py-0.5 border border-amber-600/40 bg-amber-950/30 text-amber-300 font-bold">' + escapeHtml(effectiveRole) + '</span>' +
+      '</div>' +
+      '<div class="flex flex-col gap-1 text-[11px] font-mono">' +
+        '<div class="flex items-center gap-1.5 flex-wrap">' +
+          '<span class="text-neutral-400">Кто отклонил:</span>' +
+          '<span class="font-bold text-red-300 uppercase">' + escapeHtml(oldMemberName) + (oldMemberGroup ? ' [' + escapeHtml(oldMemberGroup) + ']' : '') + '</span>' +
+        '</div>' +
+        '<div class="flex items-start gap-1.5 flex-wrap">' +
+          '<span class="text-neutral-400">Причина отказа:</span>' +
+          '<span class="inline-flex items-center gap-1 text-red-200 bg-red-950/60 border border-red-800/60 px-2 py-0.5 rounded-xs font-semibold">«' + escapeHtml(declineReason) + '»</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  filterReplaceCrewStudents();
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeReplaceCrewModal() {
+  const modal = document.getElementById('replaceCrewModal');
+  if (modal) modal.classList.add('hidden');
+  currentReplaceCrewContext = null;
+}
+
+function filterReplaceCrewStudents() {
+  if (!currentReplaceCrewContext) return;
+  const { shootId, currentUserId } = currentReplaceCrewContext;
+  const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+  const currentCrewIds = new Set((shoot?.crew || []).map(c => String(c.userId || c.id)));
+  currentCrewIds.delete(String(currentUserId));
+
+  const searchInput = document.getElementById('replaceCrewSearchInput');
+  const query = (searchInput?.value || '').trim().toLowerCase();
+
+  const candidatesList = document.getElementById('replaceCrewCandidatesList');
+  const candidatesCount = document.getElementById('replaceCrewCandidatesCount');
+  if (!candidatesList) return;
+
+  const allDir = (globalStudents && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+
+  let available = allDir.filter(u => {
+    if (String(u.id) === String(currentUserId)) return false;
+    if (currentCrewIds.has(String(u.id))) return false;
+    if (u.isSuspended) return false;
+    if (u.role?.name && u.role.name !== 'Студент') return false;
+
+    if (query) {
+      const matchName = (u.fullName || '').toLowerCase().includes(query);
+      const matchGroup = (u.groupName || '').toLowerCase().includes(query);
+      const matchSkills = Array.isArray(u.skills) && u.skills.some(s => String(s).toLowerCase().includes(query));
+      const matchRank = (u.craftRank || '').toLowerCase().includes(query);
+      if (!matchName && !matchGroup && !matchSkills && !matchRank) return false;
+    }
+    return true;
+  });
+
+  available.sort((a, b) => {
+    const rA = typeof a.rating === 'number' ? a.rating : 4.5;
+    const rB = typeof b.rating === 'number' ? b.rating : 4.5;
+    return rB - rA;
+  });
+
+  if (candidatesCount) {
+    candidatesCount.textContent = available.length + ' кандидатов';
+  }
+
+  if (available.length === 0) {
+    candidatesList.innerHTML = 
+      '<div class="p-6 text-center text-xs font-mono text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)]">' +
+        'Студентов, доступных для назначения по данному фильтру, не найдено' +
+      '</div>';
+    return;
+  }
+
+  candidatesList.innerHTML = available.map(u => {
+    const rVal = (typeof u.rating === 'number') ? u.rating.toFixed(1) : (u.rating || '5.0');
+    const tgDisplay = u.telegram ? escapeHtml(u.telegram) : '<span class="text-neutral-500">нет TG</span>';
+    const avatarHtml = u.avatar 
+      ? '<img src="' + escapeHtml(u.avatar) + '" class="w-8 h-8 rounded-full object-cover border border-amber-500/50 shrink-0" alt="Avatar">'
+      : '<div class="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center font-bold text-xs text-amber-400 shrink-0">' + (u.fullName ? escapeHtml(u.fullName.charAt(0)) : 'С') + '</div>';
+
+    return '<div class="p-3 border flex flex-wrap items-center justify-between gap-2.5 transition hover:border-amber-500/60" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+      '<div class="flex items-center gap-3 min-w-[200px] flex-1">' +
+        avatarHtml +
+        '<div class="flex flex-col">' +
+          '<div class="flex items-center gap-2 flex-wrap">' +
+            '<span class="font-extrabold text-xs uppercase text-white hover:text-amber-400 cursor-pointer" onclick="openShowreelModal(\'' + u.id + '\')">' + escapeHtml(u.fullName) + '</span>' +
+            '<span class="font-mono text-[10px] text-neutral-400">[' + escapeHtml(u.groupName || 'КП11') + ']</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 text-[10px] font-mono text-[var(--text-muted)] flex-wrap">' +
+            '<span>' + escapeHtml(u.craftRank || 'Студент цеха') + '</span>' +
+            '<span>•</span>' +
+            '<span class="text-amber-400 font-bold">★ ' + rVal + '</span>' +
+            '<span>•</span>' +
+            '<span>' + tgDisplay + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="shrink-0 flex items-center gap-2">' +
+        '<button type="button" onclick="confirmReplaceCrewMember(\'' + u.id + '\')" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase shadow transition flex items-center gap-1 cursor-pointer">' +
+          '<span>✓ Назначить на замену</span>' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function confirmReplaceCrewMember(newUserId) {
+  if (!currentReplaceCrewContext) return;
+  const { shootId, memberId, currentUserId, roleInShoot, department } = currentReplaceCrewContext;
+
+  const allDir = (globalStudents && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+  const newUser = allDir.find(u => String(u.id) === String(newUserId));
+  const newName = newUser ? newUser.fullName : 'Выбранный студент';
+
+  try {
+    const res = await fetch('/api/crew/replace', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || '')
+      },
+      body: JSON.stringify({
+        shootId,
+        oldMemberId: memberId,
+        oldUserId: currentUserId,
+        newUserId,
+        roleInShoot,
+        department
+      })
+    });
+    const data = await res.json();
+    if (!data.success && !res.ok) {
+      showToast(data.error || 'Ошибка при замене участника');
+      return;
+    }
+
+    // Обновляем локальное состояние в globalShoots
+    const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+    if (shoot && Array.isArray(shoot.crew)) {
+      const idx = shoot.crew.findIndex(c => String(c.id) === String(memberId) || String(c.userId) === String(currentUserId));
+      if (idx !== -1) {
+        shoot.crew[idx] = {
+          id: data.newMember?.id || ('cm_' + Date.now()),
+          shootId: shoot.id,
+          userId: newUserId,
+          roleInShoot,
+          department,
+          status: 'PENDING',
+          attendance: 'PRESENT',
+          grade: null,
+          declineReason: null,
+          user: newUser || { id: newUserId, fullName: newName, groupName: '' }
+        };
+      }
+    }
+
+    localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+    closeReplaceCrewModal();
+    showToast('Студент «' + newName + '» успешно назначен на замену!');
+    loadShoots();
+  } catch (err) {
+    console.error('Replace crew error:', err);
+    showToast('Ошибка при замене участника');
+  }
+}
+
+window.openReplaceCrewModal = openReplaceCrewModal;
+window.closeReplaceCrewModal = closeReplaceCrewModal;
+window.filterReplaceCrewStudents = filterReplaceCrewStudents;
+window.confirmReplaceCrewMember = confirmReplaceCrewMember;

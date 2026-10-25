@@ -1213,7 +1213,7 @@ async function updateCrewAttendance(crewMemberId, attendance) {
   return false;
 }
 
-async function updateCrewMemberStatus(shootId, userId, newStatus) {
+async function updateCrewMemberStatus(shootId, userId, newStatus, declineReason = null) {
   if (prisma) {
     try {
       await prisma.crewMember.updateMany({
@@ -1224,16 +1224,93 @@ async function updateCrewMemberStatus(shootId, userId, newStatus) {
   }
 
   const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
-  const shoot = shoots.find(s => s.id === shootId);
+  const shoot = shoots.find(s => String(s.id) === String(shootId));
   if (shoot && shoot.crew) {
-    const member = shoot.crew.find(c => c.userId === userId || c.id === userId);
+    const member = shoot.crew.find(c => String(c.userId) === String(userId) || String(c.id) === String(userId));
     if (member) {
       member.status = newStatus;
+      if (newStatus === 'DECLINED') {
+        member.declineReason = declineReason || member.declineReason || 'Не указана';
+        member.declinedAt = new Date().toISOString();
+      } else if (newStatus === 'ACCEPTED') {
+        member.confirmedAt = new Date().toISOString();
+        member.declineReason = null;
+      }
       writeJsonFile(SHOOTS_FILE, shoots);
       return true;
     }
   }
   return false;
+}
+
+async function replaceCrewMember(shootId, oldMemberIdOrUserId, newUserId, roleInShoot = null, department = null) {
+  const users = readJsonFile(USERS_FILE, INITIAL_USERS);
+  const newUser = users.find(u => String(u.id) === String(newUserId));
+  if (!newUser) {
+    return { success: false, error: 'Выбранный студент не найден в базе данных' };
+  }
+
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
+  const shoot = shoots.find(s => String(s.id) === String(shootId));
+  if (!shoot || !Array.isArray(shoot.crew)) {
+    return { success: false, error: 'Смена не найдена' };
+  }
+
+  const memberIndex = shoot.crew.findIndex(c => 
+    String(c.id) === String(oldMemberIdOrUserId) || String(c.userId) === String(oldMemberIdOrUserId)
+  );
+  if (memberIndex === -1) {
+    return { success: false, error: 'Участник для замены не найден в смене' };
+  }
+
+  const oldMember = shoot.crew[memberIndex];
+  const targetRole = roleInShoot || oldMember.roleInShoot || 'Оператор';
+  const targetDept = department || oldMember.department || 'cinema';
+
+  const newMember = {
+    id: 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    shootId: shoot.id,
+    userId: newUser.id,
+    roleInShoot: targetRole,
+    department: targetDept,
+    status: 'PENDING',
+    attendance: 'PRESENT',
+    grade: null,
+    declineReason: null,
+    replacedOldMemberId: oldMember.id || oldMember.userId,
+    user: {
+      id: newUser.id,
+      fullName: newUser.fullName,
+      groupName: newUser.groupName,
+      rating: newUser.rating,
+      craftRank: newUser.craftRank,
+      avatar: newUser.avatar || null,
+      completedShoots: newUser.completedShoots || 0
+    }
+  };
+
+  shoot.crew[memberIndex] = newMember;
+  writeJsonFile(SHOOTS_FILE, shoots);
+
+  if (prisma) {
+    try {
+      await prisma.crewMember.deleteMany({
+        where: { id: oldMember.id }
+      }).catch(() => {});
+      await prisma.crewMember.create({
+        data: {
+          id: newMember.id,
+          shootId: shoot.id,
+          userId: newUser.id,
+          roleInShoot: targetRole,
+          status: 'PENDING',
+          attendance: 'PRESENT'
+        }
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  return { success: true, updatedShoot: shoot, newMember };
 }
 
 // ------------------------------------------------------------------------------
@@ -1469,6 +1546,7 @@ module.exports = {
   updateCrewAttendance,
   deleteShoot,
   updateCrewMemberStatus,
+  replaceCrewMember,
   getUsers,
   getUserById,
   getUserByTelegram,

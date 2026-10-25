@@ -187,6 +187,9 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;');
 }
 
+// Хранилище сессий ожидания причины отклонения вызывного: chatId -> { shootId, messageId, userId, timestamp }
+const pendingDeclineReasons = new Map();
+
 // ------------------------------------------------------------------------------
 // ОБРАБОТКА КОМАНД И СООБЩЕНИЙ
 // ------------------------------------------------------------------------------
@@ -203,6 +206,70 @@ async function handleTelegramMessage(message) {
       await store.updateUser(user.id, { telegramChatId: String(chatId) });
       console.log(`[KP11 Bot] Автопривязка: ${user.fullName} (${username}) -> Chat ID: ${chatId}`);
     }
+  }
+
+  // 0. ПРОВЕРКА: ОЖИДАЕТСЯ ЛИ ПРИЧИНА ОТКЛОНЕНИЯ ВЫЗЫВНОГО
+  const pendingDecline = pendingDeclineReasons.get(String(chatId));
+  if (pendingDecline && !text.startsWith('/start') && !text.startsWith('/link') && !text.startsWith('/profile') && !text.startsWith('/my_shoots') && !text.startsWith('/shifts')) {
+    if (text === '/cancel' || text.toLowerCase() === 'отмена') {
+      pendingDeclineReasons.delete(String(chatId));
+      return sendMessage(chatId, '❌ <b>Отклонение вызывного отменено.</b>\nВаш статус явки в смене сохранён без изменений.');
+    }
+
+    const declineReason = text.trim() || 'Причина не указана';
+    const shootId = pendingDecline.shootId;
+    let user = await store.getUserByTelegram(chatId) || (username ? await store.getUserByTelegram(username) : null);
+    if (!user && pendingDecline.userId) {
+      user = await store.getUserById(pendingDecline.userId);
+    }
+
+    if (user) {
+      await store.updateCrewMemberStatus(shootId, user.id, 'DECLINED', declineReason);
+    }
+    pendingDeclineReasons.delete(String(chatId));
+
+    const shoot = await store.getShootById(shootId);
+    const shootTitle = shoot ? shoot.title : 'Съёмочная смена';
+
+    await sendMessage(chatId,
+      `❌ <b>ВЫЗОВ ОТКЛОНЁН</b>\n` +
+      `════════════════════════════════════\n` +
+      `Смена: <b>${escapeHtml(shootTitle)}</b>\n` +
+      `Причина отказа: <i>«${escapeHtml(declineReason)}»</i>\n\n` +
+      `<i>Мастер смены оповещён. На сайте зафиксирована причина и открыта замена участника.</i>`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }
+            ]
+          ]
+        }
+      }
+    );
+
+    if (pendingDecline.messageId && shoot) {
+      try {
+        const users = await store.getUsers();
+        const updatedCallsheet = formatCallsheetMessage(shoot, user?.id, users);
+        await editMessageText(chatId, pendingDecline.messageId,
+          updatedCallsheet +
+          `\n\n<b>СТАТУС: ВЫ ОТКЛОНИЛИ УЧАСТИЕ В ЭТОЙ СМЕНЕ</b>\n` +
+          `Причина отказа: <i>«${escapeHtml(declineReason)}»</i>\n` +
+          `<i>Статус и причина обновлены на сайте.</i>`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }
+                ]
+              ]
+            }
+          }
+        );
+      } catch (e) {}
+    }
+    return;
   }
 
   // 1. КОМАНДА /start [payload]
@@ -547,6 +614,7 @@ async function handleTelegramCallbackQuery(query) {
 
   // 1. ПОДТВЕРЖДЕНИЕ УЧАСТИЯ В СМЕНЕ: accept:<shootId>
   if (data.startsWith('accept:')) {
+    pendingDeclineReasons.delete(String(chatId));
     const shootId = data.replace('accept:', '');
     const user = await store.getUserByTelegram(chatId) || (fromUser.username ? await store.getUserByTelegram('@' + fromUser.username) : null);
     
@@ -584,30 +652,32 @@ async function handleTelegramCallbackQuery(query) {
     const shootId = data.replace('decline:', '');
     const user = await store.getUserByTelegram(chatId) || (fromUser.username ? await store.getUserByTelegram('@' + fromUser.username) : null);
 
-    if (user) {
-      await store.updateCrewMemberStatus(shootId, user.id, 'DECLINED');
-    }
-    await answerCallbackQuery(queryId, 'Вызов отклонен. Мастер смены оповещен.', true);
+    // Запоминаем состояние ожидания причины отказа
+    pendingDeclineReasons.set(String(chatId), {
+      shootId,
+      messageId,
+      userId: user?.id,
+      timestamp: Date.now()
+    });
+
+    await answerCallbackQuery(queryId, 'Пожалуйста, укажите причину отказа ответным сообщением', false);
 
     const shoot = await store.getShootById(shootId);
-    if (shoot) {
-      const users = await store.getUsers();
-      const updatedCallsheet = formatCallsheetMessage(shoot, user?.id, users);
-      return editMessageText(chatId, messageId,
-        updatedCallsheet +
-        `\n\n<b>СТАТУС: ВЫ ОТКЛОНИЛИ УЧАСТИЕ В ЭТОЙ СМЕНЕ</b>\n` +
-        `<i>Статус обновлен на сайте.</i>`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }
-              ]
-            ]
-          }
+    const shootTitle = shoot ? shoot.title : 'Съёмочная смена';
+
+    return sendMessage(chatId,
+      `⚠️ <b>ОТКЛОНЕНИЕ ВЫЗЫВНОГО // ${escapeHtml(shootTitle)}</b>\n` +
+      `════════════════════════════════════\n` +
+      `Пожалуйста, напишите <b>причину отказа</b> ответным сообщением в этот чат (например: <i>«Болезнь», «Наложение учебных смен», «Сломалась техника»</i>):\n\n` +
+      `<i>Причина будет сразу видна мастеру на сайте в карточке смены.</i>\n` +
+      `<i>(Для отмены отправьте /cancel)</i>`,
+      {
+        reply_markup: {
+          force_reply: true,
+          selective: true
         }
-      );
-    }
+      }
+    );
   }
 
   // 3. ОТПРАВКА ГЕОТОЧКИ: location:<shootId>

@@ -1934,15 +1934,34 @@ app.post('/api/shoots/complete', optionalAuthToken, async (req, res) => {
 
 app.post('/api/crew/response', authenticateToken, async (req, res) => {
   try {
-    const { crewMemberId, status } = req.body;
-    const crewMember = await prisma.crewMember.findUnique({
-      where: { id: crewMemberId },
-      include: { shoot: true, user: true }
-    });
+    const { crewMemberId, status, declineReason, reason } = req.body;
+    const actualReason = declineReason || reason || null;
+    let crewMember = null;
+    try {
+      crewMember = await prisma.crewMember.findUnique({
+        where: { id: crewMemberId },
+        include: { shoot: true, user: true }
+      });
+    } catch (e) {}
 
-    if (!crewMember) return res.status(404).json({ error: 'Запись не найдена' });
+    const shoots = readJsonSafe(SHOOTS_FILE, []);
+    let foundShoot = null;
+    let foundMember = null;
+    for (const s of shoots) {
+      if (Array.isArray(s.crew)) {
+        const m = s.crew.find(c => c.id === crewMemberId || c.userId === crewMemberId);
+        if (m) {
+          foundShoot = s;
+          foundMember = m;
+          break;
+        }
+      }
+    }
 
-    const isOwner = crewMember.userId === req.user.id;
+    if (!crewMember && !foundMember) return res.status(404).json({ error: 'Запись не найдена' });
+
+    const memberUserId = crewMember ? crewMember.userId : (foundMember?.userId || foundMember?.id);
+    const isOwner = memberUserId === req.user.id;
     const roleName = req.user.role?.name;
     const isMasterOrAdmin = roleName === 'Администратор' || roleName === 'Мастер / Преподаватель';
 
@@ -1950,23 +1969,59 @@ app.post('/api/crew/response', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Недостаточно прав для изменения этого статуса' });
     }
 
-    const updated = await prisma.crewMember.update({
-      where: { id: crewMemberId },
-      data: { status }
-    });
+    let updated = null;
+    if (crewMember) {
+      try {
+        updated = await prisma.crewMember.update({
+          where: { id: crewMemberId },
+          data: { status }
+        });
+      } catch (e) {}
+    }
+
+    if (foundShoot) {
+      await store.updateCrewMemberStatus(foundShoot.id, memberUserId, status, actualReason);
+    }
 
     // Уведомление руководителю смены об ответе студента
-    if (isOwner && crewMember.shoot.creatorId) {
+    const creatorId = crewMember ? crewMember.shoot?.creatorId : foundShoot?.creatorId;
+    const studentName = crewMember ? crewMember.user?.fullName : (foundMember?.user?.fullName || 'Студент');
+    const shootTitle = crewMember ? crewMember.shoot?.title : (foundShoot?.title || 'Смена');
+
+    if (isOwner && creatorId) {
       const statusRu = status === 'ACCEPTED' ? 'принял(а)' : 'отклонил(а)';
+      const reasonSuffix = actualReason ? ` (Причина: ${actualReason})` : '';
       sendWebPushNotification(
-        crewMember.shoot.creatorId,
+        creatorId,
         'КП11 • Ответ по смене',
-        `Студент ${crewMember.user.fullName} ${statusRu} участие в «${crewMember.shoot.title}»`,
+        `Студент ${studentName} ${statusRu} участие в «${shootTitle}»${reasonSuffix}`,
         '/'
       );
     }
 
-    res.json({ success: true, updated });
+    res.json({ success: true, updated: updated || { id: crewMemberId, status, declineReason: actualReason } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post(['/api/crew/replace', '/api/shoots/:id/replace-crew'], authenticateToken, async (req, res) => {
+  try {
+    const roleName = req.user.role?.name;
+    const isMasterOrAdmin = roleName === 'Администратор' || roleName === 'Мастер / Преподаватель';
+    if (!isMasterOrAdmin) {
+      return res.status(403).json({ error: 'Только мастер или администратор может производить замену участника' });
+    }
+
+    const shootId = req.params.id || req.body.shootId;
+    const { oldMemberId, oldUserId, newUserId, roleInShoot, department } = req.body;
+
+    const result = await store.replaceCrewMember(shootId, oldMemberId || oldUserId, newUserId, roleInShoot, department);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
