@@ -2834,20 +2834,29 @@ async function loadReviewsTab() {
     globalReviewsStudents = globalStudents || getStudentDirectory();
   }
 
-  renderReviewsStudentsList(globalReviewsStudents);
+  filterReviewsStudents();
 
   if (!selectedReviewStudentId && globalReviewsStudents.length > 0) {
-    selectStudentForReviews(globalReviewsStudents[0].id);
+    const sortSel = document.getElementById('reviewsStudentSort');
+    const sortBy = sortSel ? sortSel.value : 'alphabet';
+    const sorted = sortStudentsList(globalReviewsStudents, sortBy);
+    if (sorted.length > 0) {
+      selectStudentForReviews(sorted[0].id);
+    }
   }
 }
 
 function filterReviewsStudents() {
   const q = (document.getElementById('reviewsStudentSearch')?.value || '').toLowerCase().trim();
-  const filtered = (globalReviewsStudents || []).filter(s => 
+  const sortSel = document.getElementById('reviewsStudentSort');
+  const sortBy = sortSel ? sortSel.value : 'alphabet';
+
+  let filtered = (globalReviewsStudents || []).filter(s => 
     (s.fullName && s.fullName.toLowerCase().includes(q)) ||
     (s.groupName && s.groupName.toLowerCase().includes(q)) ||
     (s.telegram && s.telegram.toLowerCase().includes(q))
   );
+  filtered = sortStudentsList(filtered, sortBy);
   renderReviewsStudentsList(filtered);
 }
 
@@ -4111,7 +4120,7 @@ async function loadAdminPanel() {
     document.getElementById('adminTelegramTopicId').value = localStorage.getItem('kp11_tg_topic');
   }
 
-  renderAdminUsers(globalAdminUsers);
+  filterAdminUsers();
 }
 window.loadAdminPanel = loadAdminPanel;
 
@@ -4744,6 +4753,8 @@ document.addEventListener('click', function(e) {
 function filterAdminUsers() {
   const searchInput = document.getElementById('adminSearch');
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const sortSel = document.getElementById('adminUserSort');
+  const sortBy = sortSel ? sortSel.value : 'alphabet';
   
   let filtered = (globalAdminUsers || []).filter(u => {
     const roleName = (u.role && u.role.name) ? u.role.name : 'Студент';
@@ -4766,6 +4777,7 @@ function filterAdminUsers() {
            (u.telegram && u.telegram.toLowerCase().includes(query));
   });
 
+  filtered = sortStudentsList(filtered, sortBy);
   renderAdminUsers(filtered);
 }
 
@@ -4915,19 +4927,139 @@ async function respondCrew(crewMemberId, status, customReason = null) {
   loadShoots();
 }
 
-function getSelectedCrewMap() {
-  const map = {};
-  const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
-  checkboxes.forEach(cb => {
-    const roleInp = document.querySelector('input[name="customRole_' + cb.value + '"]');
-    const deptSel = document.querySelector('select[name="craftDept_' + cb.value + '"]');
-    map[cb.value] = {
-      role: (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : 'Оператор',
-      dept: deptSel ? deptSel.value : 'cinema'
-    };
-  });
-  return map;
+// ==============================================================================
+// УНИВЕРСАЛЬНАЯ СОРТИРОВКА СПИСКОВ СТУДЕНТОВ
+// (По умолчанию: по алфавиту / первой букве фамилии; по рейтингу: звёзды и отзывы 👍/👎; по группам)
+// ==============================================================================
+function sortStudentsList(students, sortBy = 'alphabet') {
+  if (!Array.isArray(students)) return [];
+  const arr = [...students];
+
+  if (sortBy === 'alphabet') {
+    arr.sort((a, b) => {
+      const nameA = String(a.fullName || '').trim();
+      const nameB = String(b.fullName || '').trim();
+      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+    });
+  } else if (sortBy === 'rating') {
+    arr.sort((a, b) => {
+      const rA = typeof a.rating === 'number' ? a.rating : (parseFloat(a.rating) || 0);
+      const rB = typeof b.rating === 'number' ? b.rating : (parseFloat(b.rating) || 0);
+      if (rB !== rA) return rB - rA;
+
+      const scoreA = (a.likes || 0) - (a.dislikes || 0);
+      const scoreB = (b.likes || 0) - (b.dislikes || 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+
+      const likesA = a.likes || 0;
+      const likesB = b.likes || 0;
+      if (likesB !== likesA) return likesB - likesA;
+
+      const nameA = String(a.fullName || '').trim();
+      const nameB = String(b.fullName || '').trim();
+      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+    });
+  } else if (sortBy === 'group') {
+    arr.sort((a, b) => {
+      const groupA = String(a.groupName || '').trim();
+      const groupB = String(b.groupName || '').trim();
+      const gComp = groupA.localeCompare(groupB, 'ru', { sensitivity: 'base' });
+      if (gComp !== 0) return gComp;
+
+      const nameA = String(a.fullName || '').trim();
+      const nameB = String(b.fullName || '').trim();
+      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+    });
+  }
+  return arr;
 }
+window.sortStudentsList = sortStudentsList;
+
+// ==============================================================================
+// УПРАВЛЕНИЕ ВЫБОРОМ УЧАСТНИКОВ В МОДАЛЬНОМ ОКНЕ СМЕНЫ
+// Сохраняет выбор при поиске/фильтрации/сортировке без сброса предыдущих отметок
+// ==============================================================================
+let modalCrewSelections = {}; // userId -> { role: string, dept: string }
+let modalShowOnlySelected = false;
+
+function syncDomToModalCrewSelections() {
+  const visibleCheckboxes = document.querySelectorAll('input[name="studentSelect"]');
+  visibleCheckboxes.forEach(cb => {
+    const uId = cb.value;
+    if (cb.checked) {
+      const roleInp = document.querySelector('input[name="customRole_' + uId + '"]');
+      const deptSel = document.querySelector('select[name="craftDept_' + uId + '"]');
+      if (!modalCrewSelections[uId]) {
+        modalCrewSelections[uId] = { role: 'Оператор', dept: 'cinema' };
+      }
+      if (roleInp && roleInp.value.trim()) modalCrewSelections[uId].role = roleInp.value.trim();
+      if (deptSel) modalCrewSelections[uId].dept = deptSel.value;
+    } else {
+      delete modalCrewSelections[uId];
+    }
+  });
+  updateModalSelectedCrewBadge();
+}
+
+function handleModalStudentCheckboxChange(studentId, isChecked) {
+  if (isChecked) {
+    const roleInp = document.querySelector('input[name="customRole_' + studentId + '"]');
+    const deptSel = document.querySelector('select[name="craftDept_' + studentId + '"]');
+    const allKnown = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+    const studentObj = allKnown.find(s => String(s.id) === String(studentId));
+
+    modalCrewSelections[studentId] = {
+      role: (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : (studentObj?.craftRank || 'Оператор'),
+      dept: (deptSel ? deptSel.value : (studentObj?.craftDept || 'cinema'))
+    };
+  } else {
+    delete modalCrewSelections[studentId];
+  }
+  updateModalSelectedCrewBadge();
+}
+window.handleModalStudentCheckboxChange = handleModalStudentCheckboxChange;
+
+function handleModalStudentRoleChange(studentId, newRole) {
+  if (modalCrewSelections[studentId]) {
+    modalCrewSelections[studentId].role = newRole.trim() || 'Оператор';
+  }
+}
+window.handleModalStudentRoleChange = handleModalStudentRoleChange;
+
+function handleModalStudentDeptChange(studentId, newDept) {
+  if (modalCrewSelections[studentId]) {
+    modalCrewSelections[studentId].dept = newDept;
+  }
+}
+window.handleModalStudentDeptChange = handleModalStudentDeptChange;
+
+function updateModalSelectedCrewBadge() {
+  const badge = document.getElementById('modalSelectedCrewBadge');
+  const count = Object.keys(modalCrewSelections).length;
+  if (badge) {
+    badge.textContent = count + ' чел.';
+  }
+  const toggleBtn = document.getElementById('toggleOnlySelectedBtn');
+  if (toggleBtn) {
+    toggleBtn.textContent = modalShowOnlySelected ? 'Показать всех' : 'Только выбранные (' + count + ')';
+    toggleBtn.classList.toggle('text-amber-400', modalShowOnlySelected);
+    toggleBtn.classList.toggle('border-amber-500/60', modalShowOnlySelected);
+  }
+}
+window.updateModalSelectedCrewBadge = updateModalSelectedCrewBadge;
+
+function toggleOnlySelectedModalStudents() {
+  syncDomToModalCrewSelections();
+  modalShowOnlySelected = !modalShowOnlySelected;
+  filterModalStudents();
+}
+window.toggleOnlySelectedModalStudents = toggleOnlySelectedModalStudents;
+
+function getSelectedCrewMap() {
+  syncDomToModalCrewSelections();
+  return { ...modalCrewSelections };
+}
+window.getSelectedCrewMap = getSelectedCrewMap;
 
 async function openShootModal() {
   const modal = document.getElementById('shootModal');
@@ -4976,8 +5108,13 @@ async function openShootModal() {
   renderShootMilestones();
   await loadLocations();
 
+  modalCrewSelections = {};
+  modalShowOnlySelected = false;
+  const sortSel = document.getElementById('studentSortModal');
+  if (sortSel) sortSel.value = 'alphabet';
   const searchInput = document.getElementById('studentSearchModal');
   if (searchInput) searchInput.value = '';
+  updateModalSelectedCrewBadge();
   const eqSearch = document.getElementById('equipmentSearchModal');
   if (eqSearch) eqSearch.value = '';
 
@@ -4997,7 +5134,7 @@ async function openShootModal() {
   if (!globalStudents || !Array.isArray(globalStudents) || globalStudents.length === 0) {
     globalStudents = getStudentDirectory();
   }
-  renderModalStudents(globalStudents, false);
+  filterModalStudents();
 
   setTimeout(() => {
     try {
@@ -5149,19 +5286,25 @@ async function openEditShootModal(shootId) {
     globalStudents = getStudentDirectory();
   }
 
-  const initialCrewSelections = {};
+  modalCrewSelections = {};
+  modalShowOnlySelected = false;
   if (Array.isArray(shoot.crew)) {
     shoot.crew.forEach(cm => {
       const uId = cm.userId || (cm.user && cm.user.id) || cm.id;
       if (uId) {
-        initialCrewSelections[uId] = {
+        modalCrewSelections[uId] = {
           role: cm.roleInShoot || 'Оператор',
           dept: cm.department || 'cinema'
         };
       }
     });
   }
-  renderModalStudents(globalStudents, false, initialCrewSelections);
+  const sortSel = document.getElementById('studentSortModal');
+  if (sortSel) sortSel.value = 'alphabet';
+  if (searchInput) searchInput.value = '';
+  updateModalSelectedCrewBadge();
+
+  filterModalStudents();
 
   toggleMapPicker(shoot.type);
   setTimeout(() => {
@@ -5182,51 +5325,36 @@ async function openEditShootModal(shootId) {
   }, 150);
 }
 
-function getSelectedCrewMap() {
-  const map = {};
-  const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
-  checkboxes.forEach(cb => {
-    const uId = cb.value;
-    const roleInp = document.querySelector('input[name="customRole_' + uId + '"]');
-    const deptSel = document.querySelector('select[name="craftDept_' + uId + '"]');
-    map[uId] = {
-      role: (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : 'Оператор',
-      dept: deptSel ? deptSel.value : 'cinema'
-    };
-  });
-  return map;
-}
-window.getSelectedCrewMap = getSelectedCrewMap;
-
-function renderModalStudents(students, preserveSelections = true, initialSelections = null) {
+function renderModalStudents(students) {
   const box = document.getElementById('studentsCheckboxes');
   if (!box) return;
 
-  let currentSelections = {};
-  if (initialSelections && typeof initialSelections === 'object' && Object.keys(initialSelections).length > 0) {
-    currentSelections = initialSelections;
-  } else if (preserveSelections) {
-    currentSelections = getSelectedCrewMap();
-  }
+  updateModalSelectedCrewBadge();
+
   const list = Array.isArray(students) ? students : (students && Array.isArray(students.value) ? students.value : []);
 
   if (list.length === 0) {
-    box.innerHTML = '<div class="p-4 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Студенты не найдены по запросу</div>';
+    box.innerHTML = '<div class="p-4 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">' +
+      (modalShowOnlySelected ? 'В группу пока не выбрано ни одного студента' : 'Студенты не найдены по запросу') +
+    '</div>';
     return;
   }
 
   box.innerHTML = list.map(s => {
     const isBlacklisted = !!s.isBlacklisted;
-    const selectedItem = currentSelections[s.id] || null;
+    const selectedItem = modalCrewSelections[s.id] || null;
     const isChecked = selectedItem !== null;
     const currentRole = selectedItem ? selectedItem.role : (s.craftRank || 'Оператор');
     const currentDept = selectedItem ? selectedItem.dept : (s.craftDept || 'cinema');
     const likesCount = s.likes || 0;
     const dislikesCount = s.dislikes || 0;
+    const rVal = (typeof s.rating === 'number') ? s.rating.toFixed(1) : (s.rating || '5.0');
 
-    const rowBorder = isBlacklisted 
-      ? 'border-red-600/80 bg-red-950/25 shadow-[0_0_8px_rgba(239,68,68,0.2)]' 
-      : 'border-[var(--border-subtle)] bg-[var(--bg-card)]';
+    const rowBorder = isChecked
+      ? 'border-amber-500/80 bg-amber-950/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
+      : (isBlacklisted 
+          ? 'border-red-600/80 bg-red-950/25 shadow-[0_0_8px_rgba(239,68,68,0.2)]' 
+          : 'border-[var(--border-subtle)] bg-[var(--bg-card)]');
 
     const blacklistBadge = isBlacklisted 
       ? '<span class="text-red-400 font-extrabold font-mono text-[10px] px-1.5 py-0.5 border border-red-600/70 bg-red-950/60 inline-flex items-center gap-1">⛔ ЧЁРНЫЙ СПИСОК</span>' 
@@ -5234,12 +5362,13 @@ function renderModalStudents(students, preserveSelections = true, initialSelecti
 
     return '<div class="p-2.5 border text-xs space-y-2 transition ' + rowBorder + '">' +
       '<label class="flex items-center space-x-2.5 cursor-pointer select-none">' +
-        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
+        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' onchange="handleModalStudentCheckboxChange(\'' + s.id + '\', this.checked)" class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
           (isMasterOrAdminUser(currentUser) 
-            ? '<button type="button" onclick="event.stopPropagation(); openShowreelModal(\'' + s.id + '\')" class="font-bold text-xs uppercase hover:underline cursor-pointer text-left inline-flex items-center gap-1 text-[var(--text-primary)] hover:text-amber-400 transition" title="Открыть цифровой паспорт студента"><span>' + (s.fullName || 'Без имени') + '</span><span class="text-[9px] text-amber-400/80">👤</span></button>'
-            : '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + (s.fullName || 'Без имени') + '</span>') +
-          '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + (s.groupName || 'Группа') + ']</span>' +
+            ? '<button type="button" onclick="event.stopPropagation(); openShowreelModal(\'' + s.id + '\')" class="font-bold text-xs uppercase hover:underline cursor-pointer text-left inline-flex items-center gap-1 text-[var(--text-primary)] hover:text-amber-400 transition" title="Открыть цифровой паспорт студента"><span>' + escapeHtml(s.fullName || 'Без имени') + '</span><span class="text-[9px] text-amber-400/80">👤</span></button>'
+            : '<span class="font-bold text-xs uppercase" style="color: var(--text-primary);">' + escapeHtml(s.fullName || 'Без имени') + '</span>') +
+          '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[' + escapeHtml(s.groupName || 'Группа') + ']</span>' +
+          '<span class="text-amber-400 font-bold font-mono text-[11px]" title="Рейтинг студента">★ ' + rVal + '</span>' +
           '<span class="inline-flex items-center gap-1.5 font-mono text-[11px]">' +
             '<span class="text-emerald-400 font-bold" title="Положительные отзывы">👍 ' + likesCount + '</span>' +
             '<span class="text-red-400 font-bold" title="Замечания">👎 ' + dislikesCount + '</span>' +
@@ -5250,11 +5379,11 @@ function renderModalStudents(students, preserveSelections = true, initialSelecti
       '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">' +
         '<div>' +
           '<label class="text-[9px] font-mono text-[var(--text-muted)] uppercase block mb-0.5">Индивидуальная роль:</label>' +
-          '<input type="text" name="customRole_' + s.id + '" value="' + currentRole + '" placeholder="Своя роль (напр. Фокус-пуллер)" class="studio-input text-xs px-2.5 py-1 w-full">' +
+          '<input type="text" name="customRole_' + s.id + '" value="' + escapeHtml(currentRole) + '" oninput="handleModalStudentRoleChange(\'' + s.id + '\', this.value)" placeholder="Своя роль (напр. Фокус-пуллер)" class="studio-input text-xs px-2.5 py-1 w-full">' +
         '</div>' +
         '<div>' +
           '<label class="text-[9px] font-mono text-[var(--text-muted)] uppercase block mb-0.5">Цех (цветная окантовка):</label>' +
-          '<select name="craftDept_' + s.id + '" class="studio-input text-xs font-bold px-2 py-1 w-full">' +
+          '<select name="craftDept_' + s.id + '" onchange="handleModalStudentDeptChange(\'' + s.id + '\', this.value)" class="studio-input text-xs font-bold px-2 py-1 w-full">' +
             '<option value="cinema"' + (currentDept === 'cinema' ? ' selected' : '') + '>🎬 Операторский цех (красная окантовка)</option>' +
             '<option value="sound"' + (currentDept === 'sound' ? ' selected' : '') + '>🎙️ Звуковой цех (янтарная окантовка)</option>' +
             '<option value="light"' + (currentDept === 'light' ? ' selected' : '') + '>💡 Осветительский цех (золотая окантовка)</option>' +
@@ -5269,19 +5398,31 @@ function renderModalStudents(students, preserveSelections = true, initialSelecti
 }
 
 function filterModalStudents() {
+  syncDomToModalCrewSelections();
+
   const searchInput = document.getElementById('studentSearchModal');
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const list = Array.isArray(globalStudents) ? globalStudents : [];
-  if (!query) {
-    renderModalStudents(list, true);
-    return;
+  const sortSel = document.getElementById('studentSortModal');
+  const sortBy = sortSel ? sortSel.value : 'alphabet';
+
+  const allList = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+  
+  let filtered = allList;
+  if (modalShowOnlySelected) {
+    filtered = filtered.filter(s => !!modalCrewSelections[s.id]);
   }
-  const filtered = list.filter(s => 
-    (s.fullName && s.fullName.toLowerCase().includes(query)) || 
-    (s.groupName && s.groupName.toLowerCase().includes(query)) ||
-    (s.telegram && s.telegram.toLowerCase().includes(query))
-  );
-  renderModalStudents(filtered, true);
+
+  if (query) {
+    filtered = filtered.filter(s => 
+      (s.fullName && s.fullName.toLowerCase().includes(query)) || 
+      (s.groupName && s.groupName.toLowerCase().includes(query)) ||
+      (s.telegram && s.telegram.toLowerCase().includes(query)) ||
+      (s.craftRank && s.craftRank.toLowerCase().includes(query))
+    );
+  }
+
+  filtered = sortStudentsList(filtered, sortBy);
+  renderModalStudents(filtered);
 }
 
 function toggleMapPicker(type) {
@@ -5305,14 +5446,13 @@ async function handleCreateShoot(e) {
   const editingShootId = editingInp ? editingInp.value.trim() : '';
   const isEditing = !!editingShootId;
 
-  const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
-  const crewAssignments = Array.from(checkboxes).map(cb => {
-    const userId = cb.value;
-    const roleInp = document.querySelector('input[name="customRole_' + userId + '"]');
-    const deptSel = document.querySelector('select[name="craftDept_' + userId + '"]');
-    const craftRole = (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : 'Оператор';
-    const department = deptSel ? deptSel.value : 'cinema';
-    return { userId, craftRole, department };
+  syncDomToModalCrewSelections();
+  const crewAssignments = Object.entries(modalCrewSelections).map(([userId, item]) => {
+    return {
+      userId,
+      craftRole: item.role || 'Оператор',
+      department: item.dept || 'cinema'
+    };
   });
 
   const titleEl = document.getElementById('shootTitle');
@@ -7100,8 +7240,10 @@ function openReplaceCrewModal(shootId, memberId, currentUserId, roleInShoot, dep
   const modal = document.getElementById('replaceCrewModal');
   const infoBox = document.getElementById('replaceCrewInfoBox');
   const searchInput = document.getElementById('replaceCrewSearchInput');
+  const sortSel = document.getElementById('replaceCrewSortSelect');
 
   if (searchInput) searchInput.value = '';
+  if (sortSel) sortSel.value = 'alphabet';
 
   const d = new Date(shoot.date);
   const dateFormatted = !isNaN(d.getTime()) ? d.toLocaleDateString('ru-RU') : (shoot.date || 'Дата уточняется');
@@ -7170,11 +7312,9 @@ function filterReplaceCrewStudents() {
     return true;
   });
 
-  available.sort((a, b) => {
-    const rA = typeof a.rating === 'number' ? a.rating : 4.5;
-    const rB = typeof b.rating === 'number' ? b.rating : 4.5;
-    return rB - rA;
-  });
+  const sortSel = document.getElementById('replaceCrewSortSelect');
+  const sortBy = sortSel ? sortSel.value : 'alphabet';
+  available = sortStudentsList(available, sortBy);
 
   if (candidatesCount) {
     candidatesCount.textContent = available.length + ' кандидатов';
