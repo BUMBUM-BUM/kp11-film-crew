@@ -75,21 +75,29 @@ async function callTelegramApi(method, body = {}) {
 // МЕТОДЫ ОТПРАВКИ СООБЩЕНИЙ
 // ------------------------------------------------------------------------------
 async function sendMessage(chatId, text, options = {}) {
-  return callTelegramApi('sendMessage', {
+  const payload = {
     chat_id: chatId,
     text: text,
     parse_mode: options.parse_mode || 'HTML',
     reply_markup: options.reply_markup,
     disable_web_page_preview: options.disable_web_page_preview !== false
-  });
+  };
+  if (options.message_thread_id) {
+    payload.message_thread_id = parseInt(options.message_thread_id, 10);
+  }
+  return callTelegramApi('sendMessage', payload);
 }
 
-async function sendLocation(chatId, latitude, longitude) {
-  return callTelegramApi('sendLocation', {
+async function sendLocation(chatId, latitude, longitude, options = {}) {
+  const payload = {
     chat_id: chatId,
     latitude,
     longitude
-  });
+  };
+  if (options && options.message_thread_id) {
+    payload.message_thread_id = parseInt(options.message_thread_id, 10);
+  }
+  return callTelegramApi('sendLocation', payload);
 }
 
 async function editMessageText(chatId, messageId, text, options = {}) {
@@ -663,13 +671,56 @@ async function handleUpdate(update) {
   }
 }
 
-function parseChatIds(raw) {
+function parseChatTargets(raw, fallbackTopicId = null) {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(String).map(s => s.trim()).filter(Boolean);
-  return String(raw)
-    .split(/[\s,;\n\r]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+  const items = Array.isArray(raw) ? raw : String(raw).split(/[\s,;\n\r]+/);
+  const results = [];
+  const defaultThread = (fallbackTopicId && String(fallbackTopicId).trim()) 
+    ? parseInt(String(fallbackTopicId).trim(), 10) 
+    : null;
+
+  for (let item of items) {
+    item = String(item).trim();
+    if (!item) continue;
+
+    let chatId = item;
+    let threadId = defaultThread;
+
+    // 1. Формат ссылки приватной супергруппы с топиком: https://t.me/c/1234567890/42
+    const privateLinkMatch = item.match(/(?:https?:\/\/)?t\.me\/c\/(\d+)(?:\/(\d+))?/i);
+    if (privateLinkMatch) {
+      chatId = `-100${privateLinkMatch[1]}`;
+      if (privateLinkMatch[2]) {
+        threadId = parseInt(privateLinkMatch[2], 10);
+      }
+    } else {
+      // 2. Формат публичной ссылки с топиком: https://t.me/mychannel/42
+      const publicLinkMatch = item.match(/(?:https?:\/\/)?t\.me\/([a-zA-Z0-9_]+)(?:\/(\d+))?/i);
+      if (publicLinkMatch && !['joinchat', 'c', 'addstickers'].includes(publicLinkMatch[1].toLowerCase())) {
+        chatId = `@${publicLinkMatch[1]}`;
+        if (publicLinkMatch[2]) {
+          threadId = parseInt(publicLinkMatch[2], 10);
+        }
+      } else {
+        // 3. Формат со слэшем или двоеточием: -100123456789/42 или -100123456789:42 или @group/42
+        const combinedMatch = item.match(/^([-\d]+|@[a-zA-Z0-9_]+)[:/](\d+)$/);
+        if (combinedMatch) {
+          chatId = combinedMatch[1];
+          threadId = parseInt(combinedMatch[2], 10);
+        }
+      }
+    }
+
+    results.push({
+      chatId,
+      messageThreadId: (threadId !== null && !isNaN(threadId)) ? threadId : null
+    });
+  }
+  return results;
+}
+
+function parseChatIds(raw) {
+  return parseChatTargets(raw).map(t => t.chatId);
 }
 
 // ------------------------------------------------------------------------------
@@ -770,13 +821,14 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
     });
   }
 
-  // Если настроены общие чаты / каналы для вызывных в настройках, отправляем во ВСЕ указанные чаты
-  const targetChats = parseChatIds(settings.defaultChatId);
-  for (const targetChat of targetChats) {
-    if (token && targetChat) {
+  // Если настроены общие чаты / каналы / топики для вызывных в настройках, отправляем во ВСЕ указанные цели
+  const defaultTopic = settings.telegramTopicId || process.env.TELEGRAM_TOPIC_ID || null;
+  const targetTargets = parseChatTargets(settings.defaultChatId, defaultTopic);
+  for (const target of targetTargets) {
+    if (token && target.chatId) {
       try {
         const groupText = formatCallsheetMessage(shoot, null, allUsers);
-        const resGroup = await sendMessage(targetChat, groupText, {
+        const sendOpts = {
           reply_markup: {
             inline_keyboard: [
               [
@@ -784,13 +836,17 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
               ]
             ]
           }
-        });
+        };
+        if (target.messageThreadId) {
+          sendOpts.message_thread_id = target.messageThreadId;
+        }
+        const resGroup = await sendMessage(target.chatId, groupText, sendOpts);
         if (resGroup && resGroup.ok) {
           results.deliveredCount++;
         }
-        console.log(`[KP11 Bot Dispatch] Вызывной лист успешно продублирован в чат/канал: ${targetChat}`);
+        console.log(`[KP11 Bot Dispatch] Вызывной лист продублирован в ${target.chatId}${target.messageThreadId ? ` (топик #${target.messageThreadId})` : ''}`);
       } catch (e) {
-        console.error(`[KP11 Bot Dispatch] Ошибка отправки в чат ${targetChat}:`, e.message);
+        console.error(`[KP11 Bot Dispatch] Ошибка отправки в чат ${target.chatId}:`, e.message);
       }
     }
   }
@@ -913,8 +969,9 @@ async function checkAndSendMilestoneReminders() {
         // 1. Отправка напоминания в общий групповой чат
         const groupReminderKey = `1h_group_${shoot.id}`;
         if (!sentMilestoneReminders.has(groupReminderKey)) {
-          const targetChats = parseChatIds(settings.defaultChatId);
-          if (targetChats && targetChats.length > 0) {
+          const defaultTopic = settings.telegramTopicId || process.env.TELEGRAM_TOPIC_ID || null;
+          const targetTargets = parseChatTargets(settings.defaultChatId, defaultTopic);
+          if (targetTargets && targetTargets.length > 0) {
             const crewListFormatted = (shoot.crew || [])
               .map(c => `• <b>${escapeHtml(c.user?.fullName || c.fullName || 'Участник')}</b> — ${escapeHtml(c.roleInShoot || 'Участник')}`)
               .join('\n');
@@ -926,9 +983,9 @@ async function checkAndSendMilestoneReminders() {
               `👥 <b>Состав съёмочной группы:</b>\n${crewListFormatted}\n\n` +
               `<i>Просьба ко всей группе выдвигаться на площадку без опозданий!</i>`;
 
-            for (const cId of targetChats) {
+            for (const target of targetTargets) {
               try {
-                await sendMessage(cId, groupMsgText, {
+                const sendOpts = {
                   reply_markup: {
                     inline_keyboard: [
                       [
@@ -936,13 +993,17 @@ async function checkAndSendMilestoneReminders() {
                       ]
                     ]
                   }
-                });
+                };
+                if (target.messageThreadId) {
+                  sendOpts.message_thread_id = target.messageThreadId;
+                }
+                await sendMessage(target.chatId, groupMsgText, sendOpts);
               } catch (e) {
-                console.warn(`[KP11 Bot] Ошибка отправки напоминания в общий чат ${cId}:`, e.message);
+                console.warn(`[KP11 Bot] Ошибка отправки напоминания в общий чат ${target.chatId}:`, e.message);
               }
             }
             sentMilestoneReminders.add(groupReminderKey);
-            console.log(`[KP11 Bot Milestones] Напоминание за 1 час отправлено в общий чат по смене «${shoot.title}»`);
+            console.log(`[KP11 Bot Milestones] Напоминание за 1 час отправлено в общий чат/топик по смене «${shoot.title}»`);
           }
         }
 
@@ -1016,7 +1077,9 @@ module.exports = {
   sendLocation,
   sendCallsheetToCrew,
   formatCallsheetMessage,
-  getBotToken
+  getBotToken,
+  parseChatTargets,
+  parseChatIds
 };
 
 if (require.main === module) {

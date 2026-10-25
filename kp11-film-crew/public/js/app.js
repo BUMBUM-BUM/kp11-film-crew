@@ -3765,11 +3765,14 @@ async function loadAdminPanel() {
 
       const serverToken = (data.settings && data.settings.telegramBotToken) || '';
       const serverChat = (data.settings && data.settings.defaultChatId) || '';
+      const serverTopic = (data.settings && data.settings.telegramTopicId) || '';
       const localToken = localStorage.getItem('kp11_tg_token') || '';
       const localChat = localStorage.getItem('kp11_tg_chat') || '';
+      const localTopic = localStorage.getItem('kp11_tg_topic') || '';
 
       const effectiveToken = serverToken || localToken;
       const effectiveChat = serverChat || localChat;
+      const effectiveTopic = serverTopic || localTopic;
 
       if (document.getElementById('adminBotToken')) {
         document.getElementById('adminBotToken').value = effectiveToken;
@@ -3777,13 +3780,16 @@ async function loadAdminPanel() {
       if (document.getElementById('adminDefaultChatId')) {
         document.getElementById('adminDefaultChatId').value = effectiveChat;
       }
+      if (document.getElementById('adminTelegramTopicId')) {
+        document.getElementById('adminTelegramTopicId').value = effectiveTopic;
+      }
 
       // Если на сервере токен ещё не сохранён, но есть локальный — фоново синхронизируем
       if (!serverToken && localToken) {
         fetch('/api/admin/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-          body: JSON.stringify({ telegramBotToken: localToken, defaultChatId: effectiveChat })
+          body: JSON.stringify({ telegramBotToken: localToken, defaultChatId: effectiveChat, telegramTopicId: effectiveTopic })
         }).catch(() => {});
       }
       return;
@@ -3807,6 +3813,9 @@ async function loadAdminPanel() {
   }
   if (document.getElementById('adminDefaultChatId') && localStorage.getItem('kp11_tg_chat')) {
     document.getElementById('adminDefaultChatId').value = localStorage.getItem('kp11_tg_chat');
+  }
+  if (document.getElementById('adminTelegramTopicId') && localStorage.getItem('kp11_tg_topic')) {
+    document.getElementById('adminTelegramTopicId').value = localStorage.getItem('kp11_tg_topic');
   }
 
   renderAdminUsers(globalAdminUsers);
@@ -3934,26 +3943,30 @@ function renderAdminUsers(users) {
 async function saveTelegramSettings() {
   const tokenInput = document.getElementById('adminBotToken');
   const chatInput = document.getElementById('adminDefaultChatId');
+  const topicInput = document.getElementById('adminTelegramTopicId');
   const botToken = tokenInput ? tokenInput.value.trim() : '';
   const defaultChatId = chatInput ? chatInput.value.trim() : '';
+  const telegramTopicId = topicInput ? topicInput.value.trim() : '';
 
   try {
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-      body: JSON.stringify({ telegramBotToken: botToken, defaultChatId })
+      body: JSON.stringify({ telegramBotToken: botToken, defaultChatId, telegramTopicId })
     });
     const data = await res.json();
     if (res.ok) {
       showToast('Настройки Telegram-бота успешно сохранены!');
       localStorage.setItem('kp11_tg_token', botToken);
       localStorage.setItem('kp11_tg_chat', defaultChatId);
+      localStorage.setItem('kp11_tg_topic', telegramTopicId);
     } else {
       showToast('Ошибка: ' + (data.error || 'Сбой сохранения'));
     }
   } catch (err) {
     localStorage.setItem('kp11_tg_token', botToken);
     localStorage.setItem('kp11_tg_chat', defaultChatId);
+    localStorage.setItem('kp11_tg_topic', telegramTopicId);
     showToast('Настройки сохранены локально!');
   }
 }
@@ -3962,11 +3975,14 @@ async function testTelegramConnection() {
   const statusEl = document.getElementById('tgTestStatus');
   const tokenInput = document.getElementById('adminBotToken');
   const chatInput = document.getElementById('adminDefaultChatId');
+  const topicInput = document.getElementById('adminTelegramTopicId');
   const botToken = tokenInput ? tokenInput.value.trim() : '';
   const chatId = chatInput ? chatInput.value.trim() : '';
+  const topicId = topicInput ? topicInput.value.trim() : (localStorage.getItem('kp11_tg_topic') || '');
 
   const effectiveToken = botToken || localStorage.getItem('kp11_tg_token');
   const effectiveChat = chatId || localStorage.getItem('kp11_tg_chat');
+  const effectiveTopic = topicId || localStorage.getItem('kp11_tg_topic');
 
   if (!effectiveToken) {
     alert('Пожалуйста, введите токен бота перед тестированием!');
@@ -3983,12 +3999,12 @@ async function testTelegramConnection() {
     const res = await fetch('/api/telegram/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-      body: JSON.stringify({ chatId: effectiveChat, token: effectiveToken })
+      body: JSON.stringify({ chatId: effectiveChat, topicId: effectiveTopic, token: effectiveToken })
     });
     const data = await res.json();
     if (data.success) {
       statusEl.className = 'text-xs font-mono font-bold text-emerald-400';
-      statusEl.innerText = 'Связь установлена! Сообщение доставлено в Telegram.';
+      statusEl.innerText = 'Связь установлена! ' + (data.message || 'Сообщение доставлено в Telegram.');
       showToast('Связь с Telegram установлена!');
     } else {
       statusEl.className = 'text-xs font-mono font-bold text-red-400';
@@ -4002,14 +4018,18 @@ async function testTelegramConnection() {
       let okCount = 0;
       for (const c of chats) {
         try {
+          const bodyPayload = {
+            chat_id: c,
+            text: '<b>МЕДИАЦЕНТР КП11 // ТЕСТ СВЯЗИ</b>\n════════════════════════════════════\nТестовое сообщение успешно получено из панели управления киноцеха!',
+            parse_mode: 'HTML'
+          };
+          if (effectiveTopic) {
+            bodyPayload.message_thread_id = parseInt(effectiveTopic, 10);
+          }
           const tgRes = await fetch('https://api.telegram.org/bot' + effectiveToken + '/sendMessage', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: c,
-              text: '<b>МЕДИАЦЕНТР КП11 // ТЕСТ СВЯЗИ</b>\n════════════════════════════════════\nТестовое сообщение успешно получено из панели управления киноцеха!',
-              parse_mode: 'HTML'
-            })
+            body: JSON.stringify(bodyPayload)
           });
           const tgData = await tgRes.json();
           if (tgData.ok) okCount++;
@@ -4017,7 +4037,7 @@ async function testTelegramConnection() {
       }
       if (okCount > 0) {
         statusEl.className = 'text-xs font-mono font-bold text-emerald-400';
-        statusEl.innerText = 'Успешно доставлено в ' + okCount + ' из ' + chats.length + ' чатов!';
+        statusEl.innerText = 'Успешно доставлено в ' + okCount + ' из ' + chats.length + ' чатов/топиков!';
         showToast('Тестовое сообщение доставлено в Telegram!');
       } else {
         statusEl.className = 'text-xs font-mono font-bold text-red-400';
@@ -4029,6 +4049,295 @@ async function testTelegramConnection() {
     }
   }
 }
+
+// ==============================================================================
+// ЗАОЧНАЯ РЕГИСТРАЦИЯ СТУДЕНТА С ЛИПОВОЙ/СЛУЖЕБНОЙ ПОЧТОЙ
+// ==============================================================================
+
+let proxyRegistrationOrigin = 'from_admin';
+let proxyRandomSuffix = Math.random().toString(36).substring(2, 6);
+let lastRegisteredProxyCredentials = null;
+
+function transliterateRussian(str) {
+  const ru = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y',
+    'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+    'х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+  };
+  return String(str || '')
+    .toLowerCase()
+    .split('')
+    .map(c => ru[c] !== undefined ? ru[c] : (/[a-z0-9]/.test(c) ? c : '_'))
+    .join('')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 20) || 'student';
+}
+
+function openProxyRegisterModal(origin = 'from_admin') {
+  if (!isMasterOrAdminUser(currentUser)) {
+    showToast('Заочная регистрация доступна только мастерам и администраторам');
+    return;
+  }
+
+  proxyRegistrationOrigin = origin;
+  proxyRandomSuffix = Math.random().toString(36).substring(2, 6);
+
+  const modal = document.getElementById('proxyRegisterModal');
+  if (!modal) return;
+
+  const fnInp = document.getElementById('proxyFullName');
+  const grInp = document.getElementById('proxyGroupName');
+  const tgInp = document.getElementById('proxyTelegram');
+  const deptInp = document.getElementById('proxyCraftDept');
+  const rankInp = document.getElementById('proxyCraftRank');
+  const fakeCb = document.getElementById('proxyUseFakeEmail');
+  const custInp = document.getElementById('proxyCustomEmail');
+  const passInp = document.getElementById('proxyPassword');
+
+  if (fnInp) fnInp.value = '';
+  if (grInp) grInp.value = 'КТ-26';
+  if (tgInp) tgInp.value = '';
+  if (deptInp) deptInp.value = 'cinema';
+  if (rankInp) rankInp.value = 'Ассистент цеха';
+  if (fakeCb) fakeCb.checked = true;
+  if (custInp) custInp.value = '';
+  if (passInp) passInp.value = 'kp11_film2026';
+
+  toggleProxyEmailMode();
+  updateProxyAutoEmail();
+
+  modal.classList.remove('hidden');
+  if (fnInp) fnInp.focus();
+}
+window.openProxyRegisterModal = openProxyRegisterModal;
+
+function closeProxyRegisterModal() {
+  const modal = document.getElementById('proxyRegisterModal');
+  if (modal) modal.classList.add('hidden');
+}
+window.closeProxyRegisterModal = closeProxyRegisterModal;
+
+function toggleProxyEmailMode() {
+  const fakeCb = document.getElementById('proxyUseFakeEmail');
+  const previewBox = document.getElementById('proxyGeneratedEmailPreviewBox');
+  const customBox = document.getElementById('proxyCustomEmailWrapper');
+  const isFake = fakeCb ? fakeCb.checked : true;
+
+  if (previewBox) previewBox.classList.toggle('hidden', !isFake);
+  if (customBox) customBox.classList.toggle('hidden', isFake);
+  if (isFake) updateProxyAutoEmail();
+}
+window.toggleProxyEmailMode = toggleProxyEmailMode;
+
+function updateProxyAutoEmail() {
+  const fnInp = document.getElementById('proxyFullName');
+  const previewText = document.getElementById('proxyGeneratedEmailText');
+  if (!previewText) return;
+
+  const nameVal = fnInp ? fnInp.value.trim() : '';
+  const slug = transliterateRussian(nameVal) || 'student';
+  const emailGenerated = `${slug}_${proxyRandomSuffix}@kp11.local`;
+  previewText.innerText = emailGenerated;
+}
+window.updateProxyAutoEmail = updateProxyAutoEmail;
+
+async function handleProxyRegisterSubmit(e) {
+  e.preventDefault();
+
+  const fnInp = document.getElementById('proxyFullName');
+  const grInp = document.getElementById('proxyGroupName');
+  const tgInp = document.getElementById('proxyTelegram');
+  const deptInp = document.getElementById('proxyCraftDept');
+  const rankInp = document.getElementById('proxyCraftRank');
+  const fakeCb = document.getElementById('proxyUseFakeEmail');
+  const custInp = document.getElementById('proxyCustomEmail');
+  const passInp = document.getElementById('proxyPassword');
+  const btn = document.getElementById('btnSubmitProxyRegister');
+
+  const fullName = fnInp ? fnInp.value.trim() : '';
+  if (!fullName) {
+    alert('Пожалуйста, введите ФИО студента');
+    return;
+  }
+
+  const groupName = grInp ? (grInp.value.trim() || 'КТ-26') : 'КТ-26';
+  const telegram = tgInp ? tgInp.value.trim() : '';
+  const craftDept = deptInp ? deptInp.value : 'cinema';
+  const craftRank = rankInp ? (rankInp.value.trim() || 'Ассистент цеха') : 'Ассистент цеха';
+  const password = passInp ? (passInp.value.trim() || 'kp11_film2026') : 'kp11_film2026';
+  const useFake = fakeCb ? fakeCb.checked : true;
+
+  let email = '';
+  if (useFake) {
+    const slug = transliterateRussian(fullName) || 'student';
+    email = `${slug}_${proxyRandomSuffix}@kp11.local`;
+  } else {
+    email = custInp ? custInp.value.trim().toLowerCase() : '';
+    if (!email) {
+      alert('Укажите email студента или включите генерацию липовой почты');
+      return;
+    }
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = 'Зачисление...';
+  }
+
+  try {
+    let newUserData = null;
+    let savedCredentials = { email, password };
+
+    try {
+      const res = await fetch('/api/admin/proxy-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({
+          fullName,
+          groupName,
+          telegram,
+          craftDept,
+          craftRank,
+          email,
+          password
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        newUserData = data.user;
+        if (data.credentials) savedCredentials = data.credentials;
+      }
+    } catch (fetchErr) {
+      console.warn('API error during proxy register, using offline fallback:', fetchErr);
+    }
+
+    if (!newUserData) {
+      // Offline fallback
+      const generatedId = 'u-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4);
+      newUserData = {
+        id: generatedId,
+        fullName,
+        email,
+        groupName,
+        rating: 5.0,
+        telegram: telegram ? (telegram.startsWith('@') ? telegram : '@' + telegram) : '',
+        telegramChatId: null,
+        craftRank,
+        craftDept,
+        isSuspended: false,
+        isBlacklisted: false,
+        role: { name: 'Студент' },
+        competencies: { camera: 75, sound: 75, light: 75, edit: 75 },
+        skills: ['Специалист съёмочной группы'],
+        completedShoots: 0,
+        likes: 0,
+        dislikes: 0
+      };
+    }
+
+    // Добавляем в глобальные массивы приложения
+    if (Array.isArray(globalStudents)) {
+      const idx = globalStudents.findIndex(s => s.id === newUserData.id || (s.email && s.email.toLowerCase() === newUserData.email.toLowerCase()));
+      if (idx >= 0) {
+        globalStudents[idx] = { ...globalStudents[idx], ...newUserData };
+      } else {
+        globalStudents.unshift(newUserData);
+      }
+    }
+
+    if (Array.isArray(globalAdminUsers)) {
+      const idx = globalAdminUsers.findIndex(u => u.id === newUserData.id || (u.email && u.email.toLowerCase() === newUserData.email.toLowerCase()));
+      if (idx >= 0) {
+        globalAdminUsers[idx] = { ...globalAdminUsers[idx], ...newUserData };
+      } else {
+        globalAdminUsers.unshift(newUserData);
+      }
+      renderAdminUsers(globalAdminUsers);
+    }
+
+    // Сохраняем в localStorage
+    try {
+      localStorage.setItem('kp11_users', JSON.stringify(globalStudents));
+    } catch (e) {}
+
+    // Если модальное окно смены открыто и зачисление вызвано оттуда
+    if (proxyRegistrationOrigin === 'from_shoot') {
+      const currentSelectedMap = typeof getSelectedCrewMap === 'function' ? getSelectedCrewMap() : {};
+      currentSelectedMap[newUserData.id] = {
+        role: craftRank,
+        dept: craftDept
+      };
+      if (typeof renderModalStudents === 'function') {
+        renderModalStudents(globalStudents, false, currentSelectedMap);
+      }
+    }
+
+    closeProxyRegisterModal();
+
+    // Открываем модальное окно с реквизитами для передачи студенту
+    lastRegisteredProxyCredentials = {
+      fullName: newUserData.fullName,
+      groupName: newUserData.groupName || 'КТ-26',
+      email: savedCredentials.email || newUserData.email,
+      password: savedCredentials.password || password
+    };
+
+    openProxySuccessModal(lastRegisteredProxyCredentials);
+    showToast(`Студент ${newUserData.fullName} успешно зачислен!`);
+  } catch (err) {
+    alert('Ошибка при зачислении студента: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>✓ Зарегистрировать студента</span>';
+    }
+  }
+}
+window.handleProxyRegisterSubmit = handleProxyRegisterSubmit;
+
+function openProxySuccessModal(creds) {
+  if (!creds) return;
+  const modal = document.getElementById('proxySuccessModal');
+  if (!modal) return;
+
+  const nameEl = document.getElementById('proxySuccessStudentName');
+  const groupEl = document.getElementById('proxySuccessStudentGroup');
+  const emailEl = document.getElementById('proxySuccessEmail');
+  const passEl = document.getElementById('proxySuccessPassword');
+
+  if (nameEl) nameEl.innerText = creds.fullName;
+  if (groupEl) groupEl.innerText = 'Группа: ' + creds.groupName;
+  if (emailEl) emailEl.innerText = creds.email;
+  if (passEl) passEl.innerText = creds.password;
+
+  modal.classList.remove('hidden');
+}
+
+function closeProxySuccessModal() {
+  const modal = document.getElementById('proxySuccessModal');
+  if (modal) modal.classList.add('hidden');
+}
+window.closeProxySuccessModal = closeProxySuccessModal;
+
+function copyProxyCredentials() {
+  if (!lastRegisteredProxyCredentials) return;
+  const text = `🎬 МЕДИАЦЕНТР КП11 // РЕКВИЗИТЫ СТУДЕНТА\n` +
+    `════════════════════════════════════\n` +
+    `ФИО: ${lastRegisteredProxyCredentials.fullName}\n` +
+    `Группа: ${lastRegisteredProxyCredentials.groupName}\n` +
+    `Логин (Email): ${lastRegisteredProxyCredentials.email}\n` +
+    `Пароль: ${lastRegisteredProxyCredentials.password}\n` +
+    `Вход на платформу: ${window.location.origin}\n` +
+    `════════════════════════════════════`;
+  
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Реквизиты скопированы в буфер обмена!');
+  }).catch(() => {
+    prompt('Скопируйте реквизиты студента:', text);
+  });
+}
+window.copyProxyCredentials = copyProxyCredentials;
 
 async function resetAllRatings() {
   if (!confirm('Вы уверены, что хотите сбросить рейтинг ВСЕХ пользователей в системе?')) return;
@@ -4555,6 +4864,22 @@ async function openEditShootModal(shootId) {
     }
   }, 150);
 }
+
+function getSelectedCrewMap() {
+  const map = {};
+  const checkboxes = document.querySelectorAll('input[name="studentSelect"]:checked');
+  checkboxes.forEach(cb => {
+    const uId = cb.value;
+    const roleInp = document.querySelector('input[name="customRole_' + uId + '"]');
+    const deptSel = document.querySelector('select[name="craftDept_' + uId + '"]');
+    map[uId] = {
+      role: (roleInp && roleInp.value.trim()) ? roleInp.value.trim() : 'Оператор',
+      dept: deptSel ? deptSel.value : 'cinema'
+    };
+  });
+  return map;
+}
+window.getSelectedCrewMap = getSelectedCrewMap;
 
 function renderModalStudents(students, preserveSelections = true, initialSelections = null) {
   const box = document.getElementById('studentsCheckboxes');

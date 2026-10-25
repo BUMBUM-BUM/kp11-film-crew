@@ -452,6 +452,112 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+function transliterateRussian(str) {
+  const ru = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y',
+    'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+    'х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+  };
+  return String(str || '')
+    .toLowerCase()
+    .split('')
+    .map(c => ru[c] !== undefined ? ru[c] : (/[a-z0-9]/.test(c) ? c : '_'))
+    .join('')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 24) || 'student';
+}
+
+// Заочная регистрация студента с липовой почтой
+app.post(['/api/admin/proxy-register', '/api/users/proxy-register'], optionalAuthToken, async (req, res) => {
+  try {
+    const { fullName, groupName, telegram, craftDept, craftRank, email, password } = req.body || {};
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ error: 'Пожалуйста, заполните ФИО студента' });
+    }
+
+    let targetEmail = (email || '').trim().toLowerCase();
+    if (!targetEmail || targetEmail.endsWith('@kp11.local') || targetEmail.includes('dummy') || targetEmail.includes('temp')) {
+      if (!targetEmail || targetEmail.includes('auto') || targetEmail.includes('student')) {
+        const translitName = transliterateRussian(fullName.trim());
+        const randomSuffix = Math.random().toString(36).substring(2, 6);
+        targetEmail = `${translitName}_${randomSuffix}@kp11.local`;
+      }
+    }
+
+    const targetPassword = password || 'kp11_film2026';
+
+    const regResult = await store.linkOrRegisterUser({
+      email: targetEmail,
+      password: targetPassword,
+      fullName: fullName.trim(),
+      groupName: (groupName && groupName.trim()) || 'КТ-26',
+      telegram: telegram ? (telegram.startsWith('@') ? telegram.trim() : '@' + telegram.trim()) : null,
+      course: 1
+    });
+
+    const user = regResult.user;
+    if (craftDept) user.craftDept = craftDept;
+    if (craftRank) user.craftRank = craftRank;
+    await store.updateUser(user.id, user);
+
+    if (prisma) {
+      try {
+        let studentRole = await prisma.role.findUnique({ where: { name: 'Студент' } });
+        if (!studentRole) {
+          studentRole = await prisma.role.create({ data: { name: 'Студент', description: 'Студент направления' } });
+        }
+        await prisma.user.upsert({
+          where: { id: user.id },
+          update: {
+            email: user.email,
+            passwordHash: user.passwordHash,
+            fullName: user.fullName,
+            groupName: user.groupName || 'КТ-26',
+            telegram: user.telegram || null,
+            craftRank: user.craftRank || 'Ассистент цеха'
+          },
+          create: {
+            id: user.id,
+            email: user.email,
+            passwordHash: user.passwordHash,
+            fullName: user.fullName,
+            groupName: user.groupName || 'КТ-26',
+            roleId: studentRole.id,
+            telegram: user.telegram || null,
+            craftRank: user.craftRank || 'Ассистент цеха',
+            skills: user.skills || ['Специалист съёмочной группы']
+          }
+        });
+      } catch (dbErr) {
+        console.warn('[Proxy Register DB Sync]', dbErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        groupName: user.groupName,
+        role: user.role?.name || (typeof user.role === 'string' ? user.role : 'Студент'),
+        telegram: user.telegram,
+        craftRank: user.craftRank,
+        craftDept: user.craftDept,
+        rating: user.rating
+      },
+      credentials: {
+        email: user.email,
+        password: targetPassword
+      },
+      message: `Студент ${user.fullName} успешно заочно зарегистрирован!`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -738,8 +844,8 @@ app.get('/api/admin/data', optionalAuthToken, async (req, res) => {
 
 app.post('/api/admin/settings', optionalAuthToken, async (req, res) => {
   try {
-    const { telegramBotToken, defaultChatId, botUsername } = req.body;
-    const updated = store.saveSettings({ telegramBotToken, defaultChatId, botUsername });
+    const { telegramBotToken, defaultChatId, telegramTopicId, botUsername } = req.body;
+    const updated = store.saveSettings({ telegramBotToken, defaultChatId, telegramTopicId, botUsername });
     if (telegramBotToken) {
       telegramBot.startPolling();
     }
@@ -1901,10 +2007,11 @@ app.post('/api/telegram/link', optionalAuthToken, async (req, res) => {
 
 app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
   try {
-    const { chatId, token: customToken } = req.body || {};
+    const { chatId, topicId, token: customToken } = req.body || {};
     const settings = store.getSettings();
     const token = customToken || telegramBot.getBotToken();
     const targetChatString = chatId || settings.defaultChatId;
+    const effectiveTopicId = topicId || settings.telegramTopicId || process.env.TELEGRAM_TOPIC_ID || null;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Токен Telegram-бота не задан в .env или в настройках админ-панели' });
@@ -1913,8 +2020,8 @@ app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Укажите Chat ID для отправки тестового вызова' });
     }
 
-    const chatList = String(targetChatString).split(/[\s,;\n\r]+/).map(s => s.trim()).filter(Boolean);
-    if (chatList.length === 0) {
+    const targets = telegramBot.parseChatTargets(targetChatString, effectiveTopicId);
+    if (targets.length === 0) {
       return res.status(400).json({ success: false, error: 'Укажите хотя бы один валидный Chat ID' });
     }
 
@@ -1922,11 +2029,15 @@ app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
     let successCount = 0;
     let lastError = '';
 
-    for (const targetChat of chatList) {
+    for (const target of targets) {
       let result = null;
       if (customToken) {
         const https = require('https');
-        const data = JSON.stringify({ chat_id: targetChat, text: testMsg, parse_mode: 'HTML' });
+        const payloadObj = { chat_id: target.chatId, text: testMsg, parse_mode: 'HTML' };
+        if (target.messageThreadId) {
+          payloadObj.message_thread_id = target.messageThreadId;
+        }
+        const data = JSON.stringify(payloadObj);
         result = await new Promise((resolve) => {
           const u = new URL(`https://api.telegram.org/bot${customToken}/sendMessage`);
           const reqPost = https.request({
@@ -1947,7 +2058,11 @@ app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
           reqPost.end();
         });
       } else {
-        result = await telegramBot.sendMessage(targetChat, testMsg, { parse_mode: 'HTML' });
+        const sendOpts = { parse_mode: 'HTML' };
+        if (target.messageThreadId) {
+          sendOpts.message_thread_id = target.messageThreadId;
+        }
+        result = await telegramBot.sendMessage(target.chatId, testMsg, sendOpts);
       }
 
       if (result && result.ok) {
@@ -1960,7 +2075,7 @@ app.post('/api/telegram/test', optionalAuthToken, async (req, res) => {
     if (successCount > 0) {
       return res.json({
         success: true,
-        message: `Тестовое оповещение доставлено в ${successCount} из ${chatList.length} чатов!`
+        message: `Тестовое оповещение доставлено в ${successCount} из ${targets.length} чатов/топиков!`
       });
     } else {
       return res.status(400).json({ success: false, error: lastError || 'Сбой отправки сообщения в Telegram API' });

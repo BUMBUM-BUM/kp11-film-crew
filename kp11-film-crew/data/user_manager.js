@@ -80,6 +80,7 @@ function isPlaceholderEmail(email) {
   const em = String(email).toLowerCase().trim();
   return (
     em.endsWith('@kp11.film') ||
+    em.endsWith('@kp11.local') ||
     em.includes('@dummy') ||
     em.includes('@temp') ||
     em.includes('@example.com') ||

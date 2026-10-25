@@ -369,9 +369,14 @@
               <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--text-primary);">Управление ролями и учётными записями</h3>
               <p class="text-[11px] font-medium" style="color: var(--text-muted);">Поиск по студентам и мастерам, назначение уровней доступа и управление базой.</p>
             </div>
-            <div class="relative w-full md:w-80">
-              <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="w-full studio-input text-xs font-bold px-3 py-2 pl-8 focus:outline-none">
-              <span class="absolute left-2.5 top-2.5 flex items-center pointer-events-none" style="color: var(--text-muted);"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+            <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+              <button type="button" onclick="openProxyRegisterModal('from_admin')" class="px-3.5 py-2 text-xs font-extrabold uppercase btn-brand-primary flex items-center gap-1.5 shadow-md whitespace-nowrap cursor-pointer">
+                <span>⚡ + Заочная регистрация студента</span>
+              </button>
+              <div class="relative w-full sm:w-72">
+                <input type="text" id="adminSearch" oninput="filterAdminUsers()" placeholder="Поиск по ФИО или группе..." class="w-full studio-input text-xs font-bold px-3 py-2 pl-8 focus:outline-none">
+                <span class="absolute left-2.5 top-2.5 flex items-center pointer-events-none" style="color: var(--text-muted);"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+              </div>
             </div>
           </div>
           
@@ -393,19 +398,24 @@
             </a>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <div class="flex items-center justify-between mb-1">
-                <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Токен бота (Telegram Bot Token):</label>
+                <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Токен бота (Bot Token):</label>
                 <button type="button" onclick="const inp=document.getElementById('adminBotToken'); inp.type = inp.type==='password'?'text':'password'; this.innerText = inp.type==='password'?'Показать':'Скрыть';" class="text-[10px] font-mono hover:underline text-[#229ED9]">Показать</button>
               </div>
               <input type="password" id="adminBotToken" placeholder="123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ" class="w-full studio-input text-xs font-mono px-3 py-2">
               <span class="text-[10px] font-medium" style="color: var(--text-muted);">Токен сохраняется в системе и локально</span>
             </div>
             <div>
-              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ID чатов / каналов (несколько через запятую):</label>
-              <input type="text" id="adminDefaultChatId" placeholder="-100123456789, -100987654321, @kp11_channel" class="w-full studio-input text-xs font-mono px-3 py-2">
-              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Вызывные листы рассылаются во все указанные чаты и персонально студентам</span>
+              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ID приватных чатов / групп:</label>
+              <input type="text" id="adminDefaultChatId" placeholder="-100123456789, @kp11_channel" class="w-full studio-input text-xs font-mono px-3 py-2">
+              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Поддерживает ID группы (-100...) или формат с топиком -100.../42</span>
+            </div>
+            <div>
+              <label class="block text-[11px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ID топика форума (thread_id):</label>
+              <input type="text" id="adminTelegramTopicId" placeholder="Например: 42 (опционально)" class="w-full studio-input text-xs font-mono px-3 py-2">
+              <span class="text-[10px] font-medium" style="color: var(--text-muted);">Отправка сообщений в конкретную ветку супергруппы</span>
             </div>
           </div>
 
@@ -836,7 +846,9 @@
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <label class="block text-[11px] font-extrabold uppercase tracking-wider" style="color: var(--text-secondary);">Назначение съёмочной группы:</label>
-            <span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И ЦЕХА С ОКАНТОВКОЙ</span>
+            <button type="button" onclick="openProxyRegisterModal('from_shoot')" class="text-[10px] font-mono font-bold px-2 py-0.5 border text-amber-400 hover:bg-amber-950/40 border-amber-500/40 transition flex items-center gap-1 cursor-pointer" title="Заочно зачислить студента прямо в текущую смену">
+              <span>⚡ + Заочная регистрация студента</span>
+            </button>
           </div>
           <p class="text-[10px] text-[var(--text-muted)]">Укажите индивидуальную роль участника и выберите его цех для цветной окантовки в карточке смены</p>
           <input type="text" id="studentSearchModal" oninput="filterModalStudents()" placeholder="Фильтр по ФИО или группе..." class="w-full studio-input px-3 py-1.5 text-xs font-medium">
@@ -1205,6 +1217,150 @@
     </div>
   </div>
 
+  <!-- ================= МОДАЛЬНОЕ ОКНО: ЗАОЧНАЯ РЕГИСТРАЦИЯ СТУДЕНТА (С ЛИПОВОЙ ПОЧТОЙ) ================= -->
+  <div id="proxyRegisterModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto">
+    <div class="studio-modal-box p-5 sm:p-6 w-full max-w-lg relative my-6 border border-[var(--border-color)] shadow-2xl">
+      <button onclick="closeProxyRegisterModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="flex items-center space-x-2 border-b pb-3 mb-4" style="border-color: var(--border-color);">
+        <span class="rec-dot"></span>
+        <div>
+          <h3 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style="color: var(--brand-red);">Заочная регистрация студента</h3>
+          <p class="text-[10px] font-mono" style="color: var(--text-muted);">Быстрое зачисление в базу без личной корпоративной почты</p>
+        </div>
+      </div>
+
+      <form id="proxyRegisterForm" onsubmit="handleProxyRegisterSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">ФИО студента (обязательно) <span class="text-red-500">*</span></label>
+          <input type="text" id="proxyFullName" required placeholder="Например: Иванов Иван Алексеевич" oninput="updateProxyAutoEmail()" class="w-full studio-input text-xs font-bold px-3 py-2">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Учебная группа <span class="text-red-500">*</span></label>
+            <input type="text" id="proxyGroupName" required list="kp11GroupsDatalist" placeholder="КТ-26" class="w-full studio-input text-xs font-bold px-3 py-2">
+            <datalist id="kp11GroupsDatalist">
+              <option value="КТ-26"></option>
+              <option value="ФВТ-22"></option>
+              <option value="КТ-25"></option>
+              <option value="КТ-15"></option>
+              <option value="ЦКТ"></option>
+            </datalist>
+          </div>
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Telegram никнейм</label>
+            <input type="text" id="proxyTelegram" placeholder="@username (опционально)" class="w-full studio-input text-xs font-mono px-3 py-2">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Цех / Специализация</label>
+            <select id="proxyCraftDept" class="w-full studio-input text-xs font-bold px-3 py-2">
+              <option value="cinema">🎬 Операторский цех</option>
+              <option value="sound">🎙️ Звуковой цех</option>
+              <option value="light">💡 Осветительский цех</option>
+              <option value="edit">✂️ Монтажный цех</option>
+              <option value="prod">📋 Продюсерский цех</option>
+              <option value="art">🎨 Художественный цех</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Звание / Грейд</label>
+            <input type="text" id="proxyCraftRank" placeholder="Ассистент цеха" class="w-full studio-input text-xs font-medium px-3 py-2">
+          </div>
+        </div>
+
+        <!-- Секция генерации липовой почты -->
+        <div class="p-3 border space-y-2" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center space-x-2 cursor-pointer select-none">
+              <input type="checkbox" id="proxyUseFakeEmail" checked onchange="toggleProxyEmailMode()" class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">
+              <span class="text-xs font-extrabold uppercase text-[var(--text-primary)]">Сгенерировать липовую почту</span>
+            </label>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-700/60 font-bold uppercase">Служебный адрес</span>
+          </div>
+
+          <div id="proxyGeneratedEmailPreviewBox" class="p-2 border border-dashed border-amber-600/40 bg-amber-950/20 rounded">
+            <div class="text-[10px] font-mono text-[var(--text-muted)]">Липовый Email для базы:</div>
+            <div id="proxyGeneratedEmailText" class="text-xs font-mono font-bold text-amber-300 select-all break-all">student_auto@kp11.local</div>
+          </div>
+
+          <div id="proxyCustomEmailWrapper" class="hidden">
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Свой Email (если известен)</label>
+            <input type="text" id="proxyCustomEmail" placeholder="student@kp11.ru" class="w-full studio-input text-xs font-mono px-3 py-2">
+          </div>
+
+          <p class="text-[10px] text-[var(--text-muted)] leading-relaxed">
+            Служебный адрес <span class="font-mono text-amber-400">@kp11.local</span> позволяет сразу задействовать студента в сменах, проставлять баллы и формировать вызывные листы. При желании студент сможет позже войти с временным паролем или привязать личный email.
+          </p>
+        </div>
+
+        <!-- Временный пароль -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style="color: var(--text-secondary);">Временный пароль для входа</label>
+            <input type="text" id="proxyPassword" value="kp11_film2026" class="w-full studio-input text-xs font-mono px-3 py-2 font-bold text-emerald-400">
+          </div>
+          <div class="pt-2 text-[10px] font-mono text-[var(--text-muted)]">
+            Пароль по умолчанию: <span class="text-white font-bold">kp11_film2026</span> (можно передать студенту).
+          </div>
+        </div>
+
+        <div class="border-t pt-3 flex items-center justify-between gap-2" style="border-color: var(--border-color);">
+          <button type="button" onclick="closeProxyRegisterModal()" class="px-4 py-2.5 text-xs font-extrabold uppercase btn-brand-ghost">Отмена</button>
+          <button type="submit" id="btnSubmitProxyRegister" class="px-5 py-2.5 text-xs font-extrabold uppercase btn-brand-primary flex items-center gap-1.5 shadow-md">
+            <span>✓ Зарегистрировать студента</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО: УСПЕШНОЕ ЗАОЧНОЕ ЗАЧИСЛЕНИЕ (РЕКВИЗИТЫ) ================= -->
+  <div id="proxySuccessModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="studio-modal-box p-6 w-full max-w-md relative text-center space-y-4 border-2 border-emerald-500 shadow-2xl">
+      <button onclick="closeProxySuccessModal()" class="absolute top-4 right-4 p-1 hover:text-[var(--brand-red)] transition" style="color: var(--text-muted);" title="Закрыть">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="border-b pb-3">
+        <span class="text-3xl block mb-2">🎬</span>
+        <span class="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-extrabold">УСПЕШНО ЗАОЧНО ЗАЧИСЛЕН // ЦКТ КП11</span>
+        <h3 id="proxySuccessStudentName" class="text-base font-extrabold uppercase text-white mt-1">Иванов Иван</h3>
+        <p id="proxySuccessStudentGroup" class="text-xs font-mono text-amber-400 font-bold">Группа КТ-26</p>
+      </div>
+
+      <div class="p-3 border text-left space-y-2 text-xs font-mono" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+        <div class="text-[10px] font-bold uppercase text-[var(--text-muted)]">Реквизиты для входа студента:</div>
+        <div class="flex items-center justify-between border-b pb-1.5" style="border-color: var(--border-subtle);">
+          <span style="color: var(--text-muted);">Логин / Email:</span>
+          <span id="proxySuccessEmail" class="font-bold text-amber-300 select-all"></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span style="color: var(--text-muted);">Временный пароль:</span>
+          <span id="proxySuccessPassword" class="font-bold text-emerald-400 select-all">kp11_film2026</span>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-[var(--text-muted)] leading-relaxed">
+        Студент мгновенно добавлен в базу данных, доступен для назначения в съёмочные смены, оценивания и учёта компетенций.
+      </p>
+
+      <div class="space-y-2 pt-2">
+        <button type="button" onclick="copyProxyCredentials()" class="w-full py-2.5 text-xs font-mono font-bold uppercase btn-brand-ghost text-cyan-400 flex items-center justify-center gap-1.5">
+          <span>📋 Скопировать реквизиты студента</span>
+        </button>
+        <button type="button" onclick="closeProxySuccessModal()" class="w-full py-2.5 text-xs font-extrabold uppercase btn-brand-primary">
+          Готово
+        </button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- ================= МОДАЛЬНОЕ ОКНО: ПОЛНОЭКРАННЫЙ QR-ПРОПУСК ================= -->
   <div id="qrPassModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -1366,6 +1522,6 @@
   </script>
 
   <!-- Скрипт платформы -->
-  <script src="js/app.js?v=20261025_v11"></script>
+  <script src="js/app.js?v=20261025_v12_topic_proxy"></script>
 </body>
 </html>

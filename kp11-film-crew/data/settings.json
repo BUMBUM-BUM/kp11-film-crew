@@ -1,5 +1,6 @@
 {
   "telegramBotToken": "",
   "defaultChatId": "",
-  "botUsername": "KP11_FilmCrew_Bot"
+  "botUsername": "KP11_FilmCrew_Bot",
+  "telegramTopicId": ""
 }

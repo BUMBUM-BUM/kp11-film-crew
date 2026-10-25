@@ -1395,6 +1395,7 @@ function getSettings() {
   const defaults = {
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     defaultChatId: '',
+    telegramTopicId: process.env.TELEGRAM_TOPIC_ID || '',
     botUsername: 'KP11_FilmCrew_Bot'
   };
   return readJsonFile(SETTINGS_FILE, defaults);
@@ -1406,6 +1407,9 @@ function saveSettings(settings) {
   writeJsonFile(SETTINGS_FILE, updated);
   if (updated.telegramBotToken) {
     process.env.TELEGRAM_BOT_TOKEN = updated.telegramBotToken;
+  }
+  if (updated.telegramTopicId !== undefined) {
+    process.env.TELEGRAM_TOPIC_ID = updated.telegramTopicId || '';
   }
   return updated;
 }

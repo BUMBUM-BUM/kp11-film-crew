@@ -89,17 +89,81 @@ function recalculateRatings() {
   return users;
 }
 
-// Отправка вызывного в Telegram с поддержкой интерактивных кнопок
-function sendTelegramMessage(botToken, chatId, text, replyMarkup = null) {
+function transliterateRussian(str) {
+  const ru = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y',
+    'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+    'х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+  };
+  return String(str || '')
+    .toLowerCase()
+    .split('')
+    .map(c => ru[c] !== undefined ? ru[c] : (/[a-z0-9]/.test(c) ? c : '_'))
+    .join('')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 24) || 'student';
+}
+
+function parseChatTargets(raw, fallbackTopicId = null) {
+  if (!raw) return [];
+  const items = Array.isArray(raw) ? raw : String(raw).split(/[\s,;\n\r]+/);
+  const results = [];
+  const defaultThread = (fallbackTopicId && String(fallbackTopicId).trim()) 
+    ? parseInt(String(fallbackTopicId).trim(), 10) 
+    : null;
+
+  for (let item of items) {
+    item = String(item).trim();
+    if (!item) continue;
+
+    let chatId = item;
+    let threadId = defaultThread;
+
+    const privateLinkMatch = item.match(/(?:https?:\/\/)?t\.me\/c\/(\d+)(?:\/(\d+))?/i);
+    if (privateLinkMatch) {
+      chatId = `-100${privateLinkMatch[1]}`;
+      if (privateLinkMatch[2]) {
+        threadId = parseInt(privateLinkMatch[2], 10);
+      }
+    } else {
+      const publicLinkMatch = item.match(/(?:https?:\/\/)?t\.me\/([a-zA-Z0-9_]+)(?:\/(\d+))?/i);
+      if (publicLinkMatch && !['joinchat', 'c', 'addstickers'].includes(publicLinkMatch[1].toLowerCase())) {
+        chatId = `@${publicLinkMatch[1]}`;
+        if (publicLinkMatch[2]) {
+          threadId = parseInt(publicLinkMatch[2], 10);
+        }
+      } else {
+        const combinedMatch = item.match(/^([-\d]+|@[a-zA-Z0-9_]+)[:/](\d+)$/);
+        if (combinedMatch) {
+          chatId = combinedMatch[1];
+          threadId = parseInt(combinedMatch[2], 10);
+        }
+      }
+    }
+
+    results.push({
+      chatId,
+      messageThreadId: (threadId !== null && !isNaN(threadId)) ? threadId : null
+    });
+  }
+  return results;
+}
+
+// Отправка вызывного в Telegram с поддержкой интерактивных кнопок и топиков форумов
+function sendTelegramMessage(botToken, chatId, text, replyMarkup = null, messageThreadId = null) {
   return new Promise((resolve) => {
     if (!botToken || !chatId) return resolve(false);
     const bodyObj = {
-      chat_id: chatId.trim(),
+      chat_id: String(chatId).trim(),
       text,
       parse_mode: 'HTML'
     };
     if (replyMarkup) {
       bodyObj.reply_markup = replyMarkup;
+    }
+    if (messageThreadId) {
+      bodyObj.message_thread_id = parseInt(messageThreadId, 10);
     }
     const postData = JSON.stringify(bodyObj);
 
@@ -174,10 +238,10 @@ async function dispatchTelegramCallsheet(shoot) {
     }
   }
 
-  // Общий чат
+  // Общие чаты и топики
   if (settings.defaultChatId) {
-    const chatIds = settings.defaultChatId.split(/[\s,;\n\r]+/).filter(Boolean);
-    for (const cId of chatIds) {
+    const targets = parseChatTargets(settings.defaultChatId, settings.telegramTopicId);
+    for (const target of targets) {
       const groupMsg = `🎬 <b>НОВАЯ СМЕНА В ПРОИЗВОДСТВЕ // КП11</b>\n` +
         `════════════════════════════════════\n` +
         `Проект: <b>${title}</b>\n` +
@@ -186,7 +250,7 @@ async function dispatchTelegramCallsheet(shoot) {
         `Локация: <b>${loc}</b>\n` +
         `Мастер смены: <b>${master}</b>\n` +
         `════════════════════════════════════`;
-      const ok = await sendTelegramMessage(botToken, cId, groupMsg);
+      const ok = await sendTelegramMessage(botToken, target.chatId, groupMsg, null, target.messageThreadId);
       if (ok) delivered++;
     }
   }
@@ -704,6 +768,50 @@ const server = http.createServer(async (req, res) => {
       }));
     }
 
+    // Заочная регистрация студента с липовой почтой
+    if ((pathname === '/api/admin/proxy-register' || pathname === '/api/users/proxy-register') && req.method === 'POST') {
+      const users = readJsonFile(USERS_FILE, []);
+      const newId = `u-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 4)}`;
+      const fullName = (jsonBody.fullName || 'Студент').trim();
+      let email = (jsonBody.email || '').trim().toLowerCase();
+      if (!email || email.endsWith('@kp11.local') || email.includes('dummy') || email.includes('temp') || email.includes('auto')) {
+        const translit = transliterateRussian(fullName);
+        email = `${translit}_${Math.random().toString(36).substring(2, 6)}@kp11.local`;
+      }
+      const rawPassword = jsonBody.password || 'kp11_film2026';
+
+      const newUser = {
+        id: newId,
+        fullName: fullName,
+        email: email,
+        groupName: (jsonBody.groupName || 'КТ-26').trim(),
+        rating: 5.0,
+        telegram: jsonBody.telegram ? (jsonBody.telegram.startsWith('@') ? jsonBody.telegram : '@' + jsonBody.telegram) : '',
+        telegramChatId: null,
+        craftRank: jsonBody.craftRank || 'Ассистент цеха',
+        craftDept: jsonBody.craftDept || 'cinema',
+        isSuspended: false,
+        isBlacklisted: false,
+        role: { name: 'Студент' },
+        competencies: { camera: 75, sound: 75, light: 75, edit: 75 },
+        skills: ['Специалист съёмочной группы'],
+        likes: 0,
+        dislikes: 0
+      };
+      users.push(newUser);
+      writeJsonFile(USERS_FILE, users);
+
+      return res.end(JSON.stringify({
+        success: true,
+        user: newUser,
+        credentials: {
+          email: newUser.email,
+          password: rawPassword
+        },
+        message: `Студент ${newUser.fullName} успешно заочно зарегистрирован!`
+      }));
+    }
+
     // 10. АДМИНИСТРИРОВАНИЕ
     if (pathname === '/api/admin/data' && req.method === 'GET') {
       const users = readJsonFile(USERS_FILE, []);
@@ -945,14 +1053,23 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/telegram/test' && req.method === 'POST') {
       const settings = readJsonFile(SETTINGS_FILE, {});
       const token = jsonBody.token || settings.telegramBotToken;
-      const chatId = jsonBody.chatId || settings.defaultChatId;
-      if (!token || !chatId) {
+      const targetChatString = jsonBody.chatId || settings.defaultChatId;
+      const topicId = jsonBody.topicId || settings.telegramTopicId || null;
+      if (!token || !targetChatString) {
         return res.end(JSON.stringify({ success: false, error: 'Укажите токен бота и Chat ID' }));
       }
+      const targets = parseChatTargets(targetChatString, topicId);
+      if (targets.length === 0) {
+        return res.end(JSON.stringify({ success: false, error: 'Укажите хотя бы один валидный Chat ID' }));
+      }
       const testMsg = `<b>Медиацентр КП11 // Тест связи</b>\n\nТестовое оповещение успешно доставлено в Telegram!\nБот готов к оперативной рассылке вызывных листов.`;
-      const ok = await sendTelegramMessage(token, chatId, testMsg);
-      if (ok) {
-        return res.end(JSON.stringify({ success: true, message: 'Тестовое оповещение доставлено в Telegram!' }));
+      let okCount = 0;
+      for (const t of targets) {
+        const ok = await sendTelegramMessage(token, t.chatId, testMsg, null, t.messageThreadId);
+        if (ok) okCount++;
+      }
+      if (okCount > 0) {
+        return res.end(JSON.stringify({ success: true, message: `Тестовое оповещение доставлено в ${okCount} из ${targets.length} чатов/топиков!` }));
       } else {
         return res.end(JSON.stringify({ success: false, error: 'Не удалось отправить сообщение в Telegram' }));
       }
