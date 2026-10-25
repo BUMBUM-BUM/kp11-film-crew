@@ -144,7 +144,7 @@ const INITIAL_USERS = [
     "email": "andrey.gusev@kp11.ru",
     "groupName": "КТ-25",
     "rating": 5,
-    "telegram": "@andrey_gaffer",
+    "telegram": "@Imwalkingthere",
     "telegramChatId": null,
     "craftRank": "Ассистент осветителя // Best Boy",
     "isSuspended": false,
@@ -274,7 +274,7 @@ const INITIAL_USERS = [
     "email": "nikita.zhuravlev@kp11.ru",
     "groupName": "КТ-21",
     "rating": 4.5,
-    "telegram": "@nikita_sound",
+    "telegram": "@mertvi_chel",
     "telegramChatId": null,
     "craftRank": "Звукооператор // Boom Operator",
     "isSuspended": false,
@@ -462,7 +462,7 @@ const INITIAL_USERS = [
     "email": "polina.gudukina@kp11.film",
     "groupName": "КТ-16",
     "rating": 4.9,
-    "telegram": "@polina_gudukina",
+    "telegram": "@spolikxx",
     "telegramChatId": null,
     "craftRank": "Режиссер монтажа // Lead Editor",
     "isSuspended": false,
@@ -539,8 +539,8 @@ const INITIAL_USERS = [
   },
   {
     "id": "u18",
-    "fullName": "Чернышов Артем Андреевич",
-    "email": "artem.chernyshov@kp11.film",
+    "fullName": "Артем Чернышов",
+    "email": "artem_real_personal@gmail.com",
     "groupName": "КТ-24",
     "rating": 4.9,
     "telegram": "@catmenmilota",
@@ -562,7 +562,9 @@ const INITIAL_USERS = [
       "130 павильон",
       "Координация"
     ],
-    "completedShoots": 0
+    "completedShoots": 0,
+    "passwordHash": "hashed_c3VwZXJQYXNzd29yZDIwMjY=",
+    "isDummyPassword": false
   },
   {
     "id": "u19",
@@ -802,6 +804,218 @@ const INITIAL_USERS = [
       "Студийная помощь",
       "Кабельный менеджмент",
       "Ассистирование оператору"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u28",
+    "fullName": "Герасименко Дарья Юрьевна",
+    "email": "darya.gerasimenko@kp11.ru",
+    "groupName": "КТ-26",
+    "rating": 4.8,
+    "telegram": "@liarzzsnotfound",
+    "telegramChatId": null,
+    "craftRank": "Реквизитор / Худ. цех // Art Dept Lead",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 75,
+      "sound": 70,
+      "light": 80,
+      "edit": 75
+    },
+    "skills": [
+      "Реквизит",
+      "Художественное оформление",
+      "Организация площадки"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u29",
+    "fullName": "Володина Алиса Дмитриевна",
+    "email": "alisa.volodina@kp11.ru",
+    "groupName": "КТ-11",
+    "rating": 4.8,
+    "telegram": "@alisa_volodina",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // 1st AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 88,
+      "sound": 72,
+      "light": 80,
+      "edit": 82
+    },
+    "skills": [
+      "Камерная работа",
+      "Оптика",
+      "Подсъемы"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u30",
+    "fullName": "Одинцова Варвара Андреевна",
+    "email": "varvara.odintsova@kp11.ru",
+    "groupName": "КТ-11",
+    "rating": 4.8,
+    "telegram": "@varvara_odintsova",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // 1st AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 88,
+      "sound": 70,
+      "light": 78,
+      "edit": 80
+    },
+    "skills": [
+      "Камерная работа",
+      "Фокус-пуллинг",
+      "Композиция кадра"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u31",
+    "fullName": "Силуанова Вероника Михайловна",
+    "email": "veronika.siluanova@kp11.ru",
+    "groupName": "КТ-15",
+    "rating": 4.9,
+    "telegram": "@Siluanova_v",
+    "telegramChatId": null,
+    "craftRank": "Продюсер смены // Production Lead",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 85,
+      "sound": 85,
+      "light": 82,
+      "edit": 88
+    },
+    "skills": [
+      "Продюсирование",
+      "Координация съемок",
+      "Выездные мероприятия",
+      "Тайм-менеджмент"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u32",
+    "fullName": "Богомазова Елизавета Андреевна",
+    "email": "elizaveta.bogomazova@kp11.ru",
+    "groupName": "КТ-24",
+    "rating": 4.8,
+    "telegram": "@Nostri",
+    "telegramChatId": null,
+    "craftRank": "Рилсмейкер / Монтажёр бэкстейджа",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 86,
+      "sound": 80,
+      "light": 82,
+      "edit": 94
+    },
+    "skills": [
+      "Рилс",
+      "Клиповый монтаж",
+      "Вертикальное видео",
+      "Бэкстейдж"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u33",
+    "fullName": "Пустовойтов Юрий Всеволодович",
+    "email": "yuriy.pustovoytov@kp11.ru",
+    "groupName": "КТ-26",
+    "rating": 4.8,
+    "telegram": "@PARLAMENTALI",
+    "telegramChatId": null,
+    "craftRank": "Камерный оператор // 1st AC",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 90,
+      "sound": 75,
+      "light": 85,
+      "edit": 80
+    },
+    "skills": [
+      "Многокамерная съемка",
+      "Панорамирование",
+      "Оптика Sony/Canon"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u34",
+    "fullName": "Михайлов Иван Андреевич",
+    "email": "ivan.mikhaylov@kp11.ru",
+    "groupName": "МЗМ-26",
+    "rating": 4.8,
+    "telegram": "@WDYW372",
+    "telegramChatId": null,
+    "craftRank": "Звукооператор записи // Sound Engineer",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 70,
+      "sound": 95,
+      "light": 72,
+      "edit": 84
+    },
+    "skills": [
+      "Звукозапись",
+      "Микрофонный парк",
+      "Петличные радиосистемы",
+      "Чистка звука"
+    ],
+    "completedShoots": 0
+  },
+  {
+    "id": "u35",
+    "fullName": "Парфене Михаил Олегович",
+    "email": "mikhail.parfene@kp11.ru",
+    "groupName": "КТ-31",
+    "rating": 4.9,
+    "telegram": "@KinoParf",
+    "telegramChatId": null,
+    "craftRank": "Оператор-постановщик // Master DOP",
+    "isSuspended": false,
+    "role": {
+      "name": "Студент"
+    },
+    "competencies": {
+      "camera": 96,
+      "sound": 80,
+      "light": 92,
+      "edit": 90
+    },
+    "skills": [
+      "Театральная съемка",
+      "Репортаж",
+      "Стабилизаторы DJI RS",
+      "Светотеневой рисунок"
     ],
     "completedShoots": 0
   }
