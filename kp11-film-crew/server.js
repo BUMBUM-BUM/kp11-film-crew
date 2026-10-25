@@ -1994,15 +1994,26 @@ app.listen(PORT, () => {
     console.log('[Telegram Bot] Токен не задан. Бот работает в режиме автономного эмулятора API.');
   }
 
-  // Автоматический keep-alive пинг для предотвращения засыпания контейнера Render (15 мин лимит)
-  const isProd = process.env.RENDER_EXTERNAL_URL || process.env.NODE_ENV === 'production' || process.env.RENDER;
-  if (isProd) {
-    const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || 'https://kp11-film-crew.onrender.com';
-    console.log(`[KP11 Keep-Alive] Активирован 10-минутный цикл поддержания активности сервера: ${keepAliveUrl}`);
+  // Keep-alive: отключен по умолчанию во избежание блокировок и санкций хостинга (Render/Cloud)
+  const enableKeepAlive = process.env.ENABLE_KEEPALIVE === 'true';
+  if (enableKeepAlive && process.env.RENDER_EXTERNAL_URL) {
+    const keepAliveUrl = process.env.RENDER_EXTERNAL_URL;
+    console.log(`[KP11 Keep-Alive] Безопасный пассивный мониторинг активности: ${keepAliveUrl}`);
+    // Редкий бережный запрос (раз в 14 минут с рандомизацией ±30 сек)
+    const safeIntervalMs = (13.5 * 60 * 1000) + Math.floor(Math.random() * 60000);
     setInterval(() => {
-      https.get(`${keepAliveUrl}/api/telegram/status`, (res) => {
-        res.resume();
-      }).on('error', () => {});
-    }, 10 * 60 * 1000);
+      try {
+        const req = https.get(`${keepAliveUrl}/api/telegram/status`, {
+          headers: { 'User-Agent': 'KP11-Safe-Monitor/1.0 (Passive Healthcheck)' },
+          timeout: 10000
+        }, (res) => {
+          res.resume();
+        });
+        req.on('error', () => {});
+        req.on('timeout', () => req.destroy());
+      } catch (e) {}
+    }, safeIntervalMs);
+  } else {
+    console.log('[KP11 Server] Автоматический фоновый Keep-Alive отключен во избежание блокировок хостинга.');
   }
 });

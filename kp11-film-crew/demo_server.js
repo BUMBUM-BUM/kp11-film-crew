@@ -225,20 +225,56 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/inventory' && req.method === 'POST') {
       const inv = readJsonFile(INVENTORY_FILE, []);
-      const newItem = {
-        id: `eq-${Date.now().toString(36)}`,
-        name: jsonBody.name || 'Новое оборудование',
-        category: jsonBody.category || 'Общее',
-        serialNumber: jsonBody.serialNumber || 'SN-NEW',
-        status: jsonBody.status || 'AVAILABLE',
-        location: jsonBody.location || 'Склад ЦКТ',
-        notes: jsonBody.notes || '',
-        signedBy: jsonBody.signedBy || 'Бадиков Семён Станиславович',
-        signedAt: new Date().toISOString()
-      };
-      inv.push(newItem);
+      const { name, serialNumber, serialNumbers, quantity, category, notes, status, location, signedBy } = jsonBody;
+
+      const trimmedName = (name || 'Съёмочное оборудование').trim();
+      const qty = Math.max(1, parseInt(quantity, 10) || 1);
+
+      let serialsList = [];
+      if (Array.isArray(serialNumbers)) {
+        serialsList = serialNumbers.map(s => String(s).trim()).filter(Boolean);
+      } else if (typeof serialNumbers === 'string' && serialNumbers.trim()) {
+        serialsList = serialNumbers.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+      } else if (serialNumber && String(serialNumber).includes(',')) {
+        serialsList = String(serialNumber).split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+      } else if (serialNumber && String(serialNumber).trim()) {
+        serialsList = [String(serialNumber).trim()];
+      }
+
+      const totalCount = Math.max(qty, serialsList.length);
+      const prefix = (trimmedName.replace(/[^a-zA-Z0-9а-яА-Я]/g, '').slice(0, 4) || 'EQ').toUpperCase();
+      const createdItems = [];
+
+      for (let i = 0; i < totalCount; i++) {
+        let sn = serialsList[i];
+        if (!sn) {
+          sn = `${prefix}-${String(100 + i + Math.floor(Math.random() * 900))}`;
+        }
+
+        const newItem = {
+          id: (i === 0 && jsonBody.id) ? jsonBody.id : `eq-${Date.now().toString(36)}-${i}-${Math.floor(Math.random() * 1000)}`,
+          name: trimmedName,
+          category: category || 'Оборудование',
+          serialNumber: sn,
+          status: status || 'AVAILABLE',
+          location: location || 'Склад техники ЦКТ КП11',
+          notes: notes || '',
+          signedBy: signedBy || 'Бадиков Семён Станиславович',
+          signedAt: new Date().toISOString()
+        };
+
+        createdItems.push(newItem);
+        inv.unshift(newItem);
+      }
+
       writeJsonFile(INVENTORY_FILE, inv);
-      return res.end(JSON.stringify({ success: true, item: newItem, inventory: inv }));
+      return res.end(JSON.stringify({
+        success: true,
+        count: createdItems.length,
+        items: createdItems,
+        item: createdItems[0],
+        inventory: inv
+      }));
     }
 
     // 3. ЛОКАЦИИ

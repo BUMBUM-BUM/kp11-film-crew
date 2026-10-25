@@ -227,12 +227,24 @@
 
       <!-- Вкладка 1: СМЕНЫ -->
       <section id="viewShoots" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-8 space-y-4">
-          <div class="flex items-center justify-between px-4 py-3 border" style="background-color: var(--bg-card); border-color: var(--border-color);">
+        <div id="shootsMainCol" class="lg:col-span-8 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 border gap-3" style="background-color: var(--bg-card); border-color: var(--border-color);">
             <div class="flex items-center gap-2">
               <span id="globalStatsText" class="text-xs font-bold uppercase tracking-wider font-mono" style="color: var(--text-muted);">Синхронизация графика производства...</span>
               <span id="shootCount" class="text-xs px-2.5 py-1 font-extrabold font-mono border" style="background-color: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-color);">...</span>
             </div>
+
+            <!-- Управление масштабом смен (1-4 столбца, только ПК: hidden md:flex) -->
+            <div class="hidden md:flex items-center gap-2 border-l pl-3" style="border-color: var(--border-color);">
+              <span class="text-[10px] font-mono uppercase tracking-wider" style="color: var(--text-muted);">Колонки:</span>
+              <div class="inline-flex border p-0.5" style="background-color: var(--bg-elevated); border-color: var(--border-color);" id="shootsColSelector">
+                <button type="button" onclick="setShootsColumns(1)" id="shootsColBtn1" class="px-2 py-0.5 text-xs font-mono font-bold transition">1</button>
+                <button type="button" onclick="setShootsColumns(2)" id="shootsColBtn2" class="px-2 py-0.5 text-xs font-mono font-bold transition">2</button>
+                <button type="button" onclick="setShootsColumns(3)" id="shootsColBtn3" class="px-2 py-0.5 text-xs font-mono font-bold transition">3</button>
+                <button type="button" onclick="setShootsColumns(4)" id="shootsColBtn4" class="px-2 py-0.5 text-xs font-mono font-bold transition">4</button>
+              </div>
+            </div>
+
             <button type="button" onclick="openShootModal()" class="btn-brand-primary px-3.5 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow-sm" title="Создать новую съёмочную смену">
               <span class="font-bold text-sm leading-none">+</span>
               <span>Новая смена</span>
@@ -265,7 +277,7 @@
         </div>
         
         <!-- Сайдбар: Бейдж аккредитации пользователя -->
-        <aside class="lg:col-span-4 space-y-4">
+        <aside id="shootsSidebar" class="lg:col-span-4 space-y-4">
           <div class="accreditation-badge p-5">
             <div class="accreditation-clip-hole"></div>
             <div class="flex items-center justify-between border-b pb-2.5 mb-4" style="border-color: rgba(0,0,0,0.12);">
@@ -594,9 +606,23 @@
               </div>
               <p class="text-[11px] font-medium mt-0.5" style="color: var(--text-muted);">Оперативный мониторинг статуса: где, когда, кем используется оборудование и предотвращение конфликтов бронирования.</p>
             </div>
-            <button type="button" onclick="toggleTrackerEquipmentForm()" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">
-              <span>+ Новая единица техники</span>
-            </button>
+            
+            <div class="flex items-center gap-3">
+              <!-- Управление масштабом техники (1-4 столбца, только ПК: hidden md:flex) -->
+              <div class="hidden md:flex items-center gap-2 border-r pr-3" style="border-color: var(--border-color);">
+                <span class="text-[10px] font-mono uppercase tracking-wider" style="color: var(--text-muted);">Колонки:</span>
+                <div class="inline-flex border p-0.5" style="background-color: var(--bg-elevated); border-color: var(--border-color);" id="gearColSelector">
+                  <button type="button" onclick="setEquipmentColumns(1)" id="gearColBtn1" class="px-2 py-0.5 text-xs font-mono font-bold transition">1</button>
+                  <button type="button" onclick="setEquipmentColumns(2)" id="gearColBtn2" class="px-2 py-0.5 text-xs font-mono font-bold transition">2</button>
+                  <button type="button" onclick="setEquipmentColumns(3)" id="gearColBtn3" class="px-2 py-0.5 text-xs font-mono font-bold transition">3</button>
+                  <button type="button" onclick="setEquipmentColumns(4)" id="gearColBtn4" class="px-2 py-0.5 text-xs font-mono font-bold transition">4</button>
+                </div>
+              </div>
+
+              <button type="button" onclick="toggleTrackerEquipmentForm()" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase flex items-center gap-1.5 shadow">
+                <span>+ Новая единица техники</span>
+              </button>
+            </div>
           </div>
 
           <!-- Отдельная панель создания карточек техники на складе -->
@@ -1340,6 +1366,6 @@
   </script>
 
   <!-- Скрипт платформы -->
-  <script src="js/app.js?v=20261025_v10"></script>
+  <script src="js/app.js?v=20261025_v11"></script>
 </body>
 </html>
