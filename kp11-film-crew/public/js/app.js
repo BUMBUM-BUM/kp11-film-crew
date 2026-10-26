@@ -4239,8 +4239,8 @@ function renderAdminUsers(users) {
     return;
   }
 
-  container.innerHTML = adminTopBar + users.map(u => {
-    const currentRole = u.role && u.role.name ? u.role.name : 'Студент';
+  const userRowsHtml = users.map(u => {
+    const currentRole = u.role && u.role.name ? u.role.name : (u.role || 'Студент');
     const isMe = currentUser && currentUser.id === u.id;
     const isBlacklisted = !!u.isBlacklisted;
     const blacklistBadge = isBlacklisted ? '<span class="text-red-400 font-extrabold ml-1.5 px-1.5 py-0.5 border border-red-600/70 bg-red-950/60 text-[10px] uppercase font-mono">⛔ В ЧЁРНОМ СПИСКЕ</span>' : '';
@@ -4261,10 +4261,10 @@ function renderAdminUsers(users) {
       ? '<a href="https://t.me/' + cleanTg.replace(/^@/, '') + '" target="_blank" class="font-mono text-[11px] font-bold px-1.5 py-0.5 border border-[#229ED9]/50 bg-[#229ED9]/10 text-[#229ED9] inline-flex items-center gap-1 hover:underline" title="Открыть профиль Telegram">' + SVG_ICONS.telegram + '<span>' + cleanTg + '</span></a>'
       : '<span class="font-mono text-[10px] text-amber-400 border border-amber-500/30 px-1 py-0.5">[TG не указан]</span>';
 
-    const likesCount = u.likes || 0;
-    const dislikesCount = u.dislikes || 0;
+    const likesCount = Number(u.likes) || 0;
+    const dislikesCount = Number(u.dislikes) || 0;
 
-    const avatarThumb = '<div class="w-8 h-8 rounded-full border border-[var(--border-subtle)] overflow-hidden flex-shrink-0 bg-neutral-900">' +
+    const avatarThumb = '<div class="w-9 h-9 rounded-full border border-[var(--border-subtle)] overflow-hidden flex-shrink-0 bg-neutral-900">' +
       '<img src="' + (u.avatar || 'img/student.jpg') + '" alt="Avatar" class="w-full h-full object-cover">' +
     '</div>';
 
@@ -4274,21 +4274,21 @@ function renderAdminUsers(users) {
         '<div class="min-w-0 flex-grow">' +
           '<div class="flex items-center flex-wrap gap-x-2 gap-y-1.5">' +
             '<button type="button" onclick="openShowreelModal(\'' + u.id + '\')" class="font-bold text-xs uppercase cursor-pointer hover:underline text-[var(--text-primary)] hover:text-amber-400 transition inline-flex items-center gap-1 text-left" title="Открыть цифровой паспорт студента">' +
-              '<span>' + u.fullName + '</span>' +
+              '<span>' + escapeHtml(u.fullName || 'Без имени') + '</span>' +
               '<span class="text-[9px] text-amber-400/80">👤</span>' +
             '</button> ' +
             roleBadgeTag + ' ' +
-          '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span style="color: var(--text-secondary);">' + (u.groupName || '—') + '</span>]</span> ' +
-          tgBadge + ' ' +
-          '<span class="inline-flex items-center gap-1.5 font-mono text-xs px-2 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg-primary)]">' +
-            '<span class="text-emerald-400 font-bold" title="Положительные отзывы">👍 ' + likesCount + '</span>' +
-            '<span class="text-red-400 font-bold" title="Замечания">👎 ' + dislikesCount + '</span>' +
-          '</span>' +
-          blacklistBadge +
+            '<span class="font-mono text-[11px]" style="color: var(--text-muted);">[Группа: <span style="color: var(--text-secondary);">' + escapeHtml(u.groupName || '—') + '</span>]</span> ' +
+            tgBadge + ' ' +
+            '<span class="inline-flex items-center gap-1.5 font-mono text-xs px-2 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg-primary)]">' +
+              '<span class="text-emerald-400 font-bold" title="Положительные отзывы">👍 ' + likesCount + '</span>' +
+              '<span class="text-red-400 font-bold" title="Замечания">👎 ' + dislikesCount + '</span>' +
+            '</span>' +
+            blacklistBadge +
+          '</div>' +
+          '<p class="text-[11px] font-mono mt-1" style="color: var(--text-muted);">' + escapeHtml(u.email || '') + (isMe ? ' <span class="text-[var(--brand-beige-text)] font-bold ml-1">(Вы)</span>' : '') + '</p>' +
         '</div>' +
-        '<p class="text-[11px] font-mono mt-1" style="color: var(--text-muted);">' + u.email + (isMe ? ' <span class="text-[var(--brand-beige-text)] font-bold ml-1">(Вы)</span>' : '') + '</p>' +
       '</div>' +
-      
       '<!-- Ровно две кнопки для каждого пользователя: Изменить и Черный список -->' +
       '<div class="flex items-center space-x-2 flex-wrap gap-y-2 shrink-0" id="user_actions_' + u.id + '">' +
         '<button onclick="openAdminUserFullEditModal(\'' + u.id + '\')" class="px-3 py-1.5 text-xs font-extrabold uppercase btn-brand-beige shadow-sm" title="Редактировать данные и доступ">' +
@@ -4300,6 +4300,8 @@ function renderAdminUsers(users) {
       '</div>' +
     '</div>';
   }).join('');
+
+  container.innerHTML = adminTopBar + '<div class="flex flex-col space-y-2.5">' + userRowsHtml + '</div>';
 }
 
 
@@ -4988,42 +4990,42 @@ async function respondCrew(crewMemberId, status, customReason = null) {
 // ==============================================================================
 function sortStudentsList(students, sortBy = 'alphabet') {
   if (!Array.isArray(students)) return [];
-  const arr = [...students];
+  const arr = students.filter(s => s && typeof s === 'object');
 
   if (sortBy === 'alphabet') {
     arr.sort((a, b) => {
-      const nameA = String(a.fullName || '').trim();
-      const nameB = String(b.fullName || '').trim();
-      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+      const nameA = String(a.fullName || a.name || '').trim();
+      const nameB = String(b.fullName || b.name || '').trim();
+      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base', numeric: true });
     });
   } else if (sortBy === 'rating') {
     arr.sort((a, b) => {
-      const rA = typeof a.rating === 'number' ? a.rating : (parseFloat(a.rating) || 0);
-      const rB = typeof b.rating === 'number' ? b.rating : (parseFloat(b.rating) || 0);
+      const rA = (typeof a.rating === 'number' && !isNaN(a.rating)) ? a.rating : (parseFloat(a.rating) || 0);
+      const rB = (typeof b.rating === 'number' && !isNaN(b.rating)) ? b.rating : (parseFloat(b.rating) || 0);
       if (rB !== rA) return rB - rA;
 
-      const scoreA = (a.likes || 0) - (a.dislikes || 0);
-      const scoreB = (b.likes || 0) - (b.dislikes || 0);
+      const scoreA = (Number(a.likes) || 0) - (Number(a.dislikes) || 0);
+      const scoreB = (Number(b.likes) || 0) - (Number(b.dislikes) || 0);
       if (scoreB !== scoreA) return scoreB - scoreA;
 
-      const likesA = a.likes || 0;
-      const likesB = b.likes || 0;
+      const likesA = Number(a.likes) || 0;
+      const likesB = Number(b.likes) || 0;
       if (likesB !== likesA) return likesB - likesA;
 
-      const nameA = String(a.fullName || '').trim();
-      const nameB = String(b.fullName || '').trim();
-      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+      const nameA = String(a.fullName || a.name || '').trim();
+      const nameB = String(b.fullName || b.name || '').trim();
+      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base', numeric: true });
     });
   } else if (sortBy === 'group') {
     arr.sort((a, b) => {
-      const groupA = String(a.groupName || '').trim();
-      const groupB = String(b.groupName || '').trim();
-      const gComp = groupA.localeCompare(groupB, 'ru', { sensitivity: 'base' });
+      const groupA = String(a.groupName || a.group || '').trim();
+      const groupB = String(b.groupName || b.group || '').trim();
+      const gComp = groupA.localeCompare(groupB, 'ru', { sensitivity: 'base', numeric: true });
       if (gComp !== 0) return gComp;
 
-      const nameA = String(a.fullName || '').trim();
-      const nameB = String(b.fullName || '').trim();
-      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+      const nameA = String(a.fullName || a.name || '').trim();
+      const nameB = String(b.fullName || b.name || '').trim();
+      return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base', numeric: true });
     });
   }
   return arr;
@@ -5391,7 +5393,8 @@ function renderModalStudents(students) {
 
   updateModalSelectedCrewBadge();
 
-  const list = Array.isArray(students) ? students : (students && Array.isArray(students.value) ? students.value : []);
+  const rawList = Array.isArray(students) ? students : (students && Array.isArray(students.value) ? students.value : []);
+  const list = rawList.filter(s => s && typeof s === 'object');
 
   if (list.length === 0) {
     box.innerHTML = '<div class="p-4 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">' +
@@ -5400,15 +5403,15 @@ function renderModalStudents(students) {
     return;
   }
 
-  box.innerHTML = list.map(s => {
+  const itemsHtml = list.map(s => {
     const isBlacklisted = !!s.isBlacklisted;
     const selectedItem = modalCrewSelections[s.id] || null;
     const isChecked = selectedItem !== null;
     const currentRole = selectedItem ? selectedItem.role : (s.craftRank || 'Оператор');
     const currentDept = selectedItem ? selectedItem.dept : (s.craftDept || 'cinema');
-    const likesCount = s.likes || 0;
-    const dislikesCount = s.dislikes || 0;
-    const rVal = (typeof s.rating === 'number') ? s.rating.toFixed(1) : (s.rating || '5.0');
+    const likesCount = Number(s.likes) || 0;
+    const dislikesCount = Number(s.dislikes) || 0;
+    const rVal = (typeof s.rating === 'number' && !isNaN(s.rating)) ? s.rating.toFixed(1) : (s.rating || '5.0');
 
     const rowBorder = isChecked
       ? 'border-amber-500/80 bg-amber-950/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
@@ -5422,7 +5425,7 @@ function renderModalStudents(students) {
 
     return '<div class="p-2.5 border text-xs space-y-2 transition ' + rowBorder + '">' +
       '<label class="flex items-center space-x-2.5 cursor-pointer select-none">' +
-        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' onchange="handleModalStudentCheckboxChange(\'' + s.id + '\', this.checked)" class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer">' +
+        '<input type="checkbox" name="studentSelect" value="' + s.id + '" ' + (isChecked ? 'checked' : '') + ' onchange="handleModalStudentCheckboxChange(\'' + s.id + '\', this.checked)" class="accent-[var(--brand-red)] w-4 h-4 cursor-pointer shrink-0">' +
         '<div class="flex items-center flex-wrap gap-x-2 gap-y-1">' +
           (isMasterOrAdminUser(currentUser) 
             ? '<button type="button" onclick="event.stopPropagation(); openShowreelModal(\'' + s.id + '\')" class="font-bold text-xs uppercase hover:underline cursor-pointer text-left inline-flex items-center gap-1 text-[var(--text-primary)] hover:text-amber-400 transition" title="Открыть цифровой паспорт студента"><span>' + escapeHtml(s.fullName || 'Без имени') + '</span><span class="text-[9px] text-amber-400/80">👤</span></button>'
@@ -5455,6 +5458,8 @@ function renderModalStudents(students) {
       '</div>' +
     '</div>';
   }).join('');
+
+  box.innerHTML = '<div class="flex flex-col space-y-2">' + itemsHtml + '</div>';
 }
 
 function filterModalStudents() {
@@ -5465,9 +5470,15 @@ function filterModalStudents() {
   const sortSel = document.getElementById('studentSortModal');
   const sortBy = sortSel ? sortSel.value : 'alphabet';
 
-  const allList = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+  let allList = (Array.isArray(globalStudents) && globalStudents.length > 0) ? globalStudents : (Array.isArray(globalAdminUsers) && globalAdminUsers.length > 0 ? globalAdminUsers : getStudentDirectory());
   
-  let filtered = allList;
+  let filtered = allList.filter(s => {
+    if (!s) return false;
+    const roleName = (s.role && s.role.name) ? s.role.name : (s.role || 'Студент');
+    if (roleName === 'Администратор') return false;
+    return true;
+  });
+
   if (modalShowOnlySelected) {
     filtered = filtered.filter(s => !!modalCrewSelections[s.id]);
   }
@@ -6452,26 +6463,15 @@ async function loadShoots() {
       const data = await res.json();
       const rawShoots = data.shoots;
       let fetchedShoots = Array.isArray(rawShoots) ? rawShoots : (rawShoots && Array.isArray(rawShoots.value) ? rawShoots.value : []);
-      // Исключаем любые устаревшие демонстрационные смены по ID
       shoots = fetchedShoots.filter(s => !isDemoShootRecord(s));
 
-      // Сохраняем свежесозданные пользователем смены в памяти, если бэкенд их еще обрабатывает
-      const serverIds = new Set(shoots.map(s => String(s.id)));
-      if (globalShoots && Array.isArray(globalShoots)) {
-        for (const gs of globalShoots) {
-          if (gs && gs.id && !serverIds.has(String(gs.id)) && !isDemoShootRecord(gs)) {
-            shoots.unshift(gs);
-          }
-        }
-      }
-      
       if (data.students) {
         const rawStudents = data.students;
         globalStudents = Array.isArray(rawStudents) ? rawStudents : (rawStudents && Array.isArray(rawStudents.value) ? rawStudents.value : []);
       }
-      stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
+      stats = data.stats || { totalShoots: shoots.length, completedShoots: shoots.filter(s => s && s.isCompleted).length };
       userStats = data.userStats || null;
-      window._coldStartRetryCount = 0; // Сбрасываем счетчик повторов при успешной связи
+      window._coldStartRetryCount = 0;
       try {
         localStorage.setItem('kp11_shoots', JSON.stringify(shoots));
       } catch (e) {}
@@ -6479,16 +6479,16 @@ async function loadShoots() {
       throw new Error('API fetch status ' + res.status);
     }
   } catch (err) {
-    userStats = { rating: 4.8, completedParticipated: 4, totalParticipated: 5 };
+    userStats = { rating: 4.8, completedParticipated: 0, totalParticipated: 0 };
     const stored = JSON.parse(localStorage.getItem('kp11_shoots') || 'null');
     if (Array.isArray(stored)) {
       shoots = stored.filter(s => !isDemoShootRecord(s));
     } else {
       shoots = [];
     }
-    stats = { totalShoots: shoots.length, completedShoots: shoots.filter(s => s.isCompleted).length };
+    stats = { totalShoots: shoots.length, completedShoots: shoots.filter(s => s && s.isCompleted).length };
 
-    // Автоматический retry при холодном старте Render (после 15 минут неактивности)
+    // Автоматический retry при холодном старте Render
     if (!window._coldStartRetryCount) window._coldStartRetryCount = 0;
     if (window._coldStartRetryCount < 6) {
       window._coldStartRetryCount++;
@@ -6507,76 +6507,87 @@ async function loadShoots() {
   }
 
   try {
-    if (document.getElementById('shootCount')) {
-      document.getElementById('shootCount').innerText = pluralizeRu(shoots.length, 'смена', 'смены', 'смен');
+    const countEl = document.getElementById('shootCount');
+    if (countEl) {
+      countEl.innerText = pluralizeRu(shoots.length, 'смена', 'смены', 'смен');
     }
-    if (document.getElementById('globalStatsText')) {
-      document.getElementById('globalStatsText').innerText = 'Всего смен: ' + stats.totalShoots + ' | Завершено: ' + stats.completedShoots;
+    const statsEl = document.getElementById('globalStatsText');
+    if (statsEl) {
+      statsEl.innerText = 'Всего смен: ' + stats.totalShoots + ' | Завершено: ' + stats.completedShoots;
     }
 
     const sidebar = document.getElementById('sidebarProfile');
     if (currentUser && sidebar) {
-      let userRatingText = userStats && userStats.rating !== null && userStats.rating !== undefined ? userStats.rating : 'Нет';
-      let completedPart = userStats ? userStats.completedParticipated : 4;
-      let totalPart = userStats ? userStats.totalParticipated : 5;
-      const userRank = getCraftRankBadge(completedPart, userStats ? userStats.rating : 4.8);
-      const userTg = currentUser.telegram || '@badikov_dop';
+      try {
+        let userRatingText = userStats && userStats.rating !== null && userStats.rating !== undefined ? userStats.rating : 'Нет';
+        let completedPart = userStats ? userStats.completedParticipated : 0;
+        let totalPart = userStats ? userStats.totalParticipated : 0;
+        const userRank = getCraftRankBadge(completedPart, userStats ? userStats.rating : 4.8);
+        const userTg = currentUser.telegram || '@badikov_dop';
 
-      sidebar.innerHTML = 
-        '<div class="space-y-4">' +
-          '<div class="flex items-center space-x-3.5 pb-3 border-b" style="border-color: rgba(0,0,0,0.12);">' +
-            '<div class="relative w-16 h-16 overflow-hidden border-2 flex-shrink-0 shadow-md" style="border-color: var(--brand-red);">' +
-              '<img src="' + (currentUser.avatar || 'img/student.jpg') + '" alt="Student" class="w-full h-full object-cover">' +
-              '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>' +
-            '</div>' +
-            '<div class="min-w-0 flex-grow">' +
-              '<div class="flex items-center justify-between mb-1">' +
-                '<span class="gaffer-tape-sticker">АККРЕДИТАЦИЯ // 2026</span>' +
-                '<span class="text-[8px] font-mono font-bold" style="color: #666;">ROLL: 11-A</span>' +
+        sidebar.innerHTML = 
+          '<div class="space-y-4">' +
+            '<div class="flex items-center space-x-3.5 pb-3 border-b" style="border-color: rgba(0,0,0,0.12);">' +
+              '<div class="relative w-16 h-16 overflow-hidden border-2 flex-shrink-0 shadow-md" style="border-color: var(--brand-red);">' +
+                '<img src="' + (currentUser.avatar || 'img/student.jpg') + '" alt="Student" class="w-full h-full object-cover">' +
+                '<span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>' +
               '</div>' +
-              '<h4 class="font-extrabold text-xs uppercase leading-tight truncate" style="color: #141414;">' + currentUser.fullName + '</h4>' +
-              '<p class="text-[10px] font-mono mt-0.5 font-bold" style="color: #555555;">' + getUserRoleName(currentUser) + '</p>' +
+              '<div class="min-w-0 flex-grow">' +
+                '<div class="flex items-center justify-between mb-1">' +
+                  '<span class="gaffer-tape-sticker">АККРЕДИТАЦИЯ // 2026</span>' +
+                  '<span class="text-[8px] font-mono font-bold" style="color: #666;">ROLL: 11-A</span>' +
+                '</div>' +
+                '<h4 class="font-extrabold text-xs uppercase leading-tight truncate" style="color: #141414;">' + escapeHtml(currentUser.fullName || '') + '</h4>' +
+                '<p class="text-[10px] font-mono mt-0.5 font-bold" style="color: #555555;">' + getUserRoleName(currentUser) + '</p>' +
+              '</div>' +
             '</div>' +
-          '</div>' +
 
-          '<div class="space-y-2 text-xs">' +
-            '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
-              '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Группа:</span>' +
-              '<span class="font-mono font-extrabold px-2 py-0.5 border text-xs" style="background-color: rgba(255,255,255,0.7); color: var(--brand-red); border-color: rgba(0,0,0,0.15);">' + (currentUser.groupName || '—') + '</span>' +
+            '<div class="space-y-2 text-xs">' +
+              '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
+                '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Группа:</span>' +
+                '<span class="font-mono font-extrabold px-2 py-0.5 border text-xs" style="background-color: rgba(255,255,255,0.7); color: var(--brand-red); border-color: rgba(0,0,0,0.15);">' + (currentUser.groupName || '—') + '</span>' +
+              '</div>' +
+              '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
+                '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Грейд мастерства:</span>' +
+                '<span class="' + userRank.className + '">' + userRank.icon + ' ' + userRank.title + '</span>' +
+              '</div>' +
+              '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
+                '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Telegram:</span>' +
+                '<span class="font-mono text-xs text-[#229ED9] font-bold flex items-center gap-1">' + SVG_ICONS.telegram + ' ' + userTg + '</span>' +
+              '</div>' +
+              '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
+                '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Рейтинг:</span>' +
+                '<span class="text-emerald-700 font-mono font-extrabold text-xs inline-flex items-center gap-1">' + SVG_ICONS.star + ' ' + userRatingText + '</span>' +
+              '</div>' +
+              '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
+                '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Смен в активе:</span>' +
+                '<span class="font-mono font-bold text-xs" style="color: #141414;">' + completedPart + ' / ' + totalPart + '</span>' +
+              '</div>' +
             '</div>' +
-            '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
-              '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Грейд мастерства:</span>' +
-              '<span class="' + userRank.className + '">' + userRank.icon + ' ' + userRank.title + '</span>' +
-            '</div>' +
-            '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
-              '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Telegram:</span>' +
-              '<span class="font-mono text-xs text-[#229ED9] font-bold flex items-center gap-1">' + SVG_ICONS.telegram + ' ' + userTg + '</span>' +
-            '</div>' +
-            '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
-              '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Рейтинг:</span>' +
-              '<span class="text-emerald-700 font-mono font-extrabold text-xs inline-flex items-center gap-1">' + SVG_ICONS.star + ' ' + userRatingText + '</span>' +
-            '</div>' +
-            '<div class="flex justify-between items-center py-1.5 border-b" style="border-color: rgba(0,0,0,0.08);">' +
-              '<span class="font-bold uppercase text-[10px]" style="color: #555555;">Смен в активе:</span>' +
-              '<span class="font-mono font-bold text-xs" style="color: #141414;">' + completedPart + ' / ' + totalPart + '</span>' +
-            '</div>' +
-          '</div>' +
 
-          '<div class="pt-2 flex items-center justify-between text-[10px] font-mono uppercase tracking-widest border-t" style="border-color: rgba(0,0,0,0.1); color: #555555;">' +
-            '<span>СТАТУС: В ЭФИРЕ</span>' +
-            '<span class="font-extrabold" style="color: var(--dept-edit);">● ДОПУЩЕН</span>' +
-          '</div>' +
-
-          '<div class="pt-2 border-t flex flex-col items-center justify-center space-y-1" style="border-color: rgba(0,0,0,0.1);">' +
-            '<div class="flex items-center space-x-0.5 opacity-85">' +
-              '<span class="w-0.5 h-5 bg-black inline-block"></span><span class="w-1.5 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-transparent inline-block"></span><span class="w-1 h-5 bg-black inline-block"></span><span class="w-2 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-transparent inline-block"></span><span class="w-1.5 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-black inline-block"></span><span class="w-1 h-5 bg-black inline-block"></span><span class="w-2 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-transparent inline-block"></span><span class="w-1.5 h-5 bg-black inline-block"></span>' +
+            '<div class="pt-2 flex items-center justify-between text-[10px] font-mono uppercase tracking-widest border-t" style="border-color: rgba(0,0,0,0.1); color: #555555;">' +
+              '<span>СТАТУС: В ЭФИРЕ</span>' +
+              '<span class="font-extrabold" style="color: var(--dept-edit);">● ДОПУЩЕН</span>' +
             '</div>' +
-            '<span class="text-[8px] font-mono tracking-widest text-black/60 font-extrabold">MEDIA-CREW-KP11-VERIFIED</span>' +
-          '</div>' +
-        '</div>';
+
+            '<div class="pt-2 border-t flex flex-col items-center justify-center space-y-1" style="border-color: rgba(0,0,0,0.1);">' +
+              '<div class="flex items-center space-x-0.5 opacity-85">' +
+                '<span class="w-0.5 h-5 bg-black inline-block"></span><span class="w-1.5 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-transparent inline-block"></span><span class="w-1 h-5 bg-black inline-block"></span><span class="w-2 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-transparent inline-block"></span><span class="w-1.5 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-black inline-block"></span><span class="w-1 h-5 bg-black inline-block"></span><span class="w-2 h-5 bg-black inline-block"></span><span class="w-0.5 h-5 bg-transparent inline-block"></span><span class="w-1.5 h-5 bg-black inline-block"></span>' +
+              '</div>' +
+              '<span class="text-[8px] font-mono tracking-widest text-black/60 font-extrabold">MEDIA-CREW-KP11-VERIFIED</span>' +
+            '</div>' +
+          '</div>';
+      } catch (sbErr) {
+        console.warn('Sidebar render error:', sbErr);
+      }
     }
 
-    renderShootsList(shoots);
+    try {
+      renderShootsList(shoots);
+    } catch (rErr) {
+      console.error('renderShootsList error:', rErr);
+    }
+
     if (urlParams.get('expand') === '1' && shoots.length > 0 && (!window._openedShootIds || window._openedShootIds.size === 0)) {
       setTimeout(() => toggleShootExpand(shoots[0].id), 50);
     }
@@ -7135,8 +7146,8 @@ function renderShootsList(shoots = globalShoots) {
       separateDateBadge +
 
       '<div>' +
-        '<h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">' + s.title + '</h4>' +
-        '<p class="text-xs leading-relaxed font-medium" style="color: var(--text-secondary);">' + s.description + '</p>' +
+        '<h4 class="text-base sm:text-lg font-extrabold uppercase tracking-tight mb-1.5" style="color: var(--text-primary);">' + escapeHtml(s.title || 'Смена') + '</h4>' +
+        '<p class="text-xs leading-relaxed font-medium" style="color: var(--text-secondary);">' + escapeHtml(s.description || '') + '</p>' +
       '</div>' +
 
       timelineBar +
@@ -7168,7 +7179,7 @@ function renderShootsList(shoots = globalShoots) {
 
         '<div class="space-y-2 pt-2 border-t" style="border-color: var(--border-subtle);">' +
           '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Расположение объекта на карте:</span>' +
-          '<div id="mini_map_' + s.id + '" data-lat="' + (s.latitude || 55.751244) + '" data-lon="' + (s.longitude || 37.618423) + '" data-title="' + s.title.replace(/"/g, '&quot;') + '" class="w-full h-48 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>' +
+          '<div id="mini_map_' + s.id + '" data-lat="' + (s.latitude || 55.751244) + '" data-lon="' + (s.longitude || 37.618423) + '" data-title="' + (s.title ? String(s.title).replace(/"/g, '&quot;') : 'Смена') + '" class="w-full h-48 border" style="background-color: var(--bg-primary); border-color: var(--border-color);"></div>' +
         '</div>' +
       '</div>' +
 

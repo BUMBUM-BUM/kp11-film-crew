@@ -23,7 +23,8 @@
       "Безопасность",
       "Настройка оборудования",
       "Инфраструктура ЦКТ"
-    ]
+    ],
+    "completedShoots": 0
   },
   {
     "id": "master-1",
@@ -51,7 +52,7 @@
       "Sound Design",
       "DaVinci Resolve"
     ],
-    "completedShoots": 1
+    "completedShoots": 0
   },
   {
     "id": "u1",
