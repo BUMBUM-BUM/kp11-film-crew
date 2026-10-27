@@ -1386,6 +1386,97 @@ async function replaceCrewMember(shootId, oldMemberIdOrUserId, newUserId, roleIn
   return { success: true, updatedShoot: shoot, newMember };
 }
 
+async function addCrewMember(shootId, userId, roleInShoot = 'Оператор', department = 'cinema') {
+  const users = readJsonFile(USERS_FILE, INITIAL_USERS);
+  const user = users.find(u => String(u.id) === String(userId));
+  if (!user) {
+    return { success: false, error: 'Студент не найден в базе данных' };
+  }
+
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
+  const shoot = shoots.find(s => String(s.id) === String(shootId));
+  if (!shoot) {
+    return { success: false, error: 'Смена не найдена' };
+  }
+  if (!Array.isArray(shoot.crew)) {
+    shoot.crew = [];
+  }
+
+  const alreadyInCrew = shoot.crew.some(c => String(c.userId || c.id) === String(userId));
+  if (alreadyInCrew) {
+    return { success: false, error: 'Этот студент уже назначен в состав съёмочной группы' };
+  }
+
+  const newMember = {
+    id: 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    shootId: shoot.id,
+    userId: user.id,
+    roleInShoot: roleInShoot || 'Оператор',
+    department: department || 'cinema',
+    status: 'PENDING',
+    attendance: 'PRESENT',
+    grade: null,
+    declineReason: null,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      groupName: user.groupName,
+      rating: user.rating,
+      craftRank: user.craftRank,
+      avatar: user.avatar || null,
+      completedShoots: user.completedShoots || 0
+    }
+  };
+
+  shoot.crew.push(newMember);
+  writeJsonFile(SHOOTS_FILE, shoots);
+
+  if (prisma) {
+    try {
+      await prisma.crewMember.create({
+        data: {
+          id: newMember.id,
+          shootId: shoot.id,
+          userId: user.id,
+          roleInShoot: roleInShoot || 'Оператор',
+          status: 'PENDING',
+          attendance: 'PRESENT'
+        }
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  return { success: true, updatedShoot: shoot, newMember };
+}
+
+async function removeCrewMember(shootId, memberIdOrUserId) {
+  const shoots = readJsonFile(SHOOTS_FILE, INITIAL_SHOOTS);
+  const shoot = shoots.find(s => String(s.id) === String(shootId));
+  if (!shoot || !Array.isArray(shoot.crew)) {
+    return { success: false, error: 'Смена не найдена' };
+  }
+
+  const memberIndex = shoot.crew.findIndex(c => 
+    String(c.id) === String(memberIdOrUserId) || String(c.userId) === String(memberIdOrUserId)
+  );
+  if (memberIndex === -1) {
+    return { success: false, error: 'Участник не найден в этой смене' };
+  }
+
+  const removedMember = shoot.crew.splice(memberIndex, 1)[0];
+  writeJsonFile(SHOOTS_FILE, shoots);
+
+  if (prisma) {
+    try {
+      await prisma.crewMember.deleteMany({
+        where: { id: removedMember.id }
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  return { success: true, updatedShoot: shoot, removedMember };
+}
+
 // ------------------------------------------------------------------------------
 
 // ------------------------------------------------------------------------------
@@ -1620,6 +1711,8 @@ module.exports = {
   deleteShoot,
   updateCrewMemberStatus,
   replaceCrewMember,
+  addCrewMember,
+  removeCrewMember,
   getUsers,
   getUserById,
   getUserByTelegram,

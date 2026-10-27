@@ -1628,6 +1628,86 @@
     </div>
   </div>
 
+  <!-- ================= МОДАЛЬНОЕ ОКНО: НАЗНАЧЕНИЕ УЧАСТНИКА В СЪЁМОЧНУЮ СМЕНУ ================= -->
+  <div id="addCrewMemberModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
+    <div class="viewfinder-card viewfinder-corners max-w-xl w-full flex flex-col p-5 sm:p-6 space-y-4 shadow-2xl border my-8" style="background-color: var(--bg-card); border-color: var(--border-color);">
+      <!-- Header -->
+      <div class="flex items-start justify-between border-b pb-3" style="border-color: var(--border-color);">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="rec-dot"></span>
+            <span class="gaffer-tape-sticker">НАЗНАЧЕНИЕ В СМЕНУ // CREW DISPATCH</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-extrabold uppercase text-[var(--text-primary)]">Назначить участника в смену</h3>
+        </div>
+        <button type="button" onclick="closeAddCrewMemberModal()" class="text-neutral-400 hover:text-white p-1 text-lg cursor-pointer" title="Закрыть">✕</button>
+      </div>
+
+      <!-- Информация о смене -->
+      <div id="addCrewInfoBox" class="p-3.5 border space-y-2 text-xs" style="background-color: var(--bg-elevated); border-color: var(--border-color);">
+        <!-- Заполняется динамически: название проекта, дата, текущий размер команды -->
+      </div>
+
+      <!-- Выбор цеха и роли -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border" style="background-color: var(--bg-elevated); border-color: var(--border-subtle);">
+        <div>
+          <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Цех / Направление:</label>
+          <select id="addCrewDepartmentSelect" onchange="onAddCrewDepartmentChange()" class="w-full studio-input px-2.5 py-1.5 text-xs font-bold">
+            <option value="cinema" selected>🎬 Операторский цех</option>
+            <option value="sound">🎙️ Звуковой цех</option>
+            <option value="light">💡 Осветительский цех</option>
+            <option value="edit">✂️ Монтажный цех / DIT</option>
+            <option value="production">📋 Режиссура / Продюсирование</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Роль в смене:</label>
+          <select id="addCrewRolePresetSelect" onchange="onAddCrewRolePresetChange()" class="w-full studio-input px-2.5 py-1.5 text-xs font-bold">
+            <!-- Заполняется динамически -->
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <input type="text" id="addCrewCustomRoleInput" placeholder="Уточнить роль (например: Оператор стедикама, Бум-оператор)..." class="w-full studio-input text-xs font-bold px-3 py-1.5">
+        </div>
+      </div>
+
+      <!-- Поиск студента и сортировка -->
+      <div class="space-y-2">
+        <label class="block text-[10px] font-mono uppercase text-[var(--text-muted)] mb-1">Поиск студента по фамилии, группе или навыкам:</label>
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+          <div class="sm:col-span-7 relative">
+            <input type="text" id="addCrewSearchInput" oninput="filterAddCrewStudents()" placeholder="Начните вводить имя, фамилию или группу..." class="w-full studio-input text-xs font-bold px-3 py-1.5 pl-8">
+            <span class="absolute left-2.5 top-2 text-xs text-[var(--text-muted)]">🔍</span>
+          </div>
+          <div class="sm:col-span-5 flex items-center gap-1.5">
+            <label for="addCrewSortSelect" class="text-[10px] font-mono uppercase text-[var(--text-muted)] shrink-0">Сортировка:</label>
+            <select id="addCrewSortSelect" onchange="filterAddCrewStudents()" class="w-full studio-input px-2 py-1.5 text-xs font-bold">
+              <option value="alphabet" selected>🔤 По алфавиту (А–Я)</option>
+              <option value="rating">⭐ По рейтингу (звёзды и отзывы)</option>
+              <option value="group">👥 По группам</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Список доступных студентов -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)] uppercase">
+          <span>Студенты, готовые к назначению:</span>
+          <span id="addCrewCandidatesCount" class="text-amber-400 font-bold">0 кандидатов</span>
+        </div>
+        <div id="addCrewCandidatesList" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+          <!-- Динамический список карточек студентов с кнопкой «✓ Назначить в смену» -->
+        </div>
+      </div>
+
+      <!-- Footer actions -->
+      <div class="border-t pt-3 flex items-center justify-end gap-3" style="border-color: var(--border-color);">
+        <button type="button" onclick="closeAddCrewMemberModal()" class="btn-brand-ghost px-4 py-2 text-xs font-extrabold uppercase">Отмена</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= МОДАЛЬНОЕ ОКНО: ЗАМЕНА УЧАСТНИКА СЪЁМОЧНОЙ СМЕНЫ ================= -->
   <div id="replaceCrewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
     <div class="viewfinder-card viewfinder-corners max-w-xl w-full flex flex-col p-5 sm:p-6 space-y-4 shadow-2xl border my-8" style="background-color: var(--bg-card); border-color: var(--border-color);">
@@ -1733,6 +1813,6 @@
   </script>
 
   <!-- Скрипт платформы -->
-  <script src="js/app.js?v=20261027_v13_fix_render"></script>
+  <script src="js/app.js?v=20261027_v14_crew_manage"></script>
 </body>
 </html>

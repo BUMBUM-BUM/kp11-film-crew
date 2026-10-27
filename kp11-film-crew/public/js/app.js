@@ -6858,6 +6858,7 @@ function renderShootsList(shoots = globalShoots) {
 
   // Генератор карточки смены
   function renderShootCard(s, isArchive = false) {
+    window.renderShootCard = renderShootCard;
     const locationText = s.location;
     const masterText = s.creator && s.creator.fullName ? s.creator.fullName : 'Не указан';
     const cardStateClass = s.isCompleted ? 'completed-shoot' : 'active-shoot';
@@ -6892,7 +6893,13 @@ function renderShootsList(shoots = globalShoots) {
     const crewList = s.crew || [];
     let crewHtml = '';
     if (crewList.length === 0) {
-      crewHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed" style="color: var(--text-muted); border-color: var(--border-color);">Команда пока не назначена на смену</div>';
+      const emptyAddBtn = (canGradeAndManage && !s.isCompleted)
+        ? '<button type="button" onclick="event.stopPropagation(); openAddCrewMemberModal(\'' + s.id + '\')" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase shadow cursor-pointer mt-1 flex items-center gap-1"><span>+ Назначить первого участника</span></button>'
+        : '';
+      crewHtml = '<div class="p-3 text-xs font-mono text-center border border-dashed flex flex-col items-center gap-1.5" style="color: var(--text-muted); border-color: var(--border-color);">' +
+        '<span>Команда пока не назначена на смену</span>' +
+        emptyAddBtn +
+      '</div>';
     } else {
       crewHtml = crewList.map(c => {
         const userFromDir = (globalStudents || []).find(st => 
@@ -6920,6 +6927,7 @@ function renderShootsList(shoots = globalShoots) {
         let statusBadgeCrew = '';
         let declineReasonHtml = '';
         let replaceBtn = '';
+        let removeBtn = '';
 
         if (c.status === 'ACCEPTED') {
           statusBadgeCrew = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 inline-flex items-center gap-1">' + SVG_ICONS.check + (isMe ? 'Вы подтвердили' : 'Принят') + '</span>';
@@ -6931,18 +6939,24 @@ function renderShootsList(shoots = globalShoots) {
             '<span class="text-red-400 font-bold uppercase tracking-wider text-[9px]">Причина:</span> ' +
             '«' + escapeHtml(rawReason) + '»' +
           '</span>';
-
-          if (canGradeAndManage && !s.isCompleted) {
-            const memberIdParam = String(c.id);
-            const userTargetIdParam = String((actualUser && actualUser.id) || c.userId || c.id);
-            const roleParam = escapeHtml(c.roleInShoot || 'Участник');
-            const deptParam = escapeHtml(c.department || 'cinema');
-            replaceBtn = '<button type="button" onclick="event.stopPropagation(); openReplaceCrewModal(\'' + s.id + '\', \'' + memberIdParam + '\', \'' + userTargetIdParam + '\', \'' + roleParam + '\', \'' + deptParam + '\')" class="btn-brand-beige px-2.5 py-0.5 text-[10px] font-extrabold uppercase inline-flex items-center gap-1 shadow-sm hover:brightness-110 transition cursor-pointer" title="Заменить участника другим студентом">' +
-              '<span>🔄 Заменить</span>' +
-            '</button>';
-          }
         } else {
           statusBadgeCrew = '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 inline-flex items-center gap-1">' + SVG_ICONS.clock + 'Ожидание</span>';
+        }
+
+        if (canGradeAndManage && !s.isCompleted) {
+          const memberIdParam = String(c.id);
+          const userTargetIdParam = String((actualUser && actualUser.id) || c.userId || c.id);
+          const roleParam = escapeHtml(c.roleInShoot || 'Участник');
+          const deptParam = escapeHtml(c.department || 'cinema');
+          const escapedName = escapeHtml(cUserName).replace(/'/g, "\\'");
+
+          replaceBtn = '<button type="button" onclick="event.stopPropagation(); openReplaceCrewModal(\'' + s.id + '\', \'' + memberIdParam + '\', \'' + userTargetIdParam + '\', \'' + roleParam + '\', \'' + deptParam + '\')" class="btn-brand-beige px-2 py-0.5 text-[10px] font-extrabold uppercase inline-flex items-center gap-1 shadow-sm hover:brightness-110 transition cursor-pointer" title="Заменить участника другим студентом">' +
+            '<span>🔄 Заменить</span>' +
+          '</button>';
+
+          removeBtn = '<button type="button" onclick="event.stopPropagation(); removeCrewMemberFromShoot(\'' + s.id + '\', \'' + memberIdParam + '\', \'' + escapedName + '\')" class="px-2 py-0.5 text-[10px] font-extrabold uppercase text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-950/60 border border-red-800/50 inline-flex items-center gap-1 transition cursor-pointer" title="Исключить студента из смены">' +
+            '<span>✕ Исключить</span>' +
+          '</button>';
         }
 
         let manualAcceptBtn = '';
@@ -6995,6 +7009,7 @@ function renderShootsList(shoots = globalShoots) {
             statusBadgeCrew +
             declineReasonHtml +
             replaceBtn +
+            removeBtn +
             manualAcceptBtn +
           '</div>' +
           '<div class="flex items-center space-x-2 ml-auto">' +
@@ -7012,6 +7027,10 @@ function renderShootsList(shoots = globalShoots) {
         '</button>' +
       '</div>';
     }
+
+    const addCrewBtn = (canGradeAndManage && !s.isCompleted)
+      ? '<button type="button" onclick="event.stopPropagation(); openAddCrewMemberModal(\'' + s.id + '\')" class="btn-brand-primary px-2.5 py-1 text-[10px] font-extrabold uppercase inline-flex items-center gap-1 shadow cursor-pointer"><span>+ Назначить в группу</span></button>'
+      : '';
 
     const equipmentBtn = '<button onclick="openEquipmentModal(\'' + s.id + '\')" class="btn-brand-ghost px-2.5 py-1 text-[10px] font-extrabold uppercase flex items-center gap-1 text-emerald-400" title="Техпарк и спецификация оборудования ЦКТ КП11">' +
       '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
@@ -7171,9 +7190,12 @@ function renderShootsList(shoots = globalShoots) {
       
       '<div id="shoot_details_' + s.id + '" class="' + (isShootOpen ? '' : 'hidden') + ' border-t pt-3 space-y-4" style="border-color: var(--border-subtle); display: ' + (isShootOpen ? 'block' : 'none') + ';">' +
         '<div class="space-y-2 pt-1">' +
-          '<div class="flex items-center justify-between">' +
-            '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +
-            '<span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И ЦЕХА</span>' +
+          '<div class="flex items-center justify-between gap-2 flex-wrap">' +
+            '<div class="flex items-center gap-2">' +
+              '<span class="uppercase tracking-wider text-xs font-extrabold font-mono" style="color: var(--brand-red);">Состав съёмочной группы:</span>' +
+              '<span class="text-[10px] font-mono" style="color: var(--text-muted);">РОЛИ И ЦЕХА</span>' +
+            '</div>' +
+            addCrewBtn +
           '</div>' +
           '<div class="space-y-1.5 mt-2">' + crewHtml + '</div>' +
           saveGradesBtn +
@@ -7511,3 +7533,318 @@ window.openReplaceCrewModal = openReplaceCrewModal;
 window.closeReplaceCrewModal = closeReplaceCrewModal;
 window.filterReplaceCrewStudents = filterReplaceCrewStudents;
 window.confirmReplaceCrewMember = confirmReplaceCrewMember;
+
+// ==============================================================================
+// БЫСТРОЕ НАЗНАЧЕНИЕ И ИСКЛЮЧЕНИЕ УЧАСТНИКА СМЕНЫ (ADD & REMOVE CREW MEMBER)
+// ==============================================================================
+const CREW_DEPARTMENT_ROLE_PRESETS = {
+  cinema: [
+    'Оператор-постановщик (DoP)',
+    'Камермен (2nd Cam / B-Cam)',
+    'Фокус-пуллер (1st AC)',
+    'Механик камеры (2nd AC)',
+    'Оператор стедикама',
+    'Фотограф бэкстейджа'
+  ],
+  sound: [
+    'Звукорежиссёр площадки (Sound Mixer)',
+    'Бум-оператор (Boom Operator)',
+    'Ассистент звукорежиссёра',
+    'Инженер радиопетличек'
+  ],
+  light: [
+    'Гаффер (Бригадир осветителей)',
+    'Осветитель (Sparks / Best Boy)',
+    'Кей-грип (Key Grip)',
+    'Грип (Grip / Подвесы)'
+  ],
+  edit: [
+    'DIT / Data Wrangler',
+    'Режиссёр монтажа',
+    'Колорист (Colorist)',
+    'Звукорежиссёр монтажа (Sound Designer)'
+  ],
+  production: [
+    'Второй режиссёр (1st AD)',
+    'Помощник режиссёра (2nd AD)',
+    'Продюсер смены / Лайн-продюсер',
+    'Скрипт-супервайзер (Хлопушка)'
+  ]
+};
+
+let currentAddCrewContext = null;
+
+function onAddCrewDepartmentChange() {
+  const deptSel = document.getElementById('addCrewDepartmentSelect');
+  const rolePresetSel = document.getElementById('addCrewRolePresetSelect');
+  const customRoleInput = document.getElementById('addCrewCustomRoleInput');
+  if (!deptSel || !rolePresetSel) return;
+  const dept = deptSel.value || 'cinema';
+  const roles = CREW_DEPARTMENT_ROLE_PRESETS[dept] || CREW_DEPARTMENT_ROLE_PRESETS.cinema;
+  rolePresetSel.innerHTML = roles.map((r, i) => '<option value="' + escapeHtml(r) + '" ' + (i === 0 ? 'selected' : '') + '>' + escapeHtml(r) + '</option>').join('') +
+    '<option value="__custom__">✎ Другая роль (указать вручную)...</option>';
+  if (customRoleInput) {
+    customRoleInput.value = roles[0] || '';
+  }
+  filterAddCrewStudents();
+}
+
+function onAddCrewRolePresetChange() {
+  const rolePresetSel = document.getElementById('addCrewRolePresetSelect');
+  const customRoleInput = document.getElementById('addCrewCustomRoleInput');
+  if (!rolePresetSel || !customRoleInput) return;
+  if (rolePresetSel.value === '__custom__') {
+    customRoleInput.value = '';
+    customRoleInput.focus();
+  } else {
+    customRoleInput.value = rolePresetSel.value;
+  }
+}
+
+function openAddCrewMemberModal(shootId) {
+  const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+  if (!shoot) {
+    showToast('Смена не найдена');
+    return;
+  }
+
+  currentAddCrewContext = {
+    shootId: String(shoot.id)
+  };
+
+  const modal = document.getElementById('addCrewMemberModal');
+  const infoBox = document.getElementById('addCrewInfoBox');
+  const searchInput = document.getElementById('addCrewSearchInput');
+  const sortSel = document.getElementById('addCrewSortSelect');
+  const deptSel = document.getElementById('addCrewDepartmentSelect');
+
+  if (searchInput) searchInput.value = '';
+  if (sortSel) sortSel.value = 'alphabet';
+  if (deptSel) deptSel.value = 'cinema';
+
+  const d = new Date(shoot.date);
+  const dateFormatted = !isNaN(d.getTime()) ? d.toLocaleDateString('ru-RU') : (shoot.date || 'Дата уточняется');
+  const crewCount = Array.isArray(shoot.crew) ? shoot.crew.length : 0;
+
+  if (infoBox) {
+    infoBox.innerHTML = 
+      '<div class="flex items-start justify-between gap-2 border-b pb-2 mb-2" style="border-color: var(--border-subtle);">' +
+        '<div>' +
+          '<div class="text-[10px] font-mono text-[var(--text-muted)] uppercase">Проект / Смена:</div>' +
+          '<div class="font-extrabold text-sm uppercase text-white">' + escapeHtml(shoot.title || 'Съёмочная смена') + '</div>' +
+          '<div class="text-[11px] font-mono text-amber-400/90">' + dateFormatted + ' • ' + escapeHtml(shoot.location || 'Локация уточняется') + '</div>' +
+        '</div>' +
+        '<span class="text-[10px] font-mono uppercase px-2 py-0.5 border border-amber-600/40 bg-amber-950/30 text-amber-300 font-bold shrink-0">' +
+          crewCount + ' ' + pluralizeRu(crewCount, 'участник', 'участника', 'участников') +
+        '</span>' +
+      '</div>' +
+      '<div class="text-[11px] font-mono text-neutral-400">' +
+        'Выберите цех, роль и студента для немедленного включения в состав съёмочной группы.' +
+      '</div>';
+  }
+
+  onAddCrewDepartmentChange();
+  filterAddCrewStudents();
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeAddCrewMemberModal() {
+  const modal = document.getElementById('addCrewMemberModal');
+  if (modal) modal.classList.add('hidden');
+  currentAddCrewContext = null;
+}
+
+function filterAddCrewStudents() {
+  if (!currentAddCrewContext) return;
+  const { shootId } = currentAddCrewContext;
+  const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+  const currentCrewIds = new Set((shoot?.crew || []).map(c => String(c.userId || c.id)));
+
+  const searchInput = document.getElementById('addCrewSearchInput');
+  const query = (searchInput?.value || '').trim().toLowerCase();
+
+  const candidatesList = document.getElementById('addCrewCandidatesList');
+  const candidatesCount = document.getElementById('addCrewCandidatesCount');
+  if (!candidatesList) return;
+
+  const allDir = (globalStudents && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+
+  let available = allDir.filter(u => {
+    if (currentCrewIds.has(String(u.id))) return false;
+    if (u.isSuspended) return false;
+    if (u.role?.name && u.role.name !== 'Студент') return false;
+
+    if (query) {
+      const matchName = (u.fullName || '').toLowerCase().includes(query);
+      const matchGroup = (u.groupName || '').toLowerCase().includes(query);
+      const matchSkills = Array.isArray(u.skills) && u.skills.some(s => String(s).toLowerCase().includes(query));
+      const matchRank = (u.craftRank || '').toLowerCase().includes(query);
+      if (!matchName && !matchGroup && !matchSkills && !matchRank) return false;
+    }
+    return true;
+  });
+
+  const sortSel = document.getElementById('addCrewSortSelect');
+  const sortBy = sortSel ? sortSel.value : 'alphabet';
+  available = sortStudentsList(available, sortBy);
+
+  if (candidatesCount) {
+    candidatesCount.textContent = available.length + ' кандидатов';
+  }
+
+  if (available.length === 0) {
+    candidatesList.innerHTML = 
+      '<div class="p-6 text-center text-xs font-mono text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)]">' +
+        'Студентов, доступных для назначения по данному фильтру, не найдено' +
+      '</div>';
+    return;
+  }
+
+  candidatesList.innerHTML = available.map(u => {
+    const rVal = (typeof u.rating === 'number') ? u.rating.toFixed(1) : (u.rating || '5.0');
+    const tgDisplay = u.telegram ? escapeHtml(u.telegram) : '<span class="text-neutral-500">нет TG</span>';
+    const avatarHtml = u.avatar 
+      ? '<img src="' + escapeHtml(u.avatar) + '" class="w-8 h-8 rounded-full object-cover border border-amber-500/50 shrink-0" alt="Avatar">'
+      : '<div class="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center font-bold text-xs text-amber-400 shrink-0">' + (u.fullName ? escapeHtml(u.fullName.charAt(0)) : 'С') + '</div>';
+
+    return '<div class="p-3 border flex flex-wrap items-center justify-between gap-2.5 transition hover:border-amber-500/60" style="background-color: var(--bg-primary); border-color: var(--border-subtle);">' +
+      '<div class="flex items-center gap-3 min-w-[200px] flex-1">' +
+        avatarHtml +
+        '<div class="flex flex-col">' +
+          '<div class="flex items-center gap-2 flex-wrap">' +
+            '<span class="font-extrabold text-xs uppercase text-white hover:text-amber-400 cursor-pointer" onclick="openShowreelModal(\'' + u.id + '\')">' + escapeHtml(u.fullName) + '</span>' +
+            '<span class="font-mono text-[10px] text-neutral-400">[' + escapeHtml(u.groupName || 'КП11') + ']</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 text-[10px] font-mono text-[var(--text-muted)] flex-wrap">' +
+            '<span>' + escapeHtml(u.craftRank || 'Студент цеха') + '</span>' +
+            '<span>•</span>' +
+            '<span class="text-amber-400 font-bold">★ ' + rVal + '</span>' +
+            '<span>•</span>' +
+            '<span>' + tgDisplay + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="shrink-0 flex items-center gap-2">' +
+        '<button type="button" onclick="confirmAddCrewMember(\'' + u.id + '\')" class="btn-brand-primary px-3 py-1.5 text-xs font-extrabold uppercase shadow transition flex items-center gap-1 cursor-pointer">' +
+          '<span>+ Назначить в смену</span>' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function confirmAddCrewMember(userId) {
+  if (!currentAddCrewContext) return;
+  const { shootId } = currentAddCrewContext;
+  const deptSel = document.getElementById('addCrewDepartmentSelect');
+  const customRoleInput = document.getElementById('addCrewCustomRoleInput');
+
+  const department = deptSel ? deptSel.value : 'cinema';
+  const roleInShoot = (customRoleInput?.value || '').trim() || 'Оператор';
+
+  const allDir = (globalStudents && globalStudents.length > 0) ? globalStudents : getStudentDirectory();
+  const targetUser = allDir.find(u => String(u.id) === String(userId));
+  const targetName = targetUser ? targetUser.fullName : 'Студент';
+
+  try {
+    const res = await fetch('/api/crew/add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || '')
+      },
+      body: JSON.stringify({
+        shootId,
+        userId,
+        roleInShoot,
+        department
+      })
+    });
+    const data = await res.json();
+    if (!data.success && !res.ok) {
+      showToast(data.error || 'Ошибка при назначении участника');
+      return;
+    }
+
+    const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+    if (shoot) {
+      if (!Array.isArray(shoot.crew)) shoot.crew = [];
+      const newMember = data.newMember || {
+        id: 'cm_' + Date.now(),
+        shootId: shoot.id,
+        userId: userId,
+        roleInShoot,
+        department,
+        status: 'PENDING',
+        attendance: 'PRESENT',
+        grade: null,
+        declineReason: null,
+        user: targetUser || { id: userId, fullName: targetName, groupName: '' }
+      };
+      shoot.crew.push(newMember);
+    }
+
+    localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+    closeAddCrewMemberModal();
+    showToast('Студент «' + targetName + '» назначен на роль «' + roleInShoot + '»!');
+    loadShoots();
+  } catch (err) {
+    console.error('Add crew error:', err);
+    showToast('Ошибка при назначении участника');
+  }
+}
+
+async function removeCrewMemberFromShoot(shootId, memberId, memberName) {
+  const shoot = (globalShoots || []).find(s => String(s.id) === String(shootId));
+  if (!shoot) {
+    showToast('Смена не найдена');
+    return;
+  }
+
+  const nameToDisplay = memberName || 'участника';
+  if (!confirm('Вы уверены, что хотите исключить «' + nameToDisplay + '» из состава съёмочной группы?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/crew/remove', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || '')
+      },
+      body: JSON.stringify({
+        shootId,
+        memberId
+      })
+    });
+    const data = await res.json();
+    if (!data.success && !res.ok) {
+      showToast(data.error || 'Ошибка при исключении участника');
+      return;
+    }
+
+    if (shoot && Array.isArray(shoot.crew)) {
+      const idx = shoot.crew.findIndex(c => String(c.id) === String(memberId) || String(c.userId) === String(memberId));
+      if (idx !== -1) {
+        shoot.crew.splice(idx, 1);
+      }
+    }
+
+    localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
+    showToast('Участник «' + nameToDisplay + '» исключён из смены');
+    loadShoots();
+  } catch (err) {
+    console.error('Remove crew error:', err);
+    showToast('Ошибка при исключении участника');
+  }
+}
+
+window.openAddCrewMemberModal = openAddCrewMemberModal;
+window.closeAddCrewMemberModal = closeAddCrewMemberModal;
+window.filterAddCrewStudents = filterAddCrewStudents;
+window.confirmAddCrewMember = confirmAddCrewMember;
+window.onAddCrewDepartmentChange = onAddCrewDepartmentChange;
+window.onAddCrewRolePresetChange = onAddCrewRolePresetChange;
+window.removeCrewMemberFromShoot = removeCrewMemberFromShoot;
+

@@ -2043,6 +2043,50 @@ app.post(['/api/crew/replace', '/api/shoots/:id/replace-crew'], authenticateToke
   }
 });
 
+app.post(['/api/crew/add', '/api/shoots/:id/crew/add'], authenticateToken, async (req, res) => {
+  try {
+    const roleName = req.user.role?.name;
+    const isMasterOrAdmin = roleName === 'Администратор' || roleName === 'Мастер / Преподаватель';
+    if (!isMasterOrAdmin) {
+      return res.status(403).json({ error: 'Только мастер или администратор может назначать участника в смену' });
+    }
+
+    const shootId = req.params.id || req.body.shootId;
+    const { userId, roleInShoot, department } = req.body;
+
+    const result = await store.addCrewMember(shootId, userId, roleInShoot, department);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post(['/api/crew/remove', '/api/shoots/:id/crew/remove'], authenticateToken, async (req, res) => {
+  try {
+    const roleName = req.user.role?.name;
+    const isMasterOrAdmin = roleName === 'Администратор' || roleName === 'Мастер / Преподаватель';
+    if (!isMasterOrAdmin) {
+      return res.status(403).json({ error: 'Только мастер или администратор может исключать участника из смены' });
+    }
+
+    const shootId = req.params.id || req.body.shootId;
+    const { memberId, userId } = req.body;
+
+    const result = await store.removeCrewMember(shootId, memberId || userId);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/notifications', authenticateToken, async (req, res) => {
   try {
     const invitations = await prisma.crewMember.findMany({

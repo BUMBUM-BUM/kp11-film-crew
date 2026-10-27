@@ -1193,6 +1193,76 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, updatedShoot: shoot, newMember }));
     }
 
+    if ((pathname === '/api/crew/add' || pathname.endsWith('/crew/add')) && req.method === 'POST') {
+      const { shootId, userId, roleInShoot, department } = jsonBody;
+      const targetShootId = shootId || (pathname.startsWith('/api/shoots/') ? pathname.split('/')[3] : null);
+      const shoots = readJsonFile(SHOOTS_FILE, []);
+      const users = readJsonFile(USERS_FILE, []);
+      const shoot = shoots.find(s => String(s.id) === String(targetShootId));
+      const user = users.find(u => String(u.id) === String(userId));
+
+      if (!shoot) {
+        return res.end(JSON.stringify({ success: false, error: 'Смена не найдена' }));
+      }
+      if (!user) {
+        return res.end(JSON.stringify({ success: false, error: 'Студент не найден в базе данных' }));
+      }
+      if (!Array.isArray(shoot.crew)) {
+        shoot.crew = [];
+      }
+      if (shoot.crew.some(c => String(c.userId || c.id) === String(userId))) {
+        return res.end(JSON.stringify({ success: false, error: 'Этот студент уже назначен в смену' }));
+      }
+
+      const newMember = {
+        id: 'cm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        shootId: shoot.id,
+        userId: user.id,
+        roleInShoot: roleInShoot || 'Оператор',
+        department: department || 'cinema',
+        status: 'PENDING',
+        attendance: 'PRESENT',
+        grade: null,
+        declineReason: null,
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          groupName: user.groupName,
+          rating: user.rating,
+          craftRank: user.craftRank,
+          avatar: user.avatar || null,
+          completedShoots: user.completedShoots || 0
+        }
+      };
+
+      shoot.crew.push(newMember);
+      writeJsonFile(SHOOTS_FILE, shoots);
+      return res.end(JSON.stringify({ success: true, updatedShoot: shoot, newMember }));
+    }
+
+    if ((pathname === '/api/crew/remove' || pathname.endsWith('/crew/remove') || pathname.endsWith('/remove-crew')) && req.method === 'POST') {
+      const { shootId, memberId, userId } = jsonBody;
+      const targetShootId = shootId || (pathname.startsWith('/api/shoots/') ? pathname.split('/')[3] : null);
+      const targetMemberId = memberId || userId;
+      const shoots = readJsonFile(SHOOTS_FILE, []);
+      const shoot = shoots.find(s => String(s.id) === String(targetShootId));
+
+      if (!shoot || !Array.isArray(shoot.crew)) {
+        return res.end(JSON.stringify({ success: false, error: 'Смена не найдена' }));
+      }
+
+      const memberIndex = shoot.crew.findIndex(c =>
+        String(c.id) === String(targetMemberId) || String(c.userId) === String(targetMemberId)
+      );
+      if (memberIndex === -1) {
+        return res.end(JSON.stringify({ success: false, error: 'Участник не найден в этой смене' }));
+      }
+
+      const removedMember = shoot.crew.splice(memberIndex, 1)[0];
+      writeJsonFile(SHOOTS_FILE, shoots);
+      return res.end(JSON.stringify({ success: true, updatedShoot: shoot, removedMember }));
+    }
+
     // 12. TELEGRAM ТЕСТ И РАССЫЛКА
     if (pathname === '/api/telegram/test' && req.method === 'POST') {
       const settings = readJsonFile(SETTINGS_FILE, {});
