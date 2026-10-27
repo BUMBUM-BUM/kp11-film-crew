@@ -5752,17 +5752,20 @@ async function handleCreateShoot(e) {
     localStorage.setItem('kp11_shoots', JSON.stringify(globalShoots));
   }
 
-  // Дополнительный вызов диспетчеризации вызывного листа в Telegram
-  try {
-    const targetShootId = (newShoot && newShoot.id) ? newShoot.id : null;
-    if (targetShootId) {
-      fetch('/api/telegram/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
-        body: JSON.stringify({ shootId: targetShootId, shoot: newShoot })
-      }).catch(() => {});
-    }
-  } catch (e) {}
+  // Вызов диспетчеризации вызывного листа в Telegram только при локальном fallback создании,
+  // так как сервер при успешном POST /api/shoots уже производит автоматическую рассылку
+  if (!createdSuccessfully) {
+    try {
+      const targetShootId = (newShoot && newShoot.id) ? newShoot.id : null;
+      if (targetShootId) {
+        fetch('/api/telegram/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+          body: JSON.stringify({ shootId: targetShootId, shoot: newShoot })
+        }).catch(() => {});
+      }
+    } catch (e) {}
+  }
 
   showToast('Смена «' + title + '» создана! Вызывной разослан в Telegram');
   closeShootModal();

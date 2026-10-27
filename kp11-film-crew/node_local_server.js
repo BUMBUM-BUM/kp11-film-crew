@@ -190,6 +190,8 @@ function sendTelegramMessage(botToken, chatId, text, replyMarkup = null, message
   });
 }
 
+const recentNodeCallsheetDispatches = new Map();
+
 async function dispatchTelegramCallsheet(shoot) {
   const settings = readJsonFile(SETTINGS_FILE, {});
   const users = readJsonFile(USERS_FILE, []);
@@ -238,10 +240,17 @@ async function dispatchTelegramCallsheet(shoot) {
     }
   }
 
-  // Общие чаты и топики
+  // Общие чаты и топики (без кнопок и с защитой от дублирования)
   if (settings.defaultChatId) {
     const targets = parseChatTargets(settings.defaultChatId, settings.telegramTopicId);
     for (const target of targets) {
+      const dispatchKey = `${shoot.id}:${target.chatId}:${target.messageThreadId || ''}`;
+      const lastSent = recentNodeCallsheetDispatches.get(dispatchKey);
+      if (lastSent && (Date.now() - lastSent) < 60000) {
+        continue;
+      }
+      recentNodeCallsheetDispatches.set(dispatchKey, Date.now());
+
       const groupMsg = `🎬 <b>НОВАЯ СМЕНА В ПРОИЗВОДСТВЕ // КП11</b>\n` +
         `════════════════════════════════════\n` +
         `Проект: <b>${title}</b>\n` +

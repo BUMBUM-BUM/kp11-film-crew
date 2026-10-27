@@ -190,6 +190,9 @@ function escapeHtml(str) {
 // Хранилище сессий ожидания причины отклонения вызывного: chatId -> { shootId, messageId, userId, timestamp }
 const pendingDeclineReasons = new Map();
 
+// Защита от дублирования сообщений в общие чаты: key -> timestamp отправки
+const recentGroupDispatches = new Map();
+
 // ------------------------------------------------------------------------------
 // ОБРАБОТКА КОМАНД И СООБЩЕНИЙ
 // ------------------------------------------------------------------------------
@@ -672,6 +675,7 @@ function parseChatTargets(raw, fallbackTopicId = null) {
   if (!raw) return [];
   const items = Array.isArray(raw) ? raw : String(raw).split(/[\s,;\n\r]+/);
   const results = [];
+  const seen = new Set();
   const defaultThread = (fallbackTopicId && String(fallbackTopicId).trim()) 
     ? parseInt(String(fallbackTopicId).trim(), 10) 
     : null;
@@ -708,10 +712,14 @@ function parseChatTargets(raw, fallbackTopicId = null) {
       }
     }
 
-    results.push({
-      chatId,
-      messageThreadId: (threadId !== null && !isNaN(threadId)) ? threadId : null
-    });
+    const key = `${chatId}:${threadId || ''}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      results.push({
+        chatId,
+        messageThreadId: (threadId !== null && !isNaN(threadId)) ? threadId : null
+      });
+    }
   }
   return results;
 }
@@ -823,17 +831,19 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
   const targetTargets = parseChatTargets(settings.defaultChatId, defaultTopic);
   for (const target of targetTargets) {
     if (token && target.chatId) {
+      // 1. ЗАЩИТА ОТ ПОВТОРОВ: дебаунс 60 секунд на отправку вызывного в один и тот же чат/топик
+      const dispatchKey = `${shoot.id}:${target.chatId}:${target.messageThreadId || ''}`;
+      const lastSent = recentGroupDispatches.get(dispatchKey);
+      if (lastSent && (Date.now() - lastSent) < 60000) {
+        console.log(`[KP11 Bot Dispatch] Предотвращён повторный вызывной в чат ${target.chatId} (отправлен ${Math.round((Date.now() - lastSent)/1000)}с назад)`);
+        continue;
+      }
+      recentGroupDispatches.set(dispatchKey, Date.now());
+
       try {
         const groupText = formatCallsheetMessage(shoot, null, allUsers);
-        const sendOpts = {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: 'Открыть в @KP11_FilmCrew_Bot', url: `https://t.me/${settings.botUsername || 'KP11_FilmCrew_Bot'}?start=call_${shoot.id}` }
-              ]
-            ]
-          }
-        };
+        // 2. В ЧАТАХ — НИКАКИХ КНОПОК! Чистый информационный текст вызывного
+        const sendOpts = {};
         if (target.messageThreadId) {
           sendOpts.message_thread_id = target.messageThreadId;
         }
@@ -841,7 +851,7 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
         if (resGroup && resGroup.ok) {
           results.deliveredCount++;
         }
-        console.log(`[KP11 Bot Dispatch] Вызывной лист продублирован в ${target.chatId}${target.messageThreadId ? ` (топик #${target.messageThreadId})` : ''}`);
+        console.log(`[KP11 Bot Dispatch] Вызывной лист отправлен в чат ${target.chatId}${target.messageThreadId ? ` (топик #${target.messageThreadId})` : ''} без кнопок`);
       } catch (e) {
         console.error(`[KP11 Bot Dispatch] Ошибка отправки в чат ${target.chatId}:`, e.message);
       }
@@ -982,15 +992,8 @@ async function checkAndSendMilestoneReminders() {
 
             for (const target of targetTargets) {
               try {
-                const sendOpts = {
-                  reply_markup: {
-                    inline_keyboard: [
-                      [
-                        { text: '📋 Открыть вызывной лист', url: `https://t.me/${settings.botUsername || 'KP11_FilmCrew_Bot'}?start=call_${shoot.id}` }
-                      ]
-                    ]
-                  }
-                };
+                // В ЧАТАХ — НИКАКИХ КНОПОК! Чистый текст напоминания
+                const sendOpts = {};
                 if (target.messageThreadId) {
                   sendOpts.message_thread_id = target.messageThreadId;
                 }
