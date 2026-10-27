@@ -51,7 +51,7 @@
   
   <!-- Favicon и Дизайн-система КП11 -->
   <link rel="icon" type="image/png" href="img/logo_red.png">
-  <link rel="stylesheet" href="css/style.css?v=20261027_v15_master_bridge">
+  <link rel="stylesheet" href="css/style.css?v=20261027_v16_avatars_dropbox">
 </head>
 <body class="min-h-screen flex flex-col selection:bg-[var(--brand-red)] selection:text-white relative">
 
@@ -503,18 +503,34 @@
                           <span class="absolute bottom-0 right-0 bg-[var(--brand-red)] text-white text-[7px] font-bold px-1 font-mono">КП11</span>
                         </div>
                         <div class="text-[10px] font-mono text-[var(--text-muted)] space-y-0.5">
-                          <div>ФОРМАТ: <span class="text-[var(--text-secondary)] font-bold">JPG/PNG</span></div>
-                          <div>РАЗМЕР: <span class="text-amber-400 font-bold">&lt;15 КБ</span></div>
-                          <div class="text-[9px] text-[var(--text-muted)]">Не занимает место на сервере</div>
+                          <div>ИСТОЧНИК: <span class="text-emerald-400 font-bold">ФАЙЛ / DROPBOX / URL</span></div>
+                          <div>АВТОМАТИКА: <span class="text-amber-400 font-bold">ОБЛАКО + СЖАТИЕ</span></div>
+                          <div class="text-[9px] text-[var(--text-muted)]">Прямая подгрузка без перегрузки базы</div>
                         </div>
                       </div>
                     </div>
-                    <div class="space-y-1.5 pt-1">
+                    <div class="space-y-2 pt-1">
                       <input type="file" id="cabinetAvatarFileInput" accept="image/*" class="hidden" onchange="handleUserAvatarUpload(event)">
-                      <button type="button" onclick="document.getElementById('cabinetAvatarFileInput').click()" class="w-full py-2 px-3 text-xs font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        <span>Загрузить фото</span>
-                      </button>
+                      <div class="flex gap-1.5">
+                        <button type="button" onclick="document.getElementById('cabinetAvatarFileInput').click()" class="flex-1 py-2 px-2.5 text-[11px] font-extrabold uppercase btn-brand-primary flex items-center justify-center gap-1.5">
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                          <span>Загрузить файл</span>
+                        </button>
+                        <button type="button" onclick="handleUserAvatarReset()" class="py-2 px-2.5 text-[11px] font-extrabold uppercase btn-brand-ghost text-neutral-400 hover:text-red-400" title="Сбросить аватарку">
+                          Сброс
+                        </button>
+                      </div>
+                      <div class="pt-1 border-t border-[var(--border-subtle)] space-y-1">
+                        <div class="flex gap-1.5">
+                          <input type="url" id="cabinetAvatarUrlInput" placeholder="Ссылка на фото (Dropbox / Google Drive / URL)" class="flex-grow studio-input text-[11px] font-mono px-2.5 py-1.5" onkeydown="if(event.key==='Enter'){event.preventDefault();handleUserAvatarUrlSubmit();}">
+                          <button type="button" onclick="handleUserAvatarUrlSubmit()" class="px-3 py-1.5 text-[11px] font-extrabold uppercase btn-brand-primary shrink-0">
+                            Применить
+                          </button>
+                        </div>
+                        <p class="text-[9px] font-mono text-[var(--text-muted)] leading-tight">
+                          💡 Ссылки <b class="text-neutral-300">Dropbox</b> и <b class="text-neutral-300">Google Drive</b> конвертируются в прямые изображения автоматически.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1261,11 +1277,14 @@
             <div class="flex items-center gap-2">
               <button type="button" onclick="document.getElementById('fullEditAvatarFile').click()" class="py-1.5 px-3 text-xs font-bold uppercase btn-brand-primary flex items-center gap-1">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                <span>Выбрать фото</span>
+                <span>Файл</span>
               </button>
               <button type="button" onclick="handleAdminAvatarRemove()" class="py-1.5 px-2.5 text-xs font-bold uppercase btn-brand-ghost text-neutral-400 hover:text-red-400">
                 Сбросить
               </button>
+            </div>
+            <div class="pt-1">
+              <input type="url" id="fullEditAvatarUrl" placeholder="Или прямая ссылка на фото (Dropbox / Облако)" class="w-full studio-input text-[10px] font-mono px-2.5 py-1" oninput="handleAdminAvatarUrlInput(this.value)">
             </div>
           </div>
         </div>
@@ -1834,6 +1853,6 @@
   </script>
 
   <!-- Скрипт платформы -->
-  <script src="js/app.js?v=20261027_v15_master_bridge"></script>
+  <script src="js/app.js?v=20261027_v16_avatars_dropbox"></script>
 </body>
 </html>

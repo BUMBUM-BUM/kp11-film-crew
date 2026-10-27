@@ -138,7 +138,7 @@ async function answerCallbackQuery(callbackQueryId, text = '', showAlert = false
 // ------------------------------------------------------------------------------
 // ГЕНЕРАЦИЯ ТЕКСТА ВЫЗЫВНОГО ЛИСТА
 // ------------------------------------------------------------------------------
-function formatCallsheetMessage(shoot, targetUserId = null, allUsers = []) {
+function formatCallsheetMessage(shoot, targetUserId = null, allUsers = [], isGroup = false) {
   const d = new Date(shoot.date);
   const formattedDate = !isNaN(d.getTime()) ? d.toLocaleDateString('ru-RU', {
     weekday: 'long',
@@ -158,12 +158,19 @@ function formatCallsheetMessage(shoot, targetUserId = null, allUsers = []) {
       const uId = c.userId || c.user?.id || c.id;
       const matchedUser = allUsers.find(u => u.id === uId) || c.user;
       const uName = matchedUser?.fullName || 'Студент цеха';
-      const tgStr = matchedUser?.telegram ? ` (${matchedUser.telegram})` : '';
-      const isTarget = targetUserId && (uId === targetUserId);
-      const statusIcon = c.status === 'ACCEPTED' ? '[ПОДТВЕРЖДЕНО]' : (c.status === 'DECLINED' ? '[ОТКЛОНЕНО]' : '[В ОЖИДАНИИ]');
-      const prefix = isTarget ? '>> <b>' : '• ';
-      const suffix = isTarget ? ' (ВЫ)</b>' : '';
-      crewSections += `${prefix}${c.roleInShoot}: ${escapeHtml(uName)}${tgStr}${suffix} — <i>${statusIcon}</i>\n`;
+
+      if (isGroup) {
+        // В ГРУППЕ — ТОЛЬКО ФИО И РОЛЬ УЧАСТНИКА (БЕЗ ТЕКСТА СТАТУСА «В ОЖИДАНИИ» И БЕЗ КНОПОК)
+        crewSections += `• ${c.roleInShoot}: ${escapeHtml(uName)}\n`;
+      } else {
+        // В ЛС — КАК ОБЫЧНО (СТАТУС ЯВКИ, МЕТКА «(ВЫ)»)
+        const tgStr = matchedUser?.telegram ? ` (${matchedUser.telegram})` : '';
+        const isTarget = targetUserId && (uId === targetUserId);
+        const statusIcon = c.status === 'ACCEPTED' ? '[ПОДТВЕРЖДЕНО]' : (c.status === 'DECLINED' ? '[ОТКЛОНЕНО]' : '[В ОЖИДАНИИ]');
+        const prefix = isTarget ? '>> <b>' : '• ';
+        const suffix = isTarget ? ' (ВЫ)</b>' : '';
+        crewSections += `${prefix}${c.roleInShoot}: ${escapeHtml(uName)}${tgStr}${suffix} — <i>${statusIcon}</i>\n`;
+      }
     });
   }
 
@@ -1124,8 +1131,8 @@ async function sendCallsheetToCrew(shootId, clientShootData = null) {
       recentGroupDispatches.set(dispatchKey, Date.now());
 
       try {
-        const groupText = formatCallsheetMessage(shoot, null, allUsers);
-        // 2. В ЧАТАХ — НИКАКИХ КНОПОК! Чистый информационный текст вызывного
+        const groupText = formatCallsheetMessage(shoot, null, allUsers, true);
+        // 2. В ЧАТАХ — НИКАКИХ КНОПОК! Только ФИО участников, без статусов и без кнопок
         const sendOpts = {};
         if (target.messageThreadId) {
           sendOpts.message_thread_id = target.messageThreadId;

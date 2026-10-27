@@ -13,3 +13,6 @@ mobile_*.png
 scratch/
 *.csv
 data/watchdog_status.json
+public/uploads/avatars/*
+!public/uploads/avatars/.gitkeep
+scripts/avatar_progress.json

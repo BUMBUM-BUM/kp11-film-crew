@@ -2557,18 +2557,32 @@ function compressImageFile(file, maxDimension = 140, quality = 0.82) {
 }
 window.compressImageFile = compressImageFile;
 
+function normalizeAvatarUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  let url = rawUrl.trim();
+  if (url.includes('dropbox.com')) {
+    url = url.replace(/www\.dropbox\.com/i, 'dl.dropboxusercontent.com');
+    url = url.replace(/([?&])dl=[01]/gi, '$1raw=1');
+    if (!url.includes('raw=1')) {
+      url += (url.includes('?') ? '&' : '?') + 'raw=1';
+    }
+    return url;
+  }
+  const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i);
+  if (gdriveMatch) {
+    return 'https://drive.google.com/uc?export=view&id=' + gdriveMatch[1];
+  }
+  return url;
+}
+window.normalizeAvatarUrl = normalizeAvatarUrl;
+
 async function handleUserAvatarUpload(event) {
   const file = event && event.target && event.target.files && event.target.files[0];
   if (!file) return;
 
   try {
-    showToast('Сжатие и оптимизация фото...');
+    showToast('Сжатие и загрузка фото на сервер...');
     const compressedBase64 = await compressImageFile(file, 140, 0.82);
-
-    if (currentUser) {
-      currentUser.avatar = compressedBase64;
-      localStorage.setItem('user', JSON.stringify(currentUser));
-    }
 
     const img1 = document.getElementById('myCabinetAvatarImg');
     if (img1) img1.src = compressedBase64;
@@ -2578,17 +2592,31 @@ async function handleUserAvatarUpload(event) {
     if (navAvatar) navAvatar.src = compressedBase64;
 
     if (currentUser && currentUser.id) {
-      fetch('/api/users/' + currentUser.id + '/avatar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + (token || 'demo-token')
-        },
-        body: JSON.stringify({ userId: currentUser.id, avatar: compressedBase64 })
-      }).catch(err => console.warn('Avatar server sync error:', err));
+      try {
+        const res = await fetch('/api/users/' + currentUser.id + '/avatar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (token || 'demo-token')
+          },
+          body: JSON.stringify({ userId: currentUser.id, avatar: compressedBase64 })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.avatar) {
+            currentUser.avatar = data.avatar;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            if (img1) img1.src = data.avatar;
+            if (img2) img2.src = data.avatar;
+            if (navAvatar) navAvatar.src = data.avatar;
+          }
+        }
+      } catch (err) {
+        console.warn('Avatar server sync error:', err);
+      }
     }
 
-    showToast('Аватарка успешно установлена и оптимизирована (<15 КБ)!');
+    showToast('Аватарка успешно сохранена на сервере!');
   } catch (err) {
     showToast(err.message || 'Ошибка обработки фото');
   } finally {
@@ -2596,6 +2624,93 @@ async function handleUserAvatarUpload(event) {
   }
 }
 window.handleUserAvatarUpload = handleUserAvatarUpload;
+
+async function handleUserAvatarUrlSubmit() {
+  const input = document.getElementById('cabinetAvatarUrlInput');
+  if (!input) return;
+  const rawUrl = input.value.trim();
+  if (!rawUrl) {
+    showToast('Введите URL изображения (Dropbox, Google Drive или прямой URL)');
+    return;
+  }
+
+  const directUrl = normalizeAvatarUrl(rawUrl);
+  input.value = directUrl;
+
+  const testImg = new Image();
+  testImg.onload = async () => {
+    if (currentUser) {
+      currentUser.avatar = directUrl;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+    }
+    const img1 = document.getElementById('myCabinetAvatarImg');
+    if (img1) img1.src = directUrl;
+    const img2 = document.getElementById('cabinetSettingsAvatarPreview');
+    if (img2) img2.src = directUrl;
+    const navAvatar = document.getElementById('userNavAvatarImg');
+    if (navAvatar) navAvatar.src = directUrl;
+
+    if (currentUser && currentUser.id) {
+      try {
+        await fetch('/api/users/' + currentUser.id + '/avatar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (token || 'demo-token')
+          },
+          body: JSON.stringify({ userId: currentUser.id, avatar: directUrl })
+        });
+      } catch (e) {
+        console.warn('Sync avatar URL error:', e);
+      }
+    }
+    showToast('Аватарка по ссылке успешно установлена!');
+  };
+  testImg.onerror = () => {
+    showToast('Предупреждение: ссылка может быть приватной. Проверьте публичный доступ в Dropbox.');
+    if (currentUser) {
+      currentUser.avatar = directUrl;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+    }
+    const img1 = document.getElementById('myCabinetAvatarImg');
+    if (img1) img1.src = directUrl;
+    const img2 = document.getElementById('cabinetSettingsAvatarPreview');
+    if (img2) img2.src = directUrl;
+  };
+  testImg.src = directUrl;
+}
+window.handleUserAvatarUrlSubmit = handleUserAvatarUrlSubmit;
+
+async function handleUserAvatarReset() {
+  const defaultAvatar = 'img/student.jpg';
+  if (currentUser) {
+    currentUser.avatar = null;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+  }
+  const img1 = document.getElementById('myCabinetAvatarImg');
+  if (img1) img1.src = defaultAvatar;
+  const img2 = document.getElementById('cabinetSettingsAvatarPreview');
+  if (img2) img2.src = defaultAvatar;
+  const navAvatar = document.getElementById('userNavAvatarImg');
+  if (navAvatar) navAvatar.src = defaultAvatar;
+  const urlInp = document.getElementById('cabinetAvatarUrlInput');
+  if (urlInp) urlInp.value = '';
+
+  if (currentUser && currentUser.id) {
+    try {
+      await fetch('/api/users/' + currentUser.id + '/avatar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (token || 'demo-token')
+        },
+        body: JSON.stringify({ userId: currentUser.id, avatar: null })
+      });
+    } catch (e) {}
+  }
+  showToast('Аватарка сброшена на стандартную');
+}
+window.handleUserAvatarReset = handleUserAvatarReset;
 
 async function handleAdminAvatarUpload(event) {
   const file = event && event.target && event.target.files && event.target.files[0];
@@ -2608,6 +2723,8 @@ async function handleAdminAvatarUpload(event) {
     if (prev) prev.src = compressedBase64;
     const inp = document.getElementById('fullEditAvatarBase64');
     if (inp) inp.value = compressedBase64;
+    const urlInp = document.getElementById('fullEditAvatarUrl');
+    if (urlInp) urlInp.value = '';
     showToast('Фото оптимизировано (<15 КБ)');
   } catch (err) {
     showToast(err.message || 'Ошибка при загрузке фото');
@@ -2617,11 +2734,22 @@ async function handleAdminAvatarUpload(event) {
 }
 window.handleAdminAvatarUpload = handleAdminAvatarUpload;
 
+function handleAdminAvatarUrlInput(rawUrl) {
+  const directUrl = normalizeAvatarUrl(rawUrl);
+  const prev = document.getElementById('fullEditAvatarPreview');
+  const inp = document.getElementById('fullEditAvatarBase64');
+  if (prev && directUrl) prev.src = directUrl;
+  if (inp) inp.value = directUrl || '';
+}
+window.handleAdminAvatarUrlInput = handleAdminAvatarUrlInput;
+
 function handleAdminAvatarRemove() {
   const prev = document.getElementById('fullEditAvatarPreview');
   if (prev) prev.src = 'img/student.jpg';
   const inp = document.getElementById('fullEditAvatarBase64');
   if (inp) inp.value = '';
+  const urlInp = document.getElementById('fullEditAvatarUrl');
+  if (urlInp) urlInp.value = '';
   showToast('Фото сброшено на стандартное');
 }
 window.handleAdminAvatarRemove = handleAdminAvatarRemove;
@@ -2643,6 +2771,10 @@ async function loadMyPortfolio() {
 
   if (cabinetSettingPrev) {
     cabinetSettingPrev.src = currentUser.avatar || 'img/student.jpg';
+  }
+  const cabinetUrlInp = document.getElementById('cabinetAvatarUrlInput');
+  if (cabinetUrlInp) {
+    cabinetUrlInp.value = (currentUser.avatar && /^https?:\/\//i.test(currentUser.avatar)) ? currentUser.avatar : '';
   }
 
   if (tgInp) {
@@ -3506,8 +3638,12 @@ function openAdminUserFullEditModal(userId) {
   // Аватарка
   const avatarPrev = document.getElementById('fullEditAvatarPreview');
   const avatarBase64 = document.getElementById('fullEditAvatarBase64');
+  const avatarUrlInput = document.getElementById('fullEditAvatarUrl');
   if (avatarPrev) avatarPrev.src = user.avatar || 'img/student.jpg';
   if (avatarBase64) avatarBase64.value = user.avatar || '';
+  if (avatarUrlInput) {
+    avatarUrlInput.value = (user.avatar && /^https?:\/\//i.test(user.avatar)) ? user.avatar : '';
+  }
 
   // 4 параметра компетенций (Камера, Звук, Свет, Монтаж)
   const comps = user.competencies || { camera: 85, sound: 80, light: 80, edit: 85 };

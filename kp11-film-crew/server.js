@@ -11,6 +11,7 @@ const nodemailer = require('nodemailer');
 const webpush = require('web-push');
 const store = require('./data/store');
 const telegramBot = require('./bot');
+const avatarHelper = require('./data/avatar_helper');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const LOCATIONS_FILE = path.join(DATA_DIR, 'locations.json');
@@ -1318,7 +1319,20 @@ app.put('/api/admin/users/:id/full', optionalAuthToken, async (req, res) => {
   }
 });
 
-// ----------------- ЗАГРУЗКА АВАТАРКИ ПОЛЬЗОВАТЕЛЯ -----------------
+// ----------------- ЗАГРУЗКА И ПОДГРУЗКА АВАТАРКИ ПОЛЬЗОВАТЕЛЯ (URL / DROPBOX / UPLOAD) -----------------
+app.post('/api/upload/avatar', optionalAuthToken, async (req, res) => {
+  try {
+    const targetUserId = (req.user && req.user.id) || req.body.userId || 'anon';
+    const rawAvatar = req.body.avatar || req.body.url || req.body.base64;
+    if (!rawAvatar) return res.status(400).json({ error: 'Изображение или URL не указаны' });
+
+    const processed = avatarHelper.processAvatarInput(targetUserId, rawAvatar);
+    res.json({ success: true, avatarUrl: processed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post(['/api/users/:id/avatar', '/api/users/profile/avatar'], optionalAuthToken, async (req, res) => {
   try {
     const targetUserId = req.params.id || (req.user && req.user.id) || req.body.userId;
@@ -1327,8 +1341,19 @@ app.post(['/api/users/:id/avatar', '/api/users/profile/avatar'], optionalAuthTok
     let targetUser = users.find(u => u.id === targetUserId || (req.body.email && u.email === req.body.email));
     if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    targetUser.avatar = avatar || null;
+    const processedAvatar = avatarHelper.processAvatarInput(targetUserId, avatar);
+    targetUser.avatar = processedAvatar || null;
     writeJsonSafe(USERS_FILE, users);
+
+    if (prisma) {
+      try {
+        await prisma.user.update({
+          where: { id: targetUser.id },
+          data: { avatar: targetUser.avatar }
+        }).catch(() => {});
+      } catch (dbErr) {}
+    }
+
     res.json({ success: true, avatar: targetUser.avatar, user: targetUser });
   } catch (err) {
     res.status(500).json({ error: err.message });

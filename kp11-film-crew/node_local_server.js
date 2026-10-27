@@ -20,6 +20,8 @@ let store = null;
 try { store = require('./data/store'); } catch (e) {}
 let bot = null;
 try { bot = require('./bot'); } catch (e) {}
+let avatarHelper = null;
+try { avatarHelper = require('./data/avatar_helper'); } catch (e) {}
 
 function readJsonFile(filePath, defaultVal = []) {
   try {
@@ -257,14 +259,26 @@ async function dispatchTelegramCallsheet(shoot) {
       }
       recentNodeCallsheetDispatches.set(dispatchKey, Date.now());
 
-      const groupMsg = `🎬 <b>НОВАЯ СМЕНА В ПРОИЗВОДСТВЕ // КП11</b>\n` +
+      let crewGroupSection = '';
+      if (Array.isArray(shoot.crew) && shoot.crew.length > 0) {
+        crewGroupSection = '\n\n<b>СЪЁМОЧНАЯ ГРУППА:</b>\n';
+        shoot.crew.forEach(cm => {
+          const u = users.find(usr => usr.id === cm.userId || usr.id === cm.id);
+          const name = u?.fullName || cm.fullName || 'Студент цеха';
+          crewGroupSection += `• ${cm.roleInShoot || 'Специалист'}: ${name}\n`;
+        });
+        crewGroupSection += '════════════════════════════════════';
+      }
+
+      const groupMsg = `🎬 <b>ВЫЗЫВНОЙ ЛИСТ // МЕДИАЦЕНТР КП11</b>\n` +
         `════════════════════════════════════\n` +
         `Проект: <b>${title}</b>\n` +
         `Формат: <b>${format}</b>\n` +
-        `Дата и время: <b>${dateStr}</b>\n` +
+        `Дата и время сбора: <b>${dateStr}</b>\n` +
         `Локация: <b>${loc}</b>\n` +
         `Мастер смены: <b>${master}</b>\n` +
-        `════════════════════════════════════`;
+        `════════════════════════════════════` +
+        crewGroupSection;
       const ok = await sendTelegramMessage(botToken, target.chatId, groupMsg, null, target.messageThreadId);
       if (ok) delivered++;
     }
@@ -1034,6 +1048,18 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, user: updatedUser, message: 'Все данные пользователя успешно сохранены' }));
     }
 
+    // POST /api/upload/avatar
+    if (pathname === '/api/upload/avatar' && req.method === 'POST') {
+      const targetUserId = jsonBody.userId || 'anon';
+      const rawAvatar = jsonBody.avatar || jsonBody.url || jsonBody.base64;
+      if (!rawAvatar) {
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ success: false, error: 'Изображение или URL не указаны' }));
+      }
+      const processed = avatarHelper ? avatarHelper.processAvatarInput(targetUserId, rawAvatar) : rawAvatar;
+      return res.end(JSON.stringify({ success: true, avatarUrl: processed }));
+    }
+
     // POST /api/users/:id/avatar или POST /api/users/profile/avatar
     const userAvatarMatch = pathname.match(/^\/api\/users\/(?:profile\/avatar|([^/]+)\/avatar)$/);
     if (userAvatarMatch && req.method === 'POST') {
@@ -1041,9 +1067,11 @@ const server = http.createServer(async (req, res) => {
       const { avatar } = jsonBody;
       const users = readJsonFile(USERS_FILE, []);
       let updatedUser = null;
+      const processed = avatarHelper ? avatarHelper.processAvatarInput(targetUserId, avatar) : avatar;
+
       users.forEach(u => {
         if (u.id === targetUserId || (!targetUserId && jsonBody.email && u.email === jsonBody.email)) {
-          u.avatar = avatar || null;
+          u.avatar = processed || null;
           updatedUser = u;
         }
       });
