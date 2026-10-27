@@ -24,9 +24,9 @@ foreach ($cand in $nodeCandidates) {
 }
 
 if ($foundNode) {
-    Write-Host ">>> Starting KP11 Server with Node.js on port $port..."
-    $serverScript = Join-Path $PSScriptRoot "node_local_server.js"
-    & $foundNode $serverScript
+    Write-Host ">>> Starting KP11 Autonomous Watchdog & Server on port $port..."
+    $watchdogScript = Join-Path $PSScriptRoot "scripts\site_watchdog.js"
+    & $foundNode $watchdogScript
     exit $LASTEXITCODE
 } else {
     Write-Error "Node.js executable was not found."

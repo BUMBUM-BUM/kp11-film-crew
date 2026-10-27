@@ -12,3 +12,4 @@ screenshot.png
 mobile_*.png
 scratch/
 *.csv
+data/watchdog_status.json

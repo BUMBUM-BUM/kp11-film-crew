@@ -123,6 +123,14 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'UP',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 async function optionalAuthToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];

@@ -305,6 +305,22 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/')) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
+    // Health check and watchdog telemetry
+    if ((pathname === '/api/health' || pathname === '/api/watchdog/status') && req.method === 'GET') {
+      const shoots = readJsonFile(SHOOTS_FILE, []);
+      const users = readJsonFile(USERS_FILE, []);
+      const watchdogStatus = readJsonFile(path.join(DATA_DIR, 'watchdog_status.json'), {});
+      return res.end(JSON.stringify({
+        success: true,
+        status: 'UP',
+        uptime: process.uptime(),
+        shootsCount: shoots.length,
+        usersCount: users.length,
+        watchdog: watchdogStatus,
+        timestamp: new Date().toISOString()
+      }));
+    }
+
     // 1. GET /api/shoots
     if (pathname === '/api/shoots' && req.method === 'GET') {
       const rawShoots = readJsonFile(SHOOTS_FILE, []);
