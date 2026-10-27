@@ -127,10 +127,22 @@ async function sendPeriodicProgressReport() {
     const localCount = (localShootsRes.ok && localShootsRes.data && Array.isArray(localShootsRes.data.shoots)) ? localShootsRes.data.shoots.length : 0;
     const renderCount = (renderShootsRes.ok && renderShootsRes.data && Array.isArray(renderShootsRes.data.shoots)) ? renderShootsRes.data.shoots.length : 0;
 
+    let stageSection = '';
+    const stageFile = path.join(__dirname, '..', 'data', 'agent_stage.json');
+    if (fs.existsSync(stageFile)) {
+      try {
+        const sInfo = JSON.parse(fs.readFileSync(stageFile, 'utf8'));
+        if (sInfo && sInfo.stage) {
+          stageSection = `🛠 <b>Текущий этап работы:</b>\n• <b>Действие:</b> ${sInfo.stage}\n• <i>Подробности:</i> ${sInfo.detail || ''}\n\n`;
+        }
+      } catch (e) {}
+    }
+
     const reportHtml =
       `⏱ <b>ПОМИНУТНЫЙ ПРОГРЕСС // ОТЧЁТ #${reportCounter++}</b>\n` +
       `════════════════════════════════════\n` +
       `🕒 <b>Время (МСК):</b> <code>${timeStr}</code>\n\n` +
+      stageSection +
       `📌 <b>Статус задач:</b>\n${taskSection}\n\n` +
       `🟢 <b>Инфраструктура:</b>\n` +
       `• Localhost (:3000): ${localShootsRes.ok ? 'ONLINE 🟢' : 'OFFLINE 🔴'} (${localCount} смен)\n` +
