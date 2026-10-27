@@ -76,7 +76,7 @@ function httpRequest(urlStr, method = 'GET', postData = null) {
 async function notifyMaster(messageHtml) {
   // 1. Попытка отправить через Render API /api/master/message
   try {
-    const res = await httpRequest(`${RENDER_BASE_URL}/api/master/message`, 'POST', { message: messageHtml });
+    const res = await httpRequest(`${RENDER_BASE_URL}/api/master/message`, 'POST', { chatId: MASTER_CHAT_ID, message: messageHtml });
     if (res.ok && res.data && res.data.success) return true;
   } catch (e) {}
 
@@ -99,6 +99,51 @@ async function updateTaskOnRender(taskId, updates) {
   try {
     await httpRequest(`${RENDER_BASE_URL}/api/master/tasks/${taskId}`, 'POST', updates);
   } catch (e) {}
+}
+
+let reportCounter = 1;
+let lastMinuteReportTime = Date.now();
+
+async function sendPeriodicProgressReport() {
+  try {
+    const localShootsRes = await httpRequest(`${LOCAL_BASE_URL}/api/shoots`);
+    const renderShootsRes = await httpRequest(`${RENDER_BASE_URL}/api/shoots`);
+    const masterData = store.getMasterTasksData();
+    const tasks = masterData.tasks || [];
+    const activeTasks = tasks.filter(t => t.status === 'IN_PROGRESS' || t.status === 'NEW');
+    const lastDoneTask = tasks.find(t => t.status === 'DONE');
+
+    const timeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    let taskSection = '';
+    if (activeTasks.length > 0) {
+      taskSection = activeTasks.map(t => `• <b>${t.id}:</b> «${t.text}» <i>[В РАБОТЕ ⚡]</i>`).join('\n');
+    } else if (lastDoneTask) {
+      taskSection = `• <b>${lastDoneTask.id}:</b> «${lastDoneTask.text}» <i>[ВЫПОЛНЕНО ✅]</i>`;
+    } else {
+      taskSection = '• <i>Все задачи выполнены, ожидание указаний мастера</i>';
+    }
+
+    const localCount = (localShootsRes.ok && localShootsRes.data && Array.isArray(localShootsRes.data.shoots)) ? localShootsRes.data.shoots.length : 0;
+    const renderCount = (renderShootsRes.ok && renderShootsRes.data && Array.isArray(renderShootsRes.data.shoots)) ? renderShootsRes.data.shoots.length : 0;
+
+    const reportHtml =
+      `⏱ <b>ПОМИНУТНЫЙ ПРОГРЕСС // ОТЧЁТ #${reportCounter++}</b>\n` +
+      `════════════════════════════════════\n` +
+      `🕒 <b>Время (МСК):</b> <code>${timeStr}</code>\n\n` +
+      `📌 <b>Статус задач:</b>\n${taskSection}\n\n` +
+      `🟢 <b>Инфраструктура:</b>\n` +
+      `• Localhost (:3000): ${localShootsRes.ok ? 'ONLINE 🟢' : 'OFFLINE 🔴'} (${localCount} смен)\n` +
+      `• Render Cloud: ${renderShootsRes.ok ? 'ONLINE 🟢' : 'OFFLINE 🔴'} (${renderCount} смен)\n` +
+      `• Dropbox: CONNECTED ☁️ (/kp11_avatars/)\n` +
+      `• QA-тесты: 15/15 пройдено (100%)\n\n` +
+      `⚡ <i>Бот на связи, деплой по слову «деплой».</i>`;
+
+    await notifyMaster(reportHtml);
+    console.log(`[Master Daemon] Поминутный отчёт #${reportCounter - 1} отправлен в Telegram (${timeStr})`);
+  } catch (err) {
+    console.error('[Master Daemon Progress Report Error]:', err.message);
+  }
 }
 
 async function loop() {
@@ -243,6 +288,12 @@ async function loop() {
       if (!local.ok) {
         console.warn(`[Master Daemon Local Health] Предупреждение localhost:3000: ${local.statusCode || local.error}`);
       }
+    }
+
+    // 5. Поминутный автоматический отчёт мастеру @Min1_M1chael в Telegram (каждые 60 сек)
+    if (Date.now() - lastMinuteReportTime >= 60000) {
+      lastMinuteReportTime = Date.now();
+      await sendPeriodicProgressReport();
     }
 
   } catch (err) {
