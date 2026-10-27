@@ -2165,6 +2165,27 @@ app.post('/api/master/tasks', (req, res) => {
   res.json({ success: true, task });
 });
 
+app.patch('/api/master/tasks/:id', (req, res) => {
+  const updated = store.updateMasterTask(req.params.id, req.body);
+  res.json({ success: !!updated, task: updated });
+});
+
+app.post('/api/master/tasks/:id', (req, res) => {
+  const updated = store.updateMasterTask(req.params.id, req.body);
+  res.json({ success: !!updated, task: updated });
+});
+
+app.post('/api/master/message', async (req, res) => {
+  try {
+    const masterChatId = store.getMasterChatId() || '2129288136';
+    const msgText = req.body.message || req.body.text || '';
+    const result = await telegramBot.sendMessage(masterChatId, msgText);
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/master/ask', async (req, res) => {
   try {
     const questionText = req.body.question || req.body.text;

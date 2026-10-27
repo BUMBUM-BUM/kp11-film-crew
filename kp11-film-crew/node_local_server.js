@@ -344,6 +344,14 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true }));
     }
 
+    if (pathname === '/api/telegram/status' && req.method === 'GET') {
+      return res.end(JSON.stringify({
+        active: true,
+        botUsername: 'KP11_FilmCrew_Bot',
+        tokenConfigured: true
+      }));
+    }
+
     // Master developer bridge endpoints (@Min1_M1chael)
     if (pathname === '/api/master/tasks' && req.method === 'GET') {
       const masterData = store ? store.getMasterTasksData() : readJsonFile(MASTER_TASKS_FILE, { tasks: [] });
@@ -355,6 +363,26 @@ const server = http.createServer(async (req, res) => {
         ? store.addMasterTask(jsonBody.text || jsonBody.task, '@Min1_M1chael') 
         : { id: 'TASK-' + Date.now(), text: jsonBody.text };
       return res.end(JSON.stringify({ success: true, task }));
+    }
+
+    if (pathname.startsWith('/api/master/tasks/') && (req.method === 'PATCH' || req.method === 'POST')) {
+      const taskId = pathname.split('/').pop();
+      const updated = store ? store.updateMasterTask(taskId, jsonBody) : null;
+      return res.end(JSON.stringify({ success: !!updated, task: updated }));
+    }
+
+    if (pathname === '/api/master/message' && req.method === 'POST') {
+      if (bot && typeof bot.sendMessage === 'function') {
+        const masterChatId = store ? store.getMasterChatId() : '2129288136';
+        const msgText = jsonBody.message || jsonBody.text || '';
+        bot.sendMessage(masterChatId, msgText).then(result => {
+          res.end(JSON.stringify({ success: true, result }));
+        }).catch(err => {
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        });
+        return;
+      }
+      return res.end(JSON.stringify({ success: false, error: 'Bot sendMessage not available' }));
     }
 
     if (pathname === '/api/master/ask' && req.method === 'POST') {
@@ -500,7 +528,7 @@ const server = http.createServer(async (req, res) => {
       // Рассылка вызывных в Telegram
       dispatchTelegramCallsheet(newShoot).catch(() => {});
 
-      return res.end(JSON.stringify({ success: true, shoot: newShoot }));
+      return res.end(JSON.stringify({ success: true, id: newShoot.id, shoot: newShoot }));
     }
 
     // 3. DELETE /api/shoots/:id или DELETE /api/admin/shoots/:id
