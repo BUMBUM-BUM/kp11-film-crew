@@ -3,6 +3,16 @@
   "masterChatId": "2129288136",
   "tasks": [
     {
+      "id": "TASK-006-3639",
+      "text": "аватарки не сохраняются, спроси меня доступ к dropbox (напиши, что тебе для этого нужно и я отправлю)",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T14:57:03.639Z",
+      "status": "IN_PROGRESS",
+      "solution": null,
+      "updatedAt": "2026-10-27T14:57:03.647Z"
+    },
+    {
       "id": "TASK-005-0238",
       "text": "Отправь отчёт по сделанной работе",
       "author": "@Min1_M1chael",
@@ -18,9 +28,9 @@
       "author": "@Min1_M1chael",
       "authorChatId": "2129288136",
       "createdAt": "2026-10-27T14:45:57.049Z",
-      "status": "IN_PROGRESS",
-      "solution": null,
-      "updatedAt": "2026-10-27T14:45:57.657Z"
+      "status": "DONE",
+      "solution": "1) Бот обновлён: в групповых чатах вызывной лист содержит исключительно ФИО и роли без кнопок и статусов [В ОЖИДАНИИ]. 2) Аватарки: реализована поддержка ссылок Dropbox (?raw=1), Google Drive, сохранение в /uploads/avatars/ и поля ввода в ЛК и админке.",
+      "updatedAt": "2026-10-27T14:55:27.821Z"
     },
     {
       "id": "TASK-003-2181",
@@ -74,5 +84,5 @@
     }
   ],
   "questions": [],
-  "updatedAt": "2026-10-27T14:55:27.821Z"
+  "updatedAt": "2026-10-27T14:57:03.647Z"
 }
