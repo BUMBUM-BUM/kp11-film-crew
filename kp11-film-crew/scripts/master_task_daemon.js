@@ -74,13 +74,19 @@ function httpRequest(urlStr, method = 'GET', postData = null) {
 }
 
 async function notifyMaster(messageHtml) {
-  // 1. Попытка отправить через Render API
+  // 1. Попытка отправить через Render API /api/master/message
   try {
     const res = await httpRequest(`${RENDER_BASE_URL}/api/master/message`, 'POST', { message: messageHtml });
     if (res.ok && res.data && res.data.success) return true;
   } catch (e) {}
 
-  // 2. Попытка отправить через локальный бот
+  // 2. Попытка отправить через Render API /api/master/ask
+  try {
+    const res = await httpRequest(`${RENDER_BASE_URL}/api/master/ask`, 'POST', { question: messageHtml });
+    if (res.ok && res.data && res.data.success) return true;
+  } catch (e) {}
+
+  // 3. Попытка отправить через локальный бот
   try {
     const res = await bot.sendMessage(MASTER_CHAT_ID, messageHtml);
     return res && res.ok;
