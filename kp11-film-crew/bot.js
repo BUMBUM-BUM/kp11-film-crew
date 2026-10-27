@@ -194,6 +194,13 @@ const pendingDeclineReasons = new Map();
 // ОБРАБОТКА КОМАНД И СООБЩЕНИЙ
 // ------------------------------------------------------------------------------
 async function handleTelegramMessage(message) {
+  // БОТ НЕ РЕАГИРУЕТ НА КОМАНДЫ В ЧАТАХ (группы, супергруппы, каналы).
+  // Никаких ответов и спама в группы — общение строго в личных сообщениях (ЛС)!
+  const isPrivateChat = message.chat && message.chat.type === 'private';
+  if (!isPrivateChat) {
+    return;
+  }
+
   const chatId = message.chat.id;
   const text = (message.text || '').trim();
   const username = message.from.username ? `@${message.from.username}` : '';
@@ -204,16 +211,16 @@ async function handleTelegramMessage(message) {
     const user = await store.getUserByTelegram(username);
     if (user && user.telegramChatId !== String(chatId)) {
       await store.updateUser(user.id, { telegramChatId: String(chatId) });
-      console.log(`[KP11 Bot] Автопривязка: ${user.fullName} (${username}) -> Chat ID: ${chatId}`);
+      console.log(`[KP11 Bot] Автопривязка ЛС: ${user.fullName} (${username}) -> Chat ID: ${chatId}`);
     }
   }
 
-  // 0. ПРОВЕРКА: ОЖИДАЕТСЯ ЛИ ПРИЧИНА ОТКЛОНЕНИЯ ВЫЗЫВНОГО
+  // 0. ОЖИДАНИЕ ПРИЧИНЫ ОТКЛОНЕНИЯ ВЫЗЫВНОГО
   const pendingDecline = pendingDeclineReasons.get(String(chatId));
-  if (pendingDecline && !text.startsWith('/start') && !text.startsWith('/link') && !text.startsWith('/profile') && !text.startsWith('/my_shoots') && !text.startsWith('/shifts')) {
+  if (pendingDecline && !text.startsWith('/start') && !text.startsWith('/link') && !text.startsWith('/my_shoots') && !text.startsWith('/callsheet')) {
     if (text === '/cancel' || text.toLowerCase() === 'отмена') {
       pendingDeclineReasons.delete(String(chatId));
-      return sendMessage(chatId, '❌ <b>Отклонение вызывного отменено.</b>\nВаш статус явки в смене сохранён без изменений.');
+      return sendMessage(chatId, '❌ Отклонение вызывного отменено.');
     }
 
     const declineReason = text.trim() || 'Причина не указана';
@@ -233,16 +240,13 @@ async function handleTelegramMessage(message) {
 
     await sendMessage(chatId,
       `❌ <b>ВЫЗОВ ОТКЛОНЁН</b>\n` +
-      `════════════════════════════════════\n` +
       `Смена: <b>${escapeHtml(shootTitle)}</b>\n` +
       `Причина отказа: <i>«${escapeHtml(declineReason)}»</i>\n\n` +
-      `<i>Мастер смены оповещён. На сайте зафиксирована причина и открыта замена участника.</i>`,
+      `<i>Мастер оповещён, на сайте открыт подбор замены.</i>`,
       {
         reply_markup: {
           inline_keyboard: [
-            [
-              { text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }
-            ]
+            [{ text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }]
           ]
         }
       }
@@ -255,14 +259,11 @@ async function handleTelegramMessage(message) {
         await editMessageText(chatId, pendingDecline.messageId,
           updatedCallsheet +
           `\n\n<b>СТАТУС: ВЫ ОТКЛОНИЛИ УЧАСТИЕ В ЭТОЙ СМЕНЕ</b>\n` +
-          `Причина отказа: <i>«${escapeHtml(declineReason)}»</i>\n` +
-          `<i>Статус и причина обновлены на сайте.</i>`,
+          `Причина: <i>«${escapeHtml(declineReason)}»</i>`,
           {
             reply_markup: {
               inline_keyboard: [
-                [
-                  { text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }
-                ]
+                [{ text: 'Изменить решение: Подтвердить явку', callback_data: `accept:${shootId}` }]
               ]
             }
           }
@@ -274,10 +275,10 @@ async function handleTelegramMessage(message) {
 
   // 1. КОМАНДА /start [payload]
   if (text.startsWith('/start')) {
-    const parts = text.split(' ');
+    const parts = text.split(/\s+/);
     const payload = parts[1] || '';
 
-    // Если передан ID смены: /start call_SHOOTID
+    // Открытие конкретного вызывного: /start call_SHOOTID
     if (payload.startsWith('call_')) {
       const shootId = payload.replace('call_', '');
       const shoot = await store.getShootById(shootId);
@@ -301,27 +302,27 @@ async function handleTelegramMessage(message) {
       }
     }
 
-    // Если передан токен привязки: /start link_USERID
+    // Привязка аккаунта по персональной ссылке: /start link_USERID
     if (payload.startsWith('link_')) {
       const targetId = payload.replace('link_', '');
       const targetUser = await store.getUserById(targetId);
       if (targetUser) {
-        await store.updateUser(targetUser.id, { telegramChatId: String(chatId), telegram: username || targetUser.telegram });
+        await store.updateUser(targetUser.id, {
+          telegramChatId: String(chatId),
+          telegram: username || targetUser.telegram
+        });
         return sendMessage(chatId,
-          `<b>АККАУНТ УСПЕШНО ПРИВЯЗАН К САЙТУ</b>\n` +
+          `✅ <b>АККАУНТ УСПЕШНО ПРИВЯЗАН</b>\n` +
           `════════════════════════════════════\n` +
           `Студент: <b>${escapeHtml(targetUser.fullName)}</b>\n` +
-          `Группа: <code>${escapeHtml(targetUser.groupName)}</code>\n` +
-          `Цеховой грейд: <b>${escapeHtml(targetUser.craftRank || 'Ассистент цеха')}</b>\n` +
-          `Telegram: ${username || targetUser.telegram || 'не указан'}\n` +
-          `Chat ID: <code>${chatId}</code>\n` +
+          `Группа: <code>${escapeHtml(targetUser.groupName || 'КП11')}</code>\n` +
+          `Цех: <b>${escapeHtml(targetUser.craftRank || 'Студент киноцеха')}</b>\n` +
           `════════════════════════════════════\n` +
-          `Теперь все вызывные листы с сайта будут доставляться вам мгновенно в этот чат!`,
+          `Вызывные листы со смен будут доставляться вам в этот диалог.`,
           {
             reply_markup: {
               inline_keyboard: [
-                [{ text: 'Мои съёмочные смены', callback_data: 'cmd:my_shoots' }],
-                [{ text: 'Цифровой паспорт цеха', callback_data: 'cmd:profile' }]
+                [{ text: 'Мои съёмочные смены', callback_data: 'cmd:my_shoots' }]
               ]
             }
           }
@@ -330,28 +331,22 @@ async function handleTelegramMessage(message) {
     }
 
     const currentUser = await store.getUserByTelegram(chatId) || (username ? await store.getUserByTelegram(username) : null);
-    const userGreeting = currentUser 
-      ? `\nСтудент: <b>${escapeHtml(currentUser.fullName)}</b> [${currentUser.groupName}]\nЦех: <i>${currentUser.craftRank || 'Студент киноцеха'}</i>`
-      : (username ? `\nАккаунт Telegram: <b>${username}</b>` : '');
+    const userLine = currentUser 
+      ? `\nСтудент: <b>${escapeHtml(currentUser.fullName)}</b> [${escapeHtml(currentUser.groupName || 'КП11')}]`
+      : '';
 
     return sendMessage(chatId,
-      `<b>МЕДИАЦЕНТР КОЛЛЕДЖА ПРЕДПРИНИМАТЕЛЬСТВА №11</b>\n` +
-      `<b>ОФИЦИАЛЬНЫЙ БОТ СЪЁМОЧНЫХ ЦЕХОВ</b>\n` +
-      `════════════════════════════════════${userGreeting}\n` +
-      `Бот напрямую синхронизирован с веб-порталом кинопроизводства КП11.\n\n` +
-      `<b>КОМАНДЫ:</b>\n` +
-      `• <b>/my_shoots</b> — Ваши назначенные смены с сайта\n` +
-      `• <b>/callsheet</b> — Текущий вызывной лист с таймингом и локацией\n` +
-      `• <b>/profile</b> — Цифровой паспорт компетенций студента\n` +
-      `• <b>/shifts</b> — Все активные проекты на сайте\n` +
-      `• <b>/link &lt;email&gt;</b> — Привязать Telegram к почте на сайте\n` +
-      `• <b>/help</b> — Инструкции и регламент съёмочной площадки\n` +
-      `════════════════════════════════════`,
+      `<b>МЕДИАЦЕНТР КП11 // КИНОПРОИЗВОДСТВО</b>\n` +
+      `════════════════════════════════════${userLine}\n` +
+      `Бот для получения вызывных листов и подтверждения явок на съёмки.\n\n` +
+      `<b>Команды:</b>\n` +
+      `• /my_shoots — Ваши назначенные смены\n` +
+      `• /callsheet — Текущий вызывной лист\n` +
+      `• /link &lt;почта&gt; — Привязать аккаунт по почте`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'Мои смены', callback_data: 'cmd:my_shoots' }, { text: 'Вызывной лист', callback_data: 'cmd:callsheet' }],
-            [{ text: 'Паспорт компетенций', callback_data: 'cmd:profile' }, { text: 'Все смены медиацентра', callback_data: 'cmd:shifts' }]
+            [{ text: 'Мои смены', callback_data: 'cmd:my_shoots' }, { text: 'Вызывной лист', callback_data: 'cmd:callsheet' }]
           ]
         }
       }
@@ -363,39 +358,32 @@ async function handleTelegramMessage(message) {
     const parts = text.split(/\s+/);
     if (parts.length < 2) {
       return sendMessage(chatId,
-        `<b>ПРИВЯЗКА УЧЕБНОГО АККАУНТА</b>\n` +
+        `<b>ПРИВЯЗКА АККАУНТА</b>\n` +
         `Отправьте команду с вашей почтой, зарегистрированной на сайте:\n` +
-        `<code>/link semyon.badikov@kp11.ru</code>`
+        `<code>/link student@kp11.ru</code>`
       );
     }
     const email = parts[1].toLowerCase().trim();
     const users = await store.getUsers();
-    const targetUser = users.find(u => u.email.toLowerCase() === email);
+    const targetUser = users.find(u => u.email && u.email.toLowerCase() === email);
     if (targetUser) {
       await store.updateUser(targetUser.id, {
         telegramChatId: String(chatId),
         telegram: username || targetUser.telegram
       });
       return sendMessage(chatId,
-        `<b>ПРОФИЛЬ УСПЕШНО АВТОРИЗОВАН</b>\n` +
-        `════════════════════════════════════\n` +
-        `ФИО: <b>${escapeHtml(targetUser.fullName)}</b>\n` +
-        `Группа: <code>${escapeHtml(targetUser.groupName)}</code>\n` +
-        `Telegram: <b>${username || targetUser.telegram}</b>\n` +
-        `Рейтинг: <b>${targetUser.rating || '—'} / 5.0</b>\n` +
-        `════════════════════════════════════\n` +
-        `Связь с сайтом установлена. Вы будете получать персональные вызывные листы.`
+        `✅ <b>ПРОФИЛЬ АВТОРИЗОВАН</b>\n` +
+        `ФИО: <b>${escapeHtml(targetUser.fullName)}</b> (${escapeHtml(targetUser.groupName || 'КП11')})\n` +
+        `Вызывные листы будут приходить в этот диалог.`
       );
     } else {
       return sendMessage(chatId,
-        `<b>ОШИБКА АВТОРИЗАЦИИ</b>\n` +
-        `Пользователь с почтой <code>${escapeHtml(email)}</code> не найден в базе данных сайта.\n` +
-        `Убедитесь, что вы зарегистрированы на платформе, или обратитесь к администратору.`
+        `❌ Пользователь с почтой <code>${escapeHtml(email)}</code> не найден на сайте.`
       );
     }
   }
 
-  // 3. КОМАНДА /my_shoots — ТОЛЬКО РЕАЛЬНЫЕ СМЕНЫ С САЙТА ДЛЯ ЭТОГО СТУДЕНТА
+  // 3. КОМАНДА /my_shoots (или /shoots)
   if (text === '/my_shoots' || text === '/shoots') {
     const allShoots = await store.getShoots();
     const currentUser = await store.getUserByTelegram(chatId) || (username ? await store.getUserByTelegram(username) : null);
@@ -403,9 +391,7 @@ async function handleTelegramMessage(message) {
     if (!currentUser) {
       return sendMessage(chatId,
         `<b>АВТОРИЗАЦИЯ НЕ НАЙДЕНА</b>\n` +
-        `Ваш Telegram-аккаунт (${username || 'без юзернейма'}) пока не привязан ни к одному студенту на сайте.\n\n` +
-        `1. Попросите администратора указать ваш Telegram <b>${username || '@ваш_юзернейм'}</b> в панели сайта.\n` +
-        `2. Либо привяжите аккаунт самостоятельно командой: <code>/link ваша_почта@kp11.ru</code>.`
+        `Привяжите ваш аккаунт командой: <code>/link ваша_почта@kp11.ru</code>.`
       );
     }
 
@@ -416,15 +402,13 @@ async function handleTelegramMessage(message) {
 
     if (myShoots.length === 0) {
       return sendMessage(chatId,
-        `<b>НАЗНАЧЕННЫЕ СЪЁМКИ</b>\n` +
+        `📋 <b>НАЗНАЧЕННЫЕ СЪЁМКИ</b>\n` +
         `Студент: <b>${escapeHtml(currentUser.fullName)}</b>\n` +
-        `════════════════════════════════════\n` +
-        `В настоящее время на сайте нет активных съёмочных смен, где вы назначены в группу.\n` +
-        `Как только мастер добавит вас в вызывной лист смены на сайте, бот пришлёт вам уведомление.`
+        `В настоящее время у вас нет активных смен в графике.`
       );
     }
 
-    let msg = `<b>ВАШИ СЪЁМОЧНЫЕ СМЕНЫ С САЙТА (${myShoots.length}):</b>\n════════════════════════════════════\n\n`;
+    let msg = `<b>ВАШИ СЪЁМОЧНЫЕ СМЕНЫ (${myShoots.length}):</b>\n════════════════════════════════════\n\n`;
     const keyboard = [];
 
     myShoots.forEach((s, idx) => {
@@ -435,14 +419,13 @@ async function handleTelegramMessage(message) {
       const dateStr = !isNaN(d.getTime()) ? d.toLocaleDateString('ru-RU') : 'Дата уточняется';
 
       msg += `<b>${idx + 1}. ${escapeHtml(s.title)}</b>\n` +
-             `• Формат: ${s.type || 'СТУДИЯ'}\n` +
-             `• Дата: ${dateStr}\n` +
+             `• Дата: ${dateStr} (${s.callTime || '10:00'})\n` +
              `• Ваша роль: <b>${escapeHtml(roleStr)}</b>\n` +
-             `• Статус явки: <i>${statusStr}</i>\n` +
+             `• Статус: <i>${statusStr}</i>\n` +
              `• Локация: ${escapeHtml(s.location)}\n\n`;
 
       keyboard.push([
-        { text: `Вызывной: ${s.title.slice(0, 24)}...`, callback_data: `callsheet:${s.id}` }
+        { text: `Вызывной: ${s.title.slice(0, 26)}...`, callback_data: `callsheet:${s.id}` }
       ]);
     });
 
@@ -451,7 +434,7 @@ async function handleTelegramMessage(message) {
     });
   }
 
-  // 4. КОМАНДА /callsheet [id] — ТОЛЬКО РЕАЛЬНЫЙ ВЫЗЫВНОЙ С САЙТА
+  // 4. КОМАНДА /callsheet [id]
   if (text.startsWith('/callsheet')) {
     const parts = text.split(/\s+/);
     let shootId = parts[1];
@@ -459,10 +442,7 @@ async function handleTelegramMessage(message) {
     const users = await store.getUsers();
 
     if (allShoots.length === 0) {
-      return sendMessage(chatId,
-        `<b>ВЫЗЫВНЫЕ ЛИСТЫ</b>\n` +
-        `На сайте в данный момент нет ни одной зарегистрированной съёмочной смены.`
-      );
+      return sendMessage(chatId, 'На сайте в данный момент нет зарегистрированных смен.');
     }
 
     let shoot = null;
@@ -495,94 +475,21 @@ async function handleTelegramMessage(message) {
     });
   }
 
-  // 5. КОМАНДА /profile — ЦИФРОВОЙ ПАСПОРТ С САЙТА
-  if (text === '/profile') {
-    const user = await store.getUserByTelegram(chatId) || (username ? await store.getUserByTelegram(username) : null);
-    if (!user) {
-      return sendMessage(chatId,
-        `<b>ПРОФИЛЬ НЕ ПРИВЯЗАН</b>\n` +
-        `Вы не авторизованы. Укажите ваш Telegram (${username || '@юзернейм'}) в панели администратора на сайте или используйте <code>/link почта</code>.`
-      );
-    }
-
-    const comp = user.competencies || { camera: 90, sound: 85, light: 85, edit: 88 };
-    const allShoots = await store.getShoots();
-    const completedCount = allShoots.filter(s => s.isCompleted && (s.crew || []).some(c => c.userId === user.id)).length;
-
+  // 5. КОМАНДА /help
+  if (text === '/help') {
     return sendMessage(chatId,
-      `<b>ГАПОУ КП №11 // ЦИФРОВОЙ ПАСПОРТ ЦЕХА</b>\n` +
+      `<b>МЕДИАЦЕНТР КП11 // ПОМОЩЬ</b>\n` +
       `════════════════════════════════════\n` +
-      `Студент: <b>${escapeHtml(user.fullName)}</b>\n` +
-      `Группа: <code>${escapeHtml(user.groupName || 'КИТ-11')}</code>\n` +
-      `Роль в системе: <b>${user.role?.name || 'Студент'}</b>\n` +
-      `Цеховой грейд: <b>${escapeHtml(user.craftRank || 'Ассистент цеха')}</b>\n` +
-      `Рейтинг надёжности: <b>${user.rating || 5.0} / 5.0</b> ★★★★★\n` +
-      `Завершённых смен на сайте: <b>${completedCount}</b>\n` +
-      `════════════════════════════════════\n` +
-      `<b>МАТРИЦА ЦЕХОВЫХ КОМПЕТЕНЦИЙ:</b>\n` +
-      `• Операторский цех (Log-C, Оптика, Фокус): <b>${comp.camera}%</b>\n` +
-      `• Звуковой цех (Радиотракт, Бум, Запись): <b>${comp.sound}%</b>\n` +
-      `• Осветительский цех (Гаффер-сетап, Kelvin): <b>${comp.light}%</b>\n` +
-      `• Монтаж & Постпродакшн (DaVinci, LUT): <b>${comp.edit}%</b>\n` +
-      `════════════════════════════════════`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Мои смены', callback_data: 'cmd:my_shoots' }],
-            [{ text: 'Вызывной лист', callback_data: 'cmd:callsheet' }]
-          ]
-        }
-      }
+      `• /my_shoots — Ваши назначенные смены\n` +
+      `• /callsheet — Текущий вызывной лист\n` +
+      `• /link &lt;почта&gt; — Привязать Telegram к сайту`
     );
   }
 
-  // 6. КОМАНДА /shifts — СВОДНЫЙ СПИСОК СМЕН С САЙТА
-  if (text === '/shifts') {
-    const allShoots = await store.getShoots();
-    if (allShoots.length === 0) {
-      return sendMessage(chatId,
-        `<b>ГРАФИК СМЕН МЕДИАЦЕНТРА КП11</b>\n` +
-        `════════════════════════════════════\n` +
-        `В настоящее время на сайте нет зарегистрированных смен.\n` +
-        `Мастер может создать смену через кнопку «Создать смену» на портале.`
-      );
-    }
-
-    let msg = `<b>ВСЕ СМЕНЫ С САЙТА МЕДИАЦЕНТРА (${allShoots.length}):</b>\n════════════════════════════════════\n\n`;
-    allShoots.forEach((s, idx) => {
-      const crew = s.crew || [];
-      const acceptedCount = crew.filter(c => c.status === 'ACCEPTED').length;
-      const totalCount = crew.length;
-      const d = new Date(s.date);
-      const dateStr = !isNaN(d.getTime()) ? d.toLocaleDateString('ru-RU') : 'Дата уточняется';
-
-      msg += `<b>${idx + 1}. ${escapeHtml(s.title)}</b>\n` +
-             `• Формат: ${s.type || 'СТУДИЯ'}\n` +
-             `• Дата: ${dateStr}\n` +
-             `• Готовность группы: <b>${acceptedCount}/${totalCount} подтвердили</b>\n` +
-             `• Локация: ${escapeHtml(s.location)}\n\n`;
-    });
-
-    return sendMessage(chatId, msg, {
-      reply_markup: {
-        inline_keyboard: allShoots.map(s => ([
-          { text: `Вызывной: ${s.title.slice(0, 26)}`, callback_data: `callsheet:${s.id}` }
-        ]))
-      }
-    });
+  // На неизвестную команду в ЛС даем короткую подсказку без лишнего текста
+  if (text.startsWith('/')) {
+    return sendMessage(chatId, 'Команда не распознана. Используйте /my_shoots или /callsheet.');
   }
-
-  // 7. КОМАНДА /help
-  return sendMessage(chatId,
-    `<b>СПРАВОЧНАЯ СЛУЖБА КИНОЦЕХА КП11</b>\n` +
-    `════════════════════════════════════\n` +
-    `Бот полностью синхронизирован со съёмочным графиком сайта.\n\n` +
-    `• <b>/my_shoots</b> — Ваши назначенные смены и статус явки\n` +
-    `• <b>/callsheet</b> — Полный вызывной лист с таймингом\n` +
-    `• <b>/profile</b> — Профиль студента, рейтинг и цеховой ранг\n` +
-    `• <b>/shifts</b> — График всех проектов медиацентра с сайта\n` +
-    `• <b>/link &lt;email&gt;</b> — Привязать Telegram к почте на сайте`
-  );
 }
 
 // ------------------------------------------------------------------------------
@@ -590,26 +497,26 @@ async function handleTelegramMessage(message) {
 // ------------------------------------------------------------------------------
 async function handleTelegramCallbackQuery(query) {
   const queryId = query.id;
-  const chatId = query.message.chat.id;
-  const messageId = query.message.message_id;
+  const isPrivate = query.message && query.message.chat && query.message.chat.type === 'private';
+  const chatId = query.message ? query.message.chat.id : null;
+  const messageId = query.message ? query.message.message_id : null;
   const data = query.data || '';
   const fromUser = query.from;
 
   if (data === 'cmd:my_shoots') {
+    if (!isPrivate) {
+      return answerCallbackQuery(queryId, 'Мои смены доступны в личных сообщениях с ботом', true);
+    }
     await answerCallbackQuery(queryId);
-    return handleTelegramMessage({ chat: { id: chatId }, text: '/my_shoots', from: fromUser });
+    return handleTelegramMessage({ chat: { id: chatId, type: 'private' }, text: '/my_shoots', from: fromUser });
   }
+
   if (data === 'cmd:callsheet') {
+    if (!isPrivate) {
+      return answerCallbackQuery(queryId, 'Вызывной лист доступен в личных сообщениях с ботом', true);
+    }
     await answerCallbackQuery(queryId);
-    return handleTelegramMessage({ chat: { id: chatId }, text: '/callsheet', from: fromUser });
-  }
-  if (data === 'cmd:profile') {
-    await answerCallbackQuery(queryId);
-    return handleTelegramMessage({ chat: { id: chatId }, text: '/profile', from: fromUser });
-  }
-  if (data === 'cmd:shifts') {
-    await answerCallbackQuery(queryId);
-    return handleTelegramMessage({ chat: { id: chatId }, text: '/shifts', from: fromUser });
+    return handleTelegramMessage({ chat: { id: chatId, type: 'private' }, text: '/callsheet', from: fromUser });
   }
 
   // 1. ПОДТВЕРЖДЕНИЕ УЧАСТИЯ В СМЕНЕ: accept:<shootId>
@@ -621,6 +528,12 @@ async function handleTelegramCallbackQuery(query) {
     if (user) {
       await store.updateCrewMemberStatus(shootId, user.id, 'ACCEPTED');
     }
+
+    // Если нажали в групповом чате — просто показываем всплывающее уведомление и НЕ спамим в группу
+    if (!isPrivate) {
+      return answerCallbackQuery(queryId, '✓ Ваша явка подтверждена на сайте!', true);
+    }
+
     await answerCallbackQuery(queryId, 'Явка на смену подтверждена!', true);
 
     const shoot = await store.getShootById(shootId);
@@ -630,7 +543,7 @@ async function handleTelegramCallbackQuery(query) {
       return editMessageText(chatId, messageId,
         updatedCallsheet +
         `\n\n<b>СТАТУС: ВЫ ПОДТВЕРДИЛИ ЯВКУ НА СМЕНУ</b>\n` +
-        `<i>Данные обновлены в базе сайта. Мастер смены оповещен.</i>`,
+        `<i>Данные обновлены на сайте.</i>`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -645,10 +558,16 @@ async function handleTelegramCallbackQuery(query) {
         }
       );
     }
+    return;
   }
 
   // 2. ОТКЛОНЕНИЕ ВЫЗОВА: decline:<shootId>
   if (data.startsWith('decline:')) {
+    // В групповых чатах отклонить нельзя, перенаправляем в ЛС
+    if (!isPrivate) {
+      return answerCallbackQuery(queryId, 'Для отклонения вызова откройте личные сообщения с ботом', true);
+    }
+
     const shootId = data.replace('decline:', '');
     const user = await store.getUserByTelegram(chatId) || (fromUser.username ? await store.getUserByTelegram('@' + fromUser.username) : null);
 
@@ -660,17 +579,14 @@ async function handleTelegramCallbackQuery(query) {
       timestamp: Date.now()
     });
 
-    await answerCallbackQuery(queryId, 'Пожалуйста, укажите причину отказа ответным сообщением', false);
+    await answerCallbackQuery(queryId, 'Укажите причину отказа ответным сообщением', false);
 
     const shoot = await store.getShootById(shootId);
     const shootTitle = shoot ? shoot.title : 'Съёмочная смена';
 
     return sendMessage(chatId,
       `⚠️ <b>ОТКЛОНЕНИЕ ВЫЗЫВНОГО // ${escapeHtml(shootTitle)}</b>\n` +
-      `════════════════════════════════════\n` +
-      `Пожалуйста, напишите <b>причину отказа</b> ответным сообщением в этот чат (например: <i>«Болезнь», «Наложение учебных смен», «Сломалась техника»</i>):\n\n` +
-      `<i>Причина будет сразу видна мастеру на сайте в карточке смены.</i>\n` +
-      `<i>(Для отмены отправьте /cancel)</i>`,
+      `Напишите <b>причину отказа</b> ответным сообщением (для отмены отправьте /cancel):`,
       {
         reply_markup: {
           force_reply: true,
@@ -684,20 +600,30 @@ async function handleTelegramCallbackQuery(query) {
   if (data.startsWith('location:')) {
     const shootId = data.replace('location:', '');
     const shoot = await store.getShootById(shootId);
+
+    if (!isPrivate) {
+      const locText = shoot ? `Локация: ${shoot.location}` : 'Локация уточняется';
+      return answerCallbackQuery(queryId, locText, true);
+    }
+
     await answerCallbackQuery(queryId);
 
     if (shoot && shoot.latitude && shoot.longitude) {
       await sendLocation(chatId, parseFloat(shoot.latitude), parseFloat(shoot.longitude));
       return sendMessage(chatId,
-        `<b>ЛОКАЦИЯ ОБЪЕКТА:</b>\n` +
-        `Адрес: <b>${escapeHtml(shoot.location)}</b>\n` +
-        `<a href="https://yandex.ru/maps/?pt=${shoot.longitude},${shoot.latitude}&z=16&l=map">Построить маршрут в Яндекс.Навигаторе</a>`
+        `📍 <b>ЛОКАЦИЯ:</b> ${escapeHtml(shoot.location)}\n` +
+        `<a href="https://yandex.ru/maps/?pt=${shoot.longitude},${shoot.latitude}&z=16&l=map">Маршрут в Яндекс.Картах</a>`
       );
     }
+    return;
   }
 
   // 4. ОТКРЫТИЕ ВЫЗЫВНОГО ПО ID: callsheet:<shootId>
   if (data.startsWith('callsheet:')) {
+    if (!isPrivate) {
+      return answerCallbackQuery(queryId, 'Вызывной лист доступен в личных сообщениях с ботом', true);
+    }
+
     const shootId = data.replace('callsheet:', '');
     const shoot = await store.getShootById(shootId);
     await answerCallbackQuery(queryId);
@@ -721,6 +647,7 @@ async function handleTelegramCallbackQuery(query) {
         }
       });
     }
+    return;
   }
 
   return answerCallbackQuery(queryId);
