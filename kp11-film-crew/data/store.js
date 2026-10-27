@@ -1221,6 +1221,12 @@ async function saveShoot(shootData) {
   return shootData;
 }
 
+async function saveShoots(shootsList) {
+  const safeList = Array.isArray(shootsList) ? shootsList : [];
+  writeJsonFile(SHOOTS_FILE, safeList);
+  return safeList;
+}
+
 async function deleteShoot(id) {
   if (prisma) {
     try {
@@ -1809,6 +1815,7 @@ module.exports = {
   getShoots,
   getShootById,
   saveShoot,
+  saveShoots,
   completeShoot,
   updateCrewAttendance,
   deleteShoot,

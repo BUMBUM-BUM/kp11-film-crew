@@ -928,7 +928,11 @@ app.delete(['/api/admin/shoots/:id', '/api/shoots/:id'], optionalAuthToken, asyn
           await prisma.shoot.deleteMany({}).catch(() => {});
         } catch (e) {}
       }
-      await store.saveShoots([]);
+      if (typeof store.saveShoots === 'function') {
+        await store.saveShoots([]);
+      } else {
+        writeJsonSafe(SHOOTS_FILE, []);
+      }
       return res.json({ success: true, message: 'Все смены очищены' });
     }
     if (prisma) {

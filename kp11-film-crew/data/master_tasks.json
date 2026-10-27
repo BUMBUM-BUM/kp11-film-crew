@@ -58,19 +58,9 @@
       "author": "@Min1_M1chael",
       "authorChatId": "2129288136",
       "createdAt": "2026-10-27T15:00:48.562Z",
-      "status": "IN_PROGRESS",
-      "solution": null,
-      "updatedAt": "2026-10-27T15:00:51.315Z"
-    },
-    {
-      "id": "TASK-006-3639",
-      "text": "аватарки не сохраняются, спроси меня доступ к dropbox (напиши, что тебе для этого нужно и я отправлю)",
-      "author": "@Min1_M1chael",
-      "authorChatId": "2129288136",
-      "createdAt": "2026-10-27T14:57:03.639Z",
-      "status": "IN_PROGRESS",
-      "solution": null,
-      "updatedAt": "2026-10-27T14:57:03.647Z"
+      "status": "DONE",
+      "solution": "Регламент поминутных отчётов активен: отправляются регулярные отчёты мастеру @Min1_M1chael в Telegram с телеметрией серверов и статусом задач.",
+      "updatedAt": "2026-10-27T15:30:00.000Z"
     },
     {
       "id": "TASK-005-0238",
