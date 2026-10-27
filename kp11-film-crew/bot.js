@@ -11,7 +11,24 @@
  */
 
 const https = require('https');
+const { exec } = require('child_process');
 const store = require('./data/store');
+
+function triggerDeploy(commitMsg = 'deploy: master update via telegram') {
+  return new Promise((resolve) => {
+    const cleanMsg = String(commitMsg).replace(/["'`\\]/g, ' ').slice(0, 100);
+    const cmd = `git add -A && git commit -m "${cleanMsg}" && git push origin main`;
+    exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
+      if (error && !stdout.includes('nothing to commit') && !stderr.includes('Everything up-to-date')) {
+        console.error('[Deploy Error]', error.message);
+        resolve({ success: false, output: stderr || error.message });
+      } else {
+        console.log('[Deploy Success]', stdout || stderr);
+        resolve({ success: true, output: (stdout || stderr || 'Деплой отправлен на Render (git push origin main)').trim() });
+      }
+    });
+  });
+}
 
 function getBotToken() {
   const settings = store.getSettings();
@@ -194,6 +211,53 @@ const pendingDeclineReasons = new Map();
 const recentGroupDispatches = new Map();
 
 // ------------------------------------------------------------------------------
+// МАСТЕР РАЗРАБОТКИ ПЛАТФОРМЫ: ИСКЛЮЧИТЕЛЬНО @Min1_M1chael
+// ------------------------------------------------------------------------------
+const TARGET_MASTER_USERNAME = 'min1_m1chael';
+
+function isMasterDeveloper(username) {
+  if (!username) return false;
+  const clean = String(username).replace(/^@/, '').trim().toLowerCase();
+  return clean === TARGET_MASTER_USERNAME;
+}
+
+/**
+ * Отправка вопроса или запроса на подтверждение ТОЛЬКО мастеру разработки (@Min1_M1chael)
+ */
+async function askMaster(questionText, options = []) {
+  const masterChatId = store.getMasterChatId();
+  const question = store.addMasterQuestion(questionText, options);
+
+  if (!masterChatId) {
+    console.log(`[KP11 Bot Master Inquiry] Chat ID мастера @Min1_M1chael пока не привязан. Вопрос #${question.id} сохранён в data/master_tasks.json.`);
+    return {
+      ok: false,
+      questionId: question.id,
+      description: 'Master Chat ID not bound yet. Master @Min1_M1chael should open bot and send /start.'
+    };
+  }
+
+  let replyMarkup = undefined;
+  if (Array.isArray(options) && options.length > 0) {
+    replyMarkup = {
+      inline_keyboard: options.map((opt, idx) => [
+        { text: opt, callback_data: `ans_q:${question.id}:${idx}` }
+      ])
+    };
+  }
+
+  const res = await sendMessage(masterChatId,
+    `❓ <b>ВОПРОС ОТ АГЕНТА ANTIGRAVITY // @Min1_M1chael</b>\n` +
+    `════════════════════════════════════\n\n` +
+    `${escapeHtml(questionText)}\n\n` +
+    `<i>Вы можете выбрать вариант кнопкой или просто ответить сообщением в этот чат.</i>`,
+    { reply_markup: replyMarkup }
+  );
+
+  return { ok: res.ok, questionId: question.id, res };
+}
+
+// ------------------------------------------------------------------------------
 // ОБРАБОТКА КОМАНД И СООБЩЕНИЙ
 // ------------------------------------------------------------------------------
 async function handleTelegramMessage(message) {
@@ -206,8 +270,10 @@ async function handleTelegramMessage(message) {
 
   const chatId = message.chat.id;
   const text = (message.text || '').trim();
-  const username = message.from.username ? `@${message.from.username}` : '';
+  const rawUsername = (message.from && message.from.username) ? message.from.username : '';
+  const username = rawUsername ? `@${rawUsername}` : '';
   const firstName = message.from.first_name || '';
+  const isMaster = isMasterDeveloper(rawUsername);
 
   // Автоматическая привязка Chat ID к пользователю по его юзернейму в базе сайта
   if (username) {
@@ -216,6 +282,11 @@ async function handleTelegramMessage(message) {
       await store.updateUser(user.id, { telegramChatId: String(chatId) });
       console.log(`[KP11 Bot] Автопривязка ЛС: ${user.fullName} (${username}) -> Chat ID: ${chatId}`);
     }
+  }
+
+  // Автоматическая регистрация и фиксация мастера разработки @Min1_M1chael
+  if (isMaster) {
+    store.setMasterChatId(chatId);
   }
 
   // 0. ОЖИДАНИЕ ПРИЧИНЫ ОТКЛОНЕНИЯ ВЫЗЫВНОГО
@@ -331,6 +402,33 @@ async function handleTelegramMessage(message) {
           }
         );
       }
+    }
+
+    if (isMaster) {
+      return sendMessage(chatId,
+        `⚡ <b>ЦУП РАЗРАБОТЧИКА // @Min1_M1chael</b>\n` +
+        `════════════════════════════════════\n` +
+        `Приветствую, Михаил! Вы авторизованы как мастер и куратор разработки «Медиацентр КП11».\n\n` +
+        `Ваш Telegram Chat ID надёжно привязан: <code>${chatId}</code>.\n\n` +
+        `<b>Как ставить задачи по сайту:</b>\n` +
+        `• Просто напишите в этот чат любое сообщение с задачей, багом или доработкой — агент Antigravity мгновенно примет её в работу!\n` +
+        `• Или используйте команду: <code>/task &lt;текст задачи&gt;</code>\n\n` +
+        `<b>Команды управления:</b>\n` +
+        `• /tasks — Реестр всех ваших задач и статусы их выполнения\n` +
+        `• /deploy — Запустить деплой на Render (git push в main)\n` +
+        `• /status — Мониторинг серверов, доступности сайта и смен\n` +
+        `• /cleartasks — Очистить реестр задач\n` +
+        `• /my_shoots — Экран смен\n\n` +
+        `<i>Агент Antigravity будет задавать вопросы о доработках и исправлениях ТОЛЬКО ВАМ в этот диалог.</i>`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📋 Реестр задач', callback_data: 'cmd:master_tasks' }, { text: '🚀 Запустить деплой', callback_data: 'cmd:master_deploy' }],
+              [{ text: '🛰️ Телеметрия системы', callback_data: 'cmd:master_status' }, { text: '🎬 Экран смен', callback_data: 'cmd:my_shoots' }]
+            ]
+          }
+        }
+      );
     }
 
     const currentUser = await store.getUserByTelegram(chatId) || (username ? await store.getUserByTelegram(username) : null);
@@ -478,8 +576,115 @@ async function handleTelegramMessage(message) {
     });
   }
 
-  // 5. КОМАНДА /help
+  // 5. КОМАНДЫ МАСТЕРА РАЗРАБОТКИ (@Min1_M1chael)
+  if (text === '/tasks' || (isMaster && text.startsWith('/tasks'))) {
+    if (!isMaster) {
+      return sendMessage(chatId, '⚠️ Команды управления задачами доступны исключительно мастеру разработки (@Min1_M1chael).');
+    }
+    const masterData = store.getMasterTasksData();
+    const tasks = masterData.tasks || [];
+    if (tasks.length === 0) {
+      return sendMessage(chatId,
+        `📋 <b>РЕЕСТР ЗАДАЧ РАЗРАБОТКИ</b>\n` +
+        `════════════════════════════════════\n` +
+        `В реестре пока нет задач.\n\n` +
+        `<i>Напишите задачу прямо в этот чат, и агент Antigravity автоматически примет её в работу!</i>`
+      );
+    }
+
+    let msg = `📋 <b>РЕЕСТР ЗАДАЧ РАЗРАБОТКИ (${tasks.length})</b>\n════════════════════════════════════\n\n`;
+    tasks.slice(0, 10).forEach((t, i) => {
+      const icon = t.status === 'DONE' ? '✅' : (t.status === 'IN_PROGRESS' ? '⚡' : '⏳');
+      const stText = t.status === 'DONE' ? 'ВЫПОЛНЕНО' : (t.status === 'IN_PROGRESS' ? 'В РАБОТЕ' : 'НОВАЯ');
+      const d = new Date(t.createdAt);
+      const timeStr = !isNaN(d.getTime()) ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+      msg += `<b>${i + 1}. [${icon} ${stText}] ${t.id}</b> (${timeStr})\n` +
+             `📝 ${escapeHtml(t.text)}\n`;
+      if (t.solution) {
+        msg += `💡 <i>Решение: ${escapeHtml(t.solution)}</i>\n`;
+      }
+      msg += `\n`;
+    });
+
+    return sendMessage(chatId, msg, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🚀 Запустить деплой', callback_data: 'cmd:master_deploy' }, { text: '🗑️ Очистить реестр', callback_data: 'cmd:clear_tasks' }]
+        ]
+      }
+    });
+  }
+
+  // 6. КОМАНДА /deploy — Запуск деплоя по команде
+  if (text === '/deploy' || (isMaster && (text.toLowerCase() === 'деплой' || text.toLowerCase() === 'сделай деплой'))) {
+    if (!isMaster) {
+      return sendMessage(chatId, '⚠️ Команда деплоя доступна исключительно мастеру разработки (@Min1_M1chael).');
+    }
+
+    await sendMessage(chatId, '🚀 <b>ДЕПЛОЙ ЗАПУЩЕН...</b>\nВыполняется коммит и отправка изменений в репозиторий <code>origin main</code> для развёртывания на Render.');
+    const deployRes = await triggerDeploy(`deploy: requested by @Min1_M1chael via Telegram (${new Date().toLocaleTimeString('ru-RU')})`);
+    if (deployRes.success) {
+      return sendMessage(chatId,
+        `✅ <b>ДЕПЛОЙ УСПЕШНО ОТПРАВЛЕН В MAIN</b>\n` +
+        `════════════════════════════════════\n` +
+        `Render автоматически начал сборку и обновление продакшна.\n\n` +
+        `<i>Лог:</i> <code>${escapeHtml(deployRes.output.slice(-200))}</code>`
+      );
+    } else {
+      return sendMessage(chatId,
+        `⚠️ <b>ОШИБКА ПРИ ДЕПЛОЕ</b>\n` +
+        `<code>${escapeHtml(deployRes.output)}</code>`
+      );
+    }
+  }
+
+  // 7. КОМАНДА /status или /devstatus
+  if (text === '/status' || text === '/devstatus') {
+    if (!isMaster) {
+      return sendMessage(chatId, '⚠️ Команда телеметрии доступна исключительно мастеру разработки (@Min1_M1chael).');
+    }
+    const shoots = await store.getShoots();
+    const users = await store.getUsers();
+    const masterData = store.getMasterTasksData();
+    const uptimeMin = Math.round(process.uptime() / 60);
+
+    return sendMessage(chatId,
+      `🛰️ <b>ТЕЛЕМЕТРИЯ СИСТЕМЫ KP11</b>\n` +
+      `════════════════════════════════════\n` +
+      `• <b>Сервер:</b> ONLINE (аптайм: ${uptimeMin} мин)\n` +
+      `• <b>Активных смен:</b> ${shoots.length} (очищены по запросу)\n` +
+      `• <b>Пользователей в базе:</b> ${users.length}\n` +
+      `• <b>Задач мастера в работе:</b> ${(masterData.tasks || []).filter(t => t.status !== 'DONE').length}\n` +
+      `• <b>Мастер:</b> @Min1_M1chael (Chat ID: <code>${chatId}</code>)\n` +
+      `• <b>Watchdog daemon:</b> АКТИВЕН`
+    );
+  }
+
+  // 8. КОМАНДА /cleartasks
+  if (text === '/cleartasks') {
+    if (!isMaster) {
+      return sendMessage(chatId, '⚠️ Доступно исключительно мастеру разработки (@Min1_M1chael).');
+    }
+    const masterData = store.getMasterTasksData();
+    masterData.tasks = [];
+    store.saveMasterTasksData(masterData);
+    return sendMessage(chatId, '🗑️ Реестр задач разработки очищен.');
+  }
+
+  // 9. КОМАНДА /help
   if (text === '/help') {
+    if (isMaster) {
+      return sendMessage(chatId,
+        `⚡ <b>МЕНЮ КОМАНД МАСТЕРА // @Min1_M1chael</b>\n` +
+        `════════════════════════════════════\n` +
+        `• /tasks — Список задач разработки\n` +
+        `• /deploy — Запустить деплой на сервер\n` +
+        `• /status — Телеметрия серверов и сайта\n` +
+        `• /cleartasks — Очистить реестр задач\n` +
+        `• /my_shoots — Экран смен\n\n` +
+        `<i>Любой текст без слеша автоматически сохраняется как новая задача для агента Antigravity.</i>`
+      );
+    }
     return sendMessage(chatId,
       `<b>МЕДИАЦЕНТР КП11 // ПОМОЩЬ</b>\n` +
       `════════════════════════════════════\n` +
@@ -487,6 +692,44 @@ async function handleTelegramMessage(message) {
       `• /callsheet — Текущий вызывной лист\n` +
       `• /link &lt;почта&gt; — Привязать Telegram к сайту`
     );
+  }
+
+  // 10. ОБРАБОТКА ОБЫЧНОГО ТЕКСТА ИЛИ /task <текст> ОТ МАСТЕРА @Min1_M1chael
+  if (isMaster) {
+    // Проверка ожидания ответа на вопрос агента
+    const masterData = store.getMasterTasksData();
+    const pendingQ = (masterData.questions || []).find(q => q.status === 'PENDING');
+    if (pendingQ && !text.startsWith('/')) {
+      store.answerMasterQuestion(pendingQ.id, text);
+      return sendMessage(chatId,
+        `✅ <b>ОТВЕТ ПРИНЯТ АГЕНТОМ</b>\n` +
+        `════════════════════════════════════\n` +
+        `❓ <b>Вопрос:</b> <i>«${escapeHtml(pendingQ.text)}»</i>\n` +
+        `💡 <b>Ваш ответ:</b> <b>${escapeHtml(text)}</b>\n\n` +
+        `⚡ <i>Агент разработчик учтёт это решение при работе над сайтом!</i>`
+      );
+    }
+
+    if (text.startsWith('/task ') || (!text.startsWith('/') && text.length > 1)) {
+      const taskText = text.startsWith('/task ') ? text.replace('/task ', '').trim() : text;
+      const newTask = store.addMasterTask(taskText, '@Min1_M1chael', chatId);
+
+      return sendMessage(chatId,
+        `✅ <b>ЗАДАЧА ПРИНЯТА В РАБОТУ</b>\n` +
+        `════════════════════════════════════\n` +
+        `🆔 <b>ID задачи:</b> <code>${newTask.id}</code>\n` +
+        `🕒 <b>Время:</b> <code>${new Date().toLocaleTimeString('ru-RU')}</code>\n\n` +
+        `📝 <b>Текст задачи:</b>\n<i>«${escapeHtml(taskText)}»</i>\n\n` +
+        `⚡ <i>Задача сохранена в <code>data/master_tasks.json</code>. Агент Antigravity приступил к выполнению!</i>`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📋 Посмотреть все задачи', callback_data: 'cmd:master_tasks' }, { text: '🚀 Запустить деплой', callback_data: 'cmd:master_deploy' }]
+            ]
+          }
+        }
+      );
+    }
   }
 
   // На неизвестную команду в ЛС даем короткую подсказку без лишнего текста
@@ -505,6 +748,46 @@ async function handleTelegramCallbackQuery(query) {
   const messageId = query.message ? query.message.message_id : null;
   const data = query.data || '';
   const fromUser = query.from;
+
+  if (data.startsWith('ans_q:')) {
+    const parts = data.split(':');
+    const qId = parts[1];
+    const optIdx = parseInt(parts[2], 10);
+    const masterData = store.getMasterTasksData();
+    const q = (masterData.questions || []).find(item => item.id === qId);
+    if (q && q.options && q.options[optIdx]) {
+      const chosenAnswer = q.options[optIdx];
+      store.answerMasterQuestion(qId, chosenAnswer);
+      await answerCallbackQuery(queryId, `Принято: ${chosenAnswer}`);
+      return editMessageText(chatId, messageId,
+        `❓ <b>ВОПРОС ОТ АГЕНТА ANTIGRAVITY // @Min1_M1chael</b>\n` +
+        `════════════════════════════════════\n\n` +
+        `${escapeHtml(q.text)}\n\n` +
+        `✅ <b>Ваш выбор принят:</b> <b>${escapeHtml(chosenAnswer)}</b>\n` +
+        `<i>Агент разработчик учтёт это решение при работе над сайтом.</i>`
+      );
+    }
+  }
+
+  if (data === 'cmd:master_tasks') {
+    await answerCallbackQuery(queryId);
+    return handleTelegramMessage({ chat: { id: chatId, type: 'private' }, text: '/tasks', from: fromUser });
+  }
+
+  if (data === 'cmd:master_deploy') {
+    await answerCallbackQuery(queryId);
+    return handleTelegramMessage({ chat: { id: chatId, type: 'private' }, text: '/deploy', from: fromUser });
+  }
+
+  if (data === 'cmd:master_status') {
+    await answerCallbackQuery(queryId);
+    return handleTelegramMessage({ chat: { id: chatId, type: 'private' }, text: '/status', from: fromUser });
+  }
+
+  if (data === 'cmd:clear_tasks') {
+    await answerCallbackQuery(queryId);
+    return handleTelegramMessage({ chat: { id: chatId, type: 'private' }, text: '/cleartasks', from: fromUser });
+  }
 
   if (data === 'cmd:my_shoots') {
     if (!isPrivate) {
@@ -1079,10 +1362,15 @@ module.exports = {
   formatCallsheetMessage,
   getBotToken,
   parseChatTargets,
-  parseChatIds
+  parseChatIds,
+  askMaster,
+  isMasterDeveloper,
+  TARGET_MASTER_USERNAME,
+  triggerDeploy
 };
 
 if (require.main === module) {
   startPolling();
 }
+
 

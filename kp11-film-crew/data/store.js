@@ -18,6 +18,7 @@ const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json');
+const MASTER_TASKS_FILE = path.join(DATA_DIR, 'master_tasks.json');
 const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 const userManager = require('./user_manager');
 
@@ -1694,6 +1695,99 @@ async function linkOrRegisterUser(registrationData) {
   return result;
 }
 
+// ------------------------------------------------------------------------------
+// РЕЕСТР ЗАДАЧ И ВОПРОСОВ РАЗРАБОТЧИКУ (@Min1_M1chael)
+// ------------------------------------------------------------------------------
+function getMasterTasksData() {
+  const defaults = {
+    masterUsername: 'Min1_M1chael',
+    masterChatId: null,
+    tasks: [],
+    questions: [],
+    updatedAt: new Date().toISOString()
+  };
+  return readJsonFile(MASTER_TASKS_FILE, defaults);
+}
+
+function saveMasterTasksData(data) {
+  data.updatedAt = new Date().toISOString();
+  writeJsonFile(MASTER_TASKS_FILE, data);
+  return data;
+}
+
+function addMasterTask(text, author = '@Min1_M1chael', authorChatId = null) {
+  const data = getMasterTasksData();
+  if (authorChatId) data.masterChatId = String(authorChatId);
+  const newTask = {
+    id: 'TASK-' + (data.tasks.length + 1).toString().padStart(3, '0') + '-' + Date.now().toString().slice(-4),
+    text: String(text).trim(),
+    author: author,
+    authorChatId: authorChatId ? String(authorChatId) : data.masterChatId,
+    createdAt: new Date().toISOString(),
+    status: 'NEW', // 'NEW', 'IN_PROGRESS', 'DONE', 'DECLINED'
+    solution: null
+  };
+  data.tasks.unshift(newTask);
+  saveMasterTasksData(data);
+  return newTask;
+}
+
+function updateMasterTask(taskId, updates = {}) {
+  const data = getMasterTasksData();
+  const task = (data.tasks || []).find(t => t.id === taskId);
+  if (task) {
+    Object.assign(task, updates, { updatedAt: new Date().toISOString() });
+    saveMasterTasksData(data);
+    return task;
+  }
+  return null;
+}
+
+function addMasterQuestion(questionText, options = [], metadata = {}) {
+  const data = getMasterTasksData();
+  const newQ = {
+    id: 'Q-' + (data.questions.length + 1).toString().padStart(3, '0') + '-' + Date.now().toString().slice(-4),
+    text: questionText,
+    options: options,
+    metadata: metadata,
+    createdAt: new Date().toISOString(),
+    status: 'PENDING', // 'PENDING', 'ANSWERED'
+    answer: null,
+    answeredAt: null
+  };
+  data.questions.unshift(newQ);
+  saveMasterTasksData(data);
+  return newQ;
+}
+
+function answerMasterQuestion(questionId, answer) {
+  const data = getMasterTasksData();
+  const q = (data.questions || []).find(item => item.id === questionId);
+  if (q) {
+    q.status = 'ANSWERED';
+    q.answer = answer;
+    q.answeredAt = new Date().toISOString();
+    saveMasterTasksData(data);
+    return q;
+  }
+  return null;
+}
+
+function setMasterChatId(chatId) {
+  const data = getMasterTasksData();
+  data.masterChatId = String(chatId);
+  saveMasterTasksData(data);
+  saveSettings({ masterTelegramChatId: String(chatId) });
+  return data.masterChatId;
+}
+
+function getMasterChatId() {
+  const settings = getSettings();
+  if (settings.masterTelegramChatId) return String(settings.masterTelegramChatId);
+  const data = getMasterTasksData();
+  return data.masterChatId;
+}
+
 module.exports = {
   getComments,
   addComment,
@@ -1719,6 +1813,15 @@ module.exports = {
   updateUser,
   getSettings,
   saveSettings,
+  getMasterTasksData,
+  saveMasterTasksData,
+  addMasterTask,
+  updateMasterTask,
+  addMasterQuestion,
+  answerMasterQuestion,
+  setMasterChatId,
+  getMasterChatId,
   INITIAL_SHOOTS,
   INITIAL_USERS
 };
+

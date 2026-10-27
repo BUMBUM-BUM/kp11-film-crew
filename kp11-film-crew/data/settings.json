@@ -2,5 +2,6 @@
   "telegramBotToken": "",
   "defaultChatId": "",
   "botUsername": "KP11_FilmCrew_Bot",
-  "telegramTopicId": ""
+  "telegramTopicId": "",
+  "masterTelegramChatId": "999888777"
 }

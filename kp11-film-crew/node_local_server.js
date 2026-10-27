@@ -13,7 +13,13 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
 const LOCATIONS_FILE = path.join(DATA_DIR, 'locations.json');
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json');
+const MASTER_TASKS_FILE = path.join(DATA_DIR, 'master_tasks.json');
 const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
+
+let store = null;
+try { store = require('./data/store'); } catch (e) {}
+let bot = null;
+try { bot = require('./bot'); } catch (e) {}
 
 function readJsonFile(filePath, defaultVal = []) {
   try {
@@ -328,6 +334,58 @@ const server = http.createServer(async (req, res) => {
         watchdog: watchdogStatus,
         timestamp: new Date().toISOString()
       }));
+    }
+
+    // Notifications endpoints
+    if (pathname === '/api/notifications/vapid-public-key' && req.method === 'GET') {
+      return res.end(JSON.stringify({ publicKey: '' }));
+    }
+    if (pathname === '/api/notifications/subscribe' && req.method === 'POST') {
+      return res.end(JSON.stringify({ success: true }));
+    }
+
+    // Master developer bridge endpoints (@Min1_M1chael)
+    if (pathname === '/api/master/tasks' && req.method === 'GET') {
+      const masterData = store ? store.getMasterTasksData() : readJsonFile(MASTER_TASKS_FILE, { tasks: [] });
+      return res.end(JSON.stringify({ success: true, tasks: masterData.tasks || [] }));
+    }
+
+    if (pathname === '/api/master/tasks' && req.method === 'POST') {
+      const task = store 
+        ? store.addMasterTask(jsonBody.text || jsonBody.task, '@Min1_M1chael') 
+        : { id: 'TASK-' + Date.now(), text: jsonBody.text };
+      return res.end(JSON.stringify({ success: true, task }));
+    }
+
+    if (pathname === '/api/master/ask' && req.method === 'POST') {
+      if (bot && typeof bot.askMaster === 'function') {
+        const questionText = jsonBody.question || jsonBody.text;
+        const options = jsonBody.options || [];
+        bot.askMaster(questionText, options).then(result => {
+          res.end(JSON.stringify({ success: true, result }));
+        }).catch(err => {
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        });
+        return;
+      }
+      return res.end(JSON.stringify({ success: false, error: 'Bot askMaster not available' }));
+    }
+
+    if (pathname === '/api/master/questions' && req.method === 'GET') {
+      const masterData = store ? store.getMasterTasksData() : readJsonFile(MASTER_TASKS_FILE, { questions: [] });
+      return res.end(JSON.stringify({ success: true, questions: masterData.questions || [] }));
+    }
+
+    if (pathname === '/api/master/deploy' && req.method === 'POST') {
+      if (bot && typeof bot.triggerDeploy === 'function') {
+        bot.triggerDeploy(jsonBody.message || 'deploy: triggered via API').then(result => {
+          res.end(JSON.stringify({ success: true, result }));
+        }).catch(err => {
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        });
+        return;
+      }
+      return res.end(JSON.stringify({ success: false, error: 'triggerDeploy not available' }));
     }
 
     // 1. GET /api/shoots

@@ -2154,6 +2154,42 @@ app.get('/api/telegram/status', (req, res) => {
   });
 });
 
+// Master developer bridge endpoints (@Min1_M1chael)
+app.get('/api/master/tasks', (req, res) => {
+  const masterData = store.getMasterTasksData();
+  res.json({ success: true, tasks: masterData.tasks || [] });
+});
+
+app.post('/api/master/tasks', (req, res) => {
+  const task = store.addMasterTask(req.body.text || req.body.task, '@Min1_M1chael');
+  res.json({ success: true, task });
+});
+
+app.post('/api/master/ask', async (req, res) => {
+  try {
+    const questionText = req.body.question || req.body.text;
+    const options = req.body.options || [];
+    const result = await telegramBot.askMaster(questionText, options);
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/master/questions', (req, res) => {
+  const masterData = store.getMasterTasksData();
+  res.json({ success: true, questions: masterData.questions || [] });
+});
+
+app.post('/api/master/deploy', async (req, res) => {
+  try {
+    const result = await telegramBot.triggerDeploy(req.body.message || 'deploy: triggered via API');
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/telegram/link', optionalAuthToken, async (req, res) => {
   try {
     const { chatId, telegram } = req.body;
