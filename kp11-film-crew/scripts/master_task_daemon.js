@@ -302,11 +302,12 @@ async function loop() {
       }
     }
 
-    // 5. Поминутный автоматический отчёт мастеру @Min1_M1chael в Telegram (каждые 60 сек)
-    if (Date.now() - lastMinuteReportTime >= 60000) {
-      lastMinuteReportTime = Date.now();
-      await sendPeriodicProgressReport();
-    }
+    // 5. Поминутный автоматический отчёт мастеру @Min1_M1chael в Telegram
+    // ОТКЛЮЧЕНО по указанию мастера («я дома, можешь пока больше не взаимодействовать со мной через бота»)
+    // if (Date.now() - lastMinuteReportTime >= 60000) {
+    //   lastMinuteReportTime = Date.now();
+    //   await sendPeriodicProgressReport();
+    // }
 
   } catch (err) {
     console.error('[Master Daemon Error]:', err.message);
