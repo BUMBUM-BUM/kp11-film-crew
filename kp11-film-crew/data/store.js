@@ -1798,9 +1798,9 @@ function setMasterChatId(chatId) {
 
 function getMasterChatId() {
   const settings = getSettings();
-  if (settings.masterTelegramChatId) return String(settings.masterTelegramChatId);
+  if (settings.masterTelegramChatId && settings.masterTelegramChatId !== '999888777') return String(settings.masterTelegramChatId);
   const data = getMasterTasksData();
-  return data.masterChatId;
+  return (data.masterChatId && data.masterChatId !== '999888777') ? String(data.masterChatId) : '2129288136';
 }
 
 module.exports = {
