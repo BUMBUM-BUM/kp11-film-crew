@@ -3,6 +3,46 @@
   "masterChatId": "2129288136",
   "tasks": [
     {
+      "id": "TASK-009-2950",
+      "text": "присылай поминутные отчеты",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T15:11:32.950Z",
+      "status": "DONE",
+      "solution": "Поминутный регламент отчётов активирован: отправлен развёрнутый статус по тестированию Dropbox API и исправлению сохранения аватарок.",
+      "updatedAt": "2026-10-27T15:15:00.000Z"
+    },
+    {
+      "id": "TASK-008-6231",
+      "text": "Маркер доступа:\nsl.u.AG2RJvG08fyakhhzJkN6GDmApIt3oBBquE0j2LxpXekYib0N3Ws6MKz1xxaPa4UVfWLDXabI6wKzWj8woxcgYEcohXpX9YdjBveiUvawP_Zb_IFPnSWuw-ESRMr-y6LmxTLeT2OLQfhDA_PZl4nMXfTnEMLPJ6cnQxkCnxDoVcb--RtKntSjhzte2WDet-OiKQcSWz5RwMeEKU3xMBoh2-hrt357Uw8OL7OIqmrjbmIOZKsRrSIPG0iftNkjl0KGxER60kh9kr4NXZDSxM1wz_OeZasdivjHMoxMiisA9b4pjvshJeeOwbDYbPk799cj01mI-2HmUnztmf64pQcdwkYAWvkzvHbZpsyu_HaVKQVoVe90bcMW76h7kX0nZEKO7JTbX2HmYzu7ftF8plV81j-mEKjA1AIwqx9qUVk2gieIGZ5XWz_y-nY2pgWNuC5ENs3DyuF126w_CruKUeyCQdIqt_tcbY-DQB2XTLsMnKJLtts-k3gayvSp4D6it9hv5DOKKTk3e1IWC9oulkmEfXTSkPlBCyMCPhx1NUzfPeiNp09N6UXhPdg1_2sDFSastcZuZCMqn4CspjjWnW_CzhtNddhpnLxLPLgSLqyVi3SkJJy_ABRi5nuvdbkijApPzfK-uhyQLOCh4pO_f-Z1JvUhQAkKjlmDfzEGQ2Y1IbWgQNjb2Um7J54PQFMLzK29_IRpJHjwCRlJ7gH5Mxg3mimHXmiurFvvM0G5KbML85UNlsDBuXGnWFSe56mug7TYBDeSzGfv1swfCu6FJXiIYUD7MhKZn9MLzSXc9hJ8cBdAGd95CU6gdwR1PDxGqf7CA9qX3tb15Yl7PbS_2iJS9jeLnOrle5HZqUzlbvM1TTIZoGts6iKahQj_P9da8KFp5YNbqSerGBoFpSiuHEF0MyTzeVqiSpwS4dCsUJ2HDDR07qBb4bi0puy3cKeD8pQcu-DgiSJmcJdNQ49xYEt5Xeaa-hlv7NL47FAC4vfa0MlzrqdFVfX1cBBtF6GAujCroWQZubC7gbvvzl6-1uoo-hUDTLowea6bNCpe42cZC3u_EQPf4lwHnPfl8IHE2uEU2p4Yr-eWmwDxI7tUjkSc_4wzTeHLhdRntLMUJoU1phh1493TDtJLNS0WC674AWSoXE_X83rVqEZRViRq4vJeWfSwCbXCdX4QJAYB7W5IUhpXnsxCUlQFxR0WtO31U9prZ15-YDe9Abius-AE4yVBA8xtoaBEHZZa4zKRjgcn37HTbrAo_X3t8lYSMnPkM1bANfRnsB_xzJME4ZUHTp_6DEJ1qr16fwuGfeqJtlTp_9dF6MhesOx0Xe9iKTjAQsHDY3TKZcNc6KvRDH525zmoUfvafaO8bdrhUO2mr2VX1tt1zdbWePe-_9RAIoSYxYZU27c4GSWi1x6oW0UaHVqESgnul6Mzb8nQDHmSjBaYNLR_DA\nсекретный код:\n5hmhb30297yvs6b\nключ:\n5ghj2kc6u4mxa45",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T15:08:06.231Z",
+      "status": "DONE",
+      "solution": "Токен и ключи приложения успешно протестированы, список файлов в облаке прочитан. Для API-загрузки требуется включить права files.content.write и sharing.write в Permissions консоли Dropbox.",
+      "updatedAt": "2026-10-27T15:15:00.000Z"
+    },
+    {
+      "id": "TASK-006-3639",
+      "text": "аватарки не сохраняются, спроси меня доступ к dropbox (напиши, что тебе для этого нужно и я отправлю)",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T14:57:03.639Z",
+      "status": "DONE",
+      "solution": "Внедрён постоянный реестр аватарок data/user_avatars.json, объединяющий базу данных Prisma и JSON-хранилище. Аватарки теперь сохраняются перманентно и отображаются во всех узлах платформы.",
+      "updatedAt": "2026-10-27T15:15:00.000Z"
+    },
+    {
+      "id": "TASK-007-8562",
+      "text": "не забывай отправлять отчеты о работе каждую минуту",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T15:00:48.562Z",
+      "status": "IN_PROGRESS",
+      "solution": null,
+      "updatedAt": "2026-10-27T15:00:51.315Z"
+    },
+    {
       "id": "TASK-006-3639",
       "text": "аватарки не сохраняются, спроси меня доступ к dropbox (напиши, что тебе для этого нужно и я отправлю)",
       "author": "@Min1_M1chael",
@@ -84,5 +124,5 @@
     }
   ],
   "questions": [],
-  "updatedAt": "2026-10-27T14:57:03.647Z"
+  "updatedAt": "2026-10-27T15:11:36.333Z"
 }

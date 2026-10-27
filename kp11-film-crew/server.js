@@ -595,6 +595,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
     const roleName = user.role?.name || (typeof user.role === 'string' ? user.role : 'Студент');
+    const userAvatar = (avatarHelper ? avatarHelper.getUserAvatar(user.id, user.email, user.telegram) : user.avatar) || user.avatar || null;
     res.json({ 
       token, 
       user: { 
@@ -605,7 +606,8 @@ app.post('/api/auth/login', async (req, res) => {
         role: roleName,
         rating: user.rating,
         telegram: user.telegram,
-        craftRank: user.craftRank
+        craftRank: user.craftRank,
+        avatar: userAvatar
       } 
     });
   } catch (err) {
@@ -845,6 +847,9 @@ app.get('/api/admin/data', optionalAuthToken, async (req, res) => {
 
     if (!users || users.length === 0) {
       users = await store.getUsers();
+    }
+    if (avatarHelper && users && Array.isArray(users)) {
+      users = avatarHelper.enrichUsersWithAvatars(users);
     }
     const settings = store.getSettings();
     res.json({ roles, users, settings });
@@ -1337,24 +1342,27 @@ app.post(['/api/users/:id/avatar', '/api/users/profile/avatar'], optionalAuthTok
   try {
     const targetUserId = req.params.id || (req.user && req.user.id) || req.body.userId;
     const { avatar } = req.body;
-    const users = readJsonSafe(USERS_FILE, []);
-    let targetUser = users.find(u => u.id === targetUserId || (req.body.email && u.email === req.body.email));
-    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден' });
+    const email = req.body.email || (req.user && req.user.email);
+    const telegram = req.body.telegram || (req.user && req.user.telegram);
 
-    const processedAvatar = avatarHelper.processAvatarInput(targetUserId, avatar);
-    targetUser.avatar = processedAvatar || null;
-    writeJsonSafe(USERS_FILE, users);
+    // Сохранение в постоянный реестр аватарок (user_avatars.json)
+    const processedAvatar = avatarHelper ? avatarHelper.setUserAvatar(targetUserId, email, telegram, avatar) : avatar;
 
-    if (prisma) {
-      try {
-        await prisma.user.update({
-          where: { id: targetUser.id },
-          data: { avatar: targetUser.avatar }
-        }).catch(() => {});
-      } catch (dbErr) {}
+    // Синхронизация с store.js
+    if (targetUserId) {
+      await store.updateUser(targetUserId, { avatar: processedAvatar, email, telegram }).catch(() => {});
     }
 
-    res.json({ success: true, avatar: targetUser.avatar, user: targetUser });
+    res.json({
+      success: true,
+      avatar: processedAvatar,
+      user: {
+        id: targetUserId,
+        email,
+        telegram,
+        avatar: processedAvatar
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1681,6 +1689,21 @@ app.get('/api/shoots', optionalAuthToken, async (req, res) => {
       const dbStudentIds = new Set(students.map(s => String(s.id)));
       const extraStudents = fileStudents.filter(s => !dbStudentIds.has(String(s.id)));
       students = [...students, ...extraStudents];
+    }
+
+    if (avatarHelper && students && Array.isArray(students)) {
+      students = avatarHelper.enrichUsersWithAvatars(students);
+    }
+    if (avatarHelper && shoots && Array.isArray(shoots)) {
+      shoots.forEach(sh => {
+        if (sh && Array.isArray(sh.crew)) {
+          sh.crew.forEach(cm => {
+            if (cm && cm.user) {
+              cm.user = avatarHelper.enrichUserWithAvatar(cm.user);
+            }
+          });
+        }
+      });
     }
 
     const totalShoots = shoots.length;

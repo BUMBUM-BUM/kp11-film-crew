@@ -872,7 +872,8 @@ const server = http.createServer(async (req, res) => {
             role: roleStr,
             telegram: found.telegram,
             craftRank: found.craftRank,
-            rating: typeof found.rating === 'number' ? found.rating : 4.8
+            rating: typeof found.rating === 'number' ? found.rating : 4.8,
+            avatar: (avatarHelper ? avatarHelper.getUserAvatar(found.id, found.email, found.telegram) : found.avatar) || found.avatar || null
           }
         }));
       } else {
@@ -1064,23 +1065,15 @@ const server = http.createServer(async (req, res) => {
     const userAvatarMatch = pathname.match(/^\/api\/users\/(?:profile\/avatar|([^/]+)\/avatar)$/);
     if (userAvatarMatch && req.method === 'POST') {
       const targetUserId = userAvatarMatch[1] || jsonBody.userId;
-      const { avatar } = jsonBody;
-      const users = readJsonFile(USERS_FILE, []);
-      let updatedUser = null;
-      const processed = avatarHelper ? avatarHelper.processAvatarInput(targetUserId, avatar) : avatar;
+      const { avatar, email, telegram } = jsonBody;
+      const processed = avatarHelper ? avatarHelper.setUserAvatar(targetUserId, email, telegram, avatar) : avatar;
 
-      users.forEach(u => {
-        if (u.id === targetUserId || (!targetUserId && jsonBody.email && u.email === jsonBody.email)) {
-          u.avatar = processed || null;
-          updatedUser = u;
-        }
-      });
-      if (updatedUser) {
-        writeJsonFile(USERS_FILE, users);
-        return res.end(JSON.stringify({ success: true, avatar: updatedUser.avatar, user: updatedUser }));
-      }
-      res.statusCode = 404;
-      return res.end(JSON.stringify({ success: false, error: 'Пользователь не найден' }));
+      const users = readJsonFile(USERS_FILE, []);
+      let updatedUser = users.find(u => u.id === targetUserId || (email && u.email === email)) || { id: targetUserId, email, telegram };
+      updatedUser.avatar = processed || null;
+
+      res.statusCode = 200;
+      return res.end(JSON.stringify({ success: true, avatar: processed, user: updatedUser }));
     }
 
     // POST/PUT /api/users/:id/competencies (Оценка 4 параметров из вкладки Отзывы или Админки)

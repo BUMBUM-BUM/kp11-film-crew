@@ -2581,7 +2581,7 @@ async function handleUserAvatarUpload(event) {
   if (!file) return;
 
   try {
-    showToast('Сжатие и загрузка фото на сервер...');
+    showToast('Сжатие и сохранение фото...');
     const compressedBase64 = await compressImageFile(file, 140, 0.82);
 
     const img1 = document.getElementById('myCabinetAvatarImg');
@@ -2591,32 +2591,41 @@ async function handleUserAvatarUpload(event) {
     const navAvatar = document.getElementById('userNavAvatarImg');
     if (navAvatar) navAvatar.src = compressedBase64;
 
-    if (currentUser && currentUser.id) {
-      try {
-        const res = await fetch('/api/users/' + currentUser.id + '/avatar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (token || 'demo-token')
-          },
-          body: JSON.stringify({ userId: currentUser.id, avatar: compressedBase64 })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.avatar) {
-            currentUser.avatar = data.avatar;
-            localStorage.setItem('user', JSON.stringify(currentUser));
-            if (img1) img1.src = data.avatar;
-            if (img2) img2.src = data.avatar;
-            if (navAvatar) navAvatar.src = data.avatar;
-          }
-        }
-      } catch (err) {
-        console.warn('Avatar server sync error:', err);
-      }
+    if (currentUser) {
+      currentUser.avatar = compressedBase64;
+      localStorage.setItem('user', JSON.stringify(currentUser));
     }
 
-    showToast('Аватарка успешно сохранена на сервере!');
+    const targetId = (currentUser && currentUser.id) ? currentUser.id : 'profile';
+    try {
+      const res = await fetch('/api/users/' + targetId + '/avatar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (token || 'demo-token')
+        },
+        body: JSON.stringify({
+          userId: currentUser ? currentUser.id : undefined,
+          email: currentUser ? currentUser.email : undefined,
+          telegram: currentUser ? currentUser.telegram : undefined,
+          avatar: compressedBase64
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.avatar) {
+          currentUser.avatar = data.avatar;
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          if (img1) img1.src = data.avatar;
+          if (img2) img2.src = data.avatar;
+          if (navAvatar) navAvatar.src = data.avatar;
+        }
+      }
+    } catch (err) {
+      console.warn('Avatar server sync error:', err);
+    }
+
+    showToast('Аватарка успешно сохранена!');
   } catch (err) {
     showToast(err.message || 'Ошибка обработки фото');
   } finally {
@@ -2637,47 +2646,50 @@ async function handleUserAvatarUrlSubmit() {
   const directUrl = normalizeAvatarUrl(rawUrl);
   input.value = directUrl;
 
-  const testImg = new Image();
-  testImg.onload = async () => {
-    if (currentUser) {
-      currentUser.avatar = directUrl;
-      localStorage.setItem('user', JSON.stringify(currentUser));
-    }
-    const img1 = document.getElementById('myCabinetAvatarImg');
-    if (img1) img1.src = directUrl;
-    const img2 = document.getElementById('cabinetSettingsAvatarPreview');
-    if (img2) img2.src = directUrl;
-    const navAvatar = document.getElementById('userNavAvatarImg');
-    if (navAvatar) navAvatar.src = directUrl;
+  if (currentUser) {
+    currentUser.avatar = directUrl;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+  }
+  const img1 = document.getElementById('myCabinetAvatarImg');
+  if (img1) img1.src = directUrl;
+  const img2 = document.getElementById('cabinetSettingsAvatarPreview');
+  if (img2) img2.src = directUrl;
+  const navAvatar = document.getElementById('userNavAvatarImg');
+  if (navAvatar) navAvatar.src = directUrl;
 
-    if (currentUser && currentUser.id) {
-      try {
-        await fetch('/api/users/' + currentUser.id + '/avatar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (token || 'demo-token')
-          },
-          body: JSON.stringify({ userId: currentUser.id, avatar: directUrl })
-        });
-      } catch (e) {
-        console.warn('Sync avatar URL error:', e);
+  const targetId = (currentUser && currentUser.id) ? currentUser.id : 'profile';
+  try {
+    showToast('Сохранение ссылки на аватарку...');
+    const res = await fetch('/api/users/' + targetId + '/avatar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || 'demo-token')
+      },
+      body: JSON.stringify({
+        userId: currentUser ? currentUser.id : undefined,
+        email: currentUser ? currentUser.email : undefined,
+        telegram: currentUser ? currentUser.telegram : undefined,
+        avatar: directUrl
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.avatar) {
+        currentUser.avatar = data.avatar;
+        localStorage.setItem('user', JSON.stringify(currentUser));
+        if (img1) img1.src = data.avatar;
+        if (img2) img2.src = data.avatar;
+        if (navAvatar) navAvatar.src = data.avatar;
       }
+      showToast('Аватарка успешно сохранена на сервере!');
+    } else {
+      showToast('Аватарка сохранена в профиле');
     }
-    showToast('Аватарка по ссылке успешно установлена!');
-  };
-  testImg.onerror = () => {
-    showToast('Предупреждение: ссылка может быть приватной. Проверьте публичный доступ в Dropbox.');
-    if (currentUser) {
-      currentUser.avatar = directUrl;
-      localStorage.setItem('user', JSON.stringify(currentUser));
-    }
-    const img1 = document.getElementById('myCabinetAvatarImg');
-    if (img1) img1.src = directUrl;
-    const img2 = document.getElementById('cabinetSettingsAvatarPreview');
-    if (img2) img2.src = directUrl;
-  };
-  testImg.src = directUrl;
+  } catch (e) {
+    console.warn('Sync avatar URL error:', e);
+    showToast('Аватарка сохранена локально');
+  }
 }
 window.handleUserAvatarUrlSubmit = handleUserAvatarUrlSubmit;
 
@@ -2696,18 +2708,22 @@ async function handleUserAvatarReset() {
   const urlInp = document.getElementById('cabinetAvatarUrlInput');
   if (urlInp) urlInp.value = '';
 
-  if (currentUser && currentUser.id) {
-    try {
-      await fetch('/api/users/' + currentUser.id + '/avatar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + (token || 'demo-token')
-        },
-        body: JSON.stringify({ userId: currentUser.id, avatar: null })
-      });
-    } catch (e) {}
-  }
+  const targetId = (currentUser && currentUser.id) ? currentUser.id : 'profile';
+  try {
+    await fetch('/api/users/' + targetId + '/avatar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || 'demo-token')
+      },
+      body: JSON.stringify({
+        userId: currentUser ? currentUser.id : undefined,
+        email: currentUser ? currentUser.email : undefined,
+        telegram: currentUser ? currentUser.telegram : undefined,
+        avatar: null
+      })
+    });
+  } catch (e) {}
   showToast('Аватарка сброшена на стандартную');
 }
 window.handleUserAvatarReset = handleUserAvatarReset;
@@ -2775,6 +2791,26 @@ async function loadMyPortfolio() {
   const cabinetUrlInp = document.getElementById('cabinetAvatarUrlInput');
   if (cabinetUrlInp) {
     cabinetUrlInp.value = (currentUser.avatar && /^https?:\/\//i.test(currentUser.avatar)) ? currentUser.avatar : '';
+  }
+
+  if (!currentUser.avatar && currentUser.id) {
+    try {
+      const uRes = await fetch('/api/shoots');
+      if (uRes.ok) {
+        const uData = await uRes.json();
+        const me = (uData.students || []).find(s => s.id === currentUser.id);
+        if (me && me.avatar) {
+          currentUser.avatar = me.avatar;
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          if (cabinetSettingPrev) cabinetSettingPrev.src = me.avatar;
+          if (cabinetUrlInp && /^https?:\/\//i.test(me.avatar)) cabinetUrlInp.value = me.avatar;
+          const myAvatarImg = document.getElementById('myCabinetAvatarImg');
+          if (myAvatarImg) myAvatarImg.src = me.avatar;
+          const navAvatar = document.getElementById('userNavAvatarImg');
+          if (navAvatar) navAvatar.src = me.avatar;
+        }
+      }
+    } catch (_) {}
   }
 
   if (tgInp) {
@@ -3706,7 +3742,14 @@ async function handleSaveAdminUserFull(e) {
   const newPassword = document.getElementById('fullEditNewPassword') ? document.getElementById('fullEditNewPassword').value : '';
   const isBlacklisted = document.getElementById('fullEditBlacklisted') ? document.getElementById('fullEditBlacklisted').checked : false;
 
-  const avatar = document.getElementById('fullEditAvatarBase64') ? document.getElementById('fullEditAvatarBase64').value : undefined;
+  const avatarUrlInput = document.getElementById('fullEditAvatarUrl');
+  const avatarBase64Input = document.getElementById('fullEditAvatarBase64');
+  let avatar = undefined;
+  if (avatarUrlInput && avatarUrlInput.value.trim()) {
+    avatar = normalizeAvatarUrl(avatarUrlInput.value.trim());
+  } else if (avatarBase64Input && avatarBase64Input.value) {
+    avatar = avatarBase64Input.value;
+  }
 
   const camEl = document.getElementById('fullEditCompCamera');
   const sndEl = document.getElementById('fullEditCompSound');
@@ -3730,7 +3773,7 @@ async function handleSaveAdminUserFull(e) {
     telegramChatId,
     newPassword: newPassword || undefined,
     isBlacklisted,
-    avatar: avatar || null,
+    ...(avatar !== undefined ? { avatar } : {}),
     competencies
   };
 
@@ -3746,6 +3789,13 @@ async function handleSaveAdminUserFull(e) {
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
         body: JSON.stringify(payload)
       });
+    }
+    if (avatar !== undefined) {
+      await fetch('/api/users/' + userId + '/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || 'demo-token') },
+        body: JSON.stringify({ userId, email, telegram, avatar })
+      }).catch(() => {});
     }
   } catch (err) {
     console.warn('Update user error:', err);

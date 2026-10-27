@@ -19,8 +19,8 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json');
 const MASTER_TASKS_FILE = path.join(DATA_DIR, 'master_tasks.json');
-const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 const userManager = require('./user_manager');
+const avatarHelper = require('./avatar_helper');
 
 // Подключение к Prisma Client (если есть БД)
 let prisma = null;
@@ -1550,8 +1550,10 @@ async function getUsers() {
     const userComments = allActiveComments.filter(c => c.studentId === u.id);
     const likes = userComments.filter(c => c.type === 'POSITIVE').length;
     const dislikes = userComments.filter(c => c.type === 'NEGATIVE').length;
+    const avatar = avatarHelper ? avatarHelper.getUserAvatar(u.id, u.email, u.telegram) : u.avatar;
     return {
       ...u,
+      avatar: avatar || u.avatar || null,
       likes,
       dislikes,
       isBlacklisted: !!(u.isBlacklisted || u.isSuspended)
@@ -1575,6 +1577,10 @@ async function getUserByTelegram(usernameOrChatId) {
 }
 
 async function updateUser(id, updates) {
+  if (updates.avatar !== undefined && avatarHelper) {
+    avatarHelper.setUserAvatar(id, updates.email, updates.telegram, updates.avatar);
+  }
+
   if (prisma) {
     try {
       await prisma.user.update({
@@ -1610,7 +1616,10 @@ async function updateUser(id, updates) {
       user.isBlacklisted = !!updates.isBlacklisted;
       user.isSuspended = !!updates.isBlacklisted;
     }
-    if (updates.avatar !== undefined) user.avatar = updates.avatar;
+    if (updates.avatar !== undefined) {
+      const processed = avatarHelper ? avatarHelper.processAvatarInput(id, updates.avatar) : updates.avatar;
+      user.avatar = processed || null;
+    }
     if (updates.competencies !== undefined && typeof updates.competencies === 'object') {
       user.competencies = {
         camera: Number(updates.competencies.camera ?? (user.competencies && user.competencies.camera) ?? 85),
