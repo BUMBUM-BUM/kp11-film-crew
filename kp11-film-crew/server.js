@@ -915,6 +915,16 @@ app.delete('/api/admin/users/:id', optionalAuthToken, async (req, res) => {
 app.delete(['/api/admin/shoots/:id', '/api/shoots/:id'], optionalAuthToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (id === 'all' || id === 'clear') {
+      if (prisma) {
+        try {
+          await prisma.crewMember.deleteMany({}).catch(() => {});
+          await prisma.shoot.deleteMany({}).catch(() => {});
+        } catch (e) {}
+      }
+      await store.saveShoots([]);
+      return res.json({ success: true, message: 'Все смены очищены' });
+    }
     if (prisma) {
       try {
         await prisma.crewMember.deleteMany({ where: { shootId: id } }).catch(() => {});

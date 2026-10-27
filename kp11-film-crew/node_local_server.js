@@ -535,6 +535,11 @@ const server = http.createServer(async (req, res) => {
     const deleteMatch = pathname.match(/^\/api\/(?:admin\/)?shoots\/([^/]+)$/);
     if (deleteMatch && req.method === 'DELETE') {
       const targetId = deleteMatch[1];
+      if (targetId === 'all' || targetId === 'clear') {
+        writeJsonFile(SHOOTS_FILE, []);
+        recalculateRatings();
+        return res.end(JSON.stringify({ success: true, message: 'Все смены очищены' }));
+      }
       const shoots = readJsonFile(SHOOTS_FILE, []);
       const filtered = shoots.filter(s => s.id !== targetId);
       writeJsonFile(SHOOTS_FILE, filtered);
