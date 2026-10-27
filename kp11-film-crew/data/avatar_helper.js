@@ -77,8 +77,11 @@ function normalizeAvatarUrl(rawUrl) {
   return url;
 }
 
+let dropboxClient = null;
+try { dropboxClient = require('./dropbox_client'); } catch (_) {}
+
 /**
- * Сохранение Base64 в виде отдельного графического файла на сервере
+ * Сохранение Base64 в виде отдельного графического файла на сервере и облаке Dropbox
  */
 function saveAvatarFromBase64(userId, base64String) {
   try {
@@ -102,7 +105,25 @@ function saveAvatarFromBase64(userId, base64String) {
     const filePath = path.join(UPLOADS_DIR, fileName);
 
     fs.writeFileSync(filePath, dataBuffer);
-    return `/uploads/avatars/${fileName}`;
+    const localUrl = `/uploads/avatars/${fileName}`;
+
+    // Фоновая загрузка в облако Dropbox для долговечного хранения
+    if (dropboxClient && typeof dropboxClient.uploadAvatarBuffer === 'function') {
+      dropboxClient.uploadAvatarBuffer(userId, dataBuffer, ext).then(cloudUrl => {
+        if (cloudUrl) {
+          console.log(`[Avatar Helper] Аватарка ${userId} успешно загружена в Dropbox: ${cloudUrl}`);
+          const reg = getAvatarRegistry();
+          if (userId && reg.byUserId) {
+            reg.byUserId[String(userId)] = cloudUrl;
+            writeJsonSafe(AVATARS_REGISTRY_FILE, reg);
+          }
+        }
+      }).catch(err => {
+        console.warn('[Avatar Helper] Ошибка фоновой выгрузки в Dropbox:', err.message);
+      });
+    }
+
+    return localUrl;
   } catch (err) {
     console.error('[Avatar Helper Error] Сохранение base64:', err.message);
     return null;

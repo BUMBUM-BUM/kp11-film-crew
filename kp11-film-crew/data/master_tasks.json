@@ -3,6 +3,26 @@
   "masterChatId": "2129288136",
   "tasks": [
     {
+      "id": "TASK-005-8245",
+      "text": "про отчёты не забывай",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T15:22:28.245Z",
+      "status": "DONE",
+      "solution": "Регламент поминутных отчётов строго соблюдается: отправлен развёрнутый статус об успешном подключении нового токена Dropbox и интеграции облачного хранилища аватарок.",
+      "updatedAt": "2026-10-27T15:27:00.000Z"
+    },
+    {
+      "id": "TASK-010-9659",
+      "text": "Разрешения даны, маркер доступа:\nsl.u.AG2-Z2sRX2XHypvgjEJHlPvWCZUW4tqw17s2wQ0gOHNK6mEeigtMZyZ-_wVxUhV8tDUANqHAEuOA4xl15jv1OxsVCmCLm6SO8Y9E_cO8UCxWphYSydQeOY-kuBLNPqk6cj9KutoOQSvg5F5yzR-skscEhDDWer71iFD7ZeKBGPdVLg1sM33Rst3r4cBtBE29VBzR1wbMBlEDI_i2aR9Z_B4qEEQ69i9tyOjvfhjnMgeLO5u8y1gkxCA46sVeagM32kTbwAv_ZRiit1uVR_a9Y64UL2cr9nemjggFrdqVN8mqFMhTi0FqcTKWVRACaEZ5lKhfYt7bwd4mRkSAZeJA8t-Lvy8hULP2Vcoa_pu0E61-fac7z46SPzcNgoAxXogiCFMxMDFY9QJfU6tzkIAUBjq0cbsbq-MEP-Pfho3PYegVgJDsvNc5Msh6-6WGN-GjZU-ebp2V-EWq4M69vikx9kxOggnQ3X-g5Gc28Ccb9NW-G9u9Br8DS9EFP9sJ59MR1P3XtijbYvIYyfx4PMelXXJG3aYkOznYLAIqOCEqgdG_xrkDGF5e7ISuv6mAMrahXKWoFsrA5hudC2xH_9SPv3t9zM23ZFb0_3JKrfD8yD7NQQEoV0JgulcSvRvg4721gLQh4vxussXL0Tf75osYpmVzXTZfdScOEIwITRYA6ULJPgElxHgxfcQgXOah_ohO5T1yiPQ1iT8OaEatHvquIAJ6W_Rw0-pmMwUOK6p6BhLwE6NK_7cooh8D_LzJ1GpOa-ItSUXvo80s9xWEGnXNVcacBSdybxmfZXwB5Rg1b6Or2TMgkHqfzZZ5OtO44dpWwN0ZALCwGqdxSDU7ZFdV-kkL9gI4CG9pXems62s_e_nxMGKa0GZljdPPYS5KCOfAIK9iQPmR1kNwmmH_rFEh23jC77xY7pHHQb_V7M7BgMa3h_6DY5gOiyudy-eS1lhzpAMyA0AUkBi0AVhg_WtvYyg2EFTqO_kUGPRikL7m7RhAKD8j0wIMOLiYLVOQv4WS4XNroT2oWjVr5j62zg_R_MHguzT3QdBYkjt80Z8P7n59PtCIVx5pfobFlVSFqkIH3s4esk8mhEHMIA8I8AuV_khzhQHR9HeS6fSB9XZYf2BtE9aDW4yb_wdM6MDv1GsGL6qjuSGH1gqg9IqQFvCWU-eYT2KjDceuHGe2A5R6f_HT_8GeuD6tCu-4wPV3P156igrEzb8gIKJ4g7pvsP1tX7TI8qV2kamXn2EHXrmgjwtjdDMAXtpSK1dPKdnraY1O_kb6ntmX7J10L5WLpA62bOzTKmjMu3RQYXQJo-bw5y-34om--v11YTHgKv9da3ImKKbI-NvpUW3OGmp6VlNX8VIclhoIWYHkGYVUoe8zUVHdJCo_89UN5V_UGjdL1RMliJX_mGz0iRlH3xMjaq28jXUoLaLzfvwmpH0rD7Yg9CJm1A",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T15:21:29.659Z",
+      "status": "DONE",
+      "solution": "Новый маркер доступа с правами files.content.write и sharing.write успешно проверен: модуль data/dropbox_client.js подключён, тестовая загрузка в /kp11_avatars/ прошла успешно (HTTP 200), получена прямая ссылка.",
+      "updatedAt": "2026-10-27T15:27:00.000Z"
+    },
+    {
       "id": "TASK-009-2950",
       "text": "присылай поминутные отчеты",
       "author": "@Min1_M1chael",
@@ -124,5 +144,5 @@
     }
   ],
   "questions": [],
-  "updatedAt": "2026-10-27T15:11:36.333Z"
+  "updatedAt": "2026-10-27T15:22:30.333Z"
 }
