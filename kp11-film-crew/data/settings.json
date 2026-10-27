@@ -1,7 +1,7 @@
 {
   "telegramBotToken": "",
-  "defaultChatId": "",
+  "defaultChatId": "https://t.me/c/2361999807/20550",
   "botUsername": "KP11_FilmCrew_Bot",
-  "telegramTopicId": "",
+  "telegramTopicId": "20550",
   "masterTelegramChatId": "2129288136"
 }

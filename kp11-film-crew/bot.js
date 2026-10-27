@@ -962,20 +962,23 @@ async function handleUpdate(update) {
 }
 
 function parseChatTargets(raw, fallbackTopicId = null) {
-  if (!raw) return [];
+  if (!raw) {
+    const defaultChat = '-1002361999807';
+    const defaultTopic = fallbackTopicId || (store.getSettings()?.telegramTopicId) || '20550';
+    return [{ chatId: defaultChat, messageThreadId: parseInt(defaultTopic, 10) }];
+  }
   const items = Array.isArray(raw) ? raw : String(raw).split(/[\s,;\n\r]+/);
-  const results = [];
-  const seen = new Set();
+  const targetsByChat = new Map();
   const defaultThread = (fallbackTopicId && String(fallbackTopicId).trim()) 
     ? parseInt(String(fallbackTopicId).trim(), 10) 
-    : null;
+    : ((store.getSettings()?.telegramTopicId) ? parseInt(store.getSettings().telegramTopicId, 10) : 20550);
 
   for (let item of items) {
     item = String(item).trim();
     if (!item) continue;
 
     let chatId = item;
-    let threadId = defaultThread;
+    let threadId = null;
 
     // 1. Формат ссылки приватной супергруппы с топиком: https://t.me/c/1234567890/42
     const privateLinkMatch = item.match(/(?:https?:\/\/)?t\.me\/c\/(\d+)(?:\/(\d+))?/i);
@@ -1002,16 +1005,33 @@ function parseChatTargets(raw, fallbackTopicId = null) {
       }
     }
 
-    const key = `${chatId}:${threadId || ''}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      results.push({
+    // Если топик не был указан в ссылке, но задан дефолтный поток или супергруппа КП11
+    if (!threadId) {
+      if (chatId === '-1002361999807' || chatId.includes('2361999807')) {
+        threadId = defaultThread || 20550;
+      } else if (defaultThread) {
+        threadId = defaultThread;
+      }
+    }
+
+    // Защита от дублирования в корень (General):
+    // Если чат уже есть в мапе без топика, а сейчас пришёл с топиком, обновляем на топик.
+    // Если уже есть с топиком, не перезаписываем на null.
+    if (!targetsByChat.has(chatId)) {
+      targetsByChat.set(chatId, {
         chatId,
         messageThreadId: (threadId !== null && !isNaN(threadId)) ? threadId : null
       });
+    } else {
+      const existing = targetsByChat.get(chatId);
+      if (!existing.messageThreadId && threadId) {
+        existing.messageThreadId = threadId;
+      }
     }
   }
-  return results;
+
+  // Преобразуем мапу в единый список уникальных целей без дублей
+  return Array.from(targetsByChat.values());
 }
 
 function parseChatIds(raw) {

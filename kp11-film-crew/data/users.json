@@ -1063,5 +1063,32 @@
     "completedShoots": 0,
     "likes": 0,
     "dislikes": 0
+  },
+  {
+    "id": "u-mvoay96d-8dsyi",
+    "fullName": "Ягутян Александра",
+    "email": "yagutyan@kp11.ru",
+    "groupName": "ЦКТ",
+    "rating": 5,
+    "telegram": "@min1_m1chael",
+    "telegramChatId": "2129288136",
+    "craftRank": "Мастер курса // Режиссёр-постановщик",
+    "isSuspended": false,
+    "role": {
+      "name": "Мастер / Преподаватель"
+    },
+    "competencies": {
+      "camera": 95,
+      "sound": 90,
+      "light": 90,
+      "edit": 95
+    },
+    "skills": [
+      "Режиссура",
+      "Продюсирование",
+      "Постановка кадра",
+      "Сценарное мастерство"
+    ],
+    "completedShoots": 10
   }
 ]
