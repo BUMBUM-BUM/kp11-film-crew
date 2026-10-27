@@ -3,6 +3,16 @@
   "masterChatId": "2129288136",
   "tasks": [
     {
+      "id": "TASK-002-9981",
+      "text": "напиши статус задачи",
+      "author": "@Min1_M1chael",
+      "authorChatId": "2129288136",
+      "createdAt": "2026-10-27T14:07:09.981Z",
+      "status": "DONE",
+      "solution": "Отчёт о статусе задач и телеметрии отправлен мастеру в Telegram",
+      "updatedAt": "2026-10-27T14:10:37.894Z"
+    },
+    {
       "id": "TASK-001-5387",
       "text": "Напиши тестовое сообщение",
       "author": "@Min1_M1chael",
@@ -14,5 +24,5 @@
     }
   ],
   "questions": [],
-  "updatedAt": "2026-10-27T13:19:22.688Z"
+  "updatedAt": "2026-10-27T14:10:37.894Z"
 }
