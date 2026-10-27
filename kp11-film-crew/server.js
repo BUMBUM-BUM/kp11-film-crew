@@ -2239,7 +2239,7 @@ app.post('/api/master/tasks/:id', (req, res) => {
 
 app.post('/api/master/message', async (req, res) => {
   try {
-    const masterChatId = store.getMasterChatId() || '2129288136';
+    const masterChatId = req.body.chatId || store.getMasterChatId() || '2129288136';
     const msgText = req.body.message || req.body.text || '';
     const result = await telegramBot.sendMessage(masterChatId, msgText);
     res.json({ success: true, result });
